@@ -94,13 +94,13 @@ class AccountInvoice(models.Model):
                           if data.get('state') == 'PAID' and invoice_id.state != 'posted':
                               inv_ref = invoice_id._get_invoice_computed_reference()
                               if invoice_id.state == 'draft':
-                                  journa_id = self.env['account.journal'].search(
-                                      [('id', '=', 7)])
+                                  journal_id = self.env['account.journal'].search(
+                                      [('type', '=', 'bank')], limit=1)
                                   payment_method = self.env.ref(
                                       'account.account_payment_method_manual_in')
-                                  journal_payment_methods = journa_id.inbound_payment_method_ids
+                                  journal_payment_methods = journal_id.inbound_payment_method_ids
                                   payment_id = self.env['account.payment'].create({'amount': invoice_id.amount_total,
-                                                                                   'journal_id': 7,
+                                                                                   'journal_id': journal_id.id,
                                                                                    'state': 'draft',
                                                                                    'payment_type': 'inbound',
                                                                                    'partner_type': 'customer',

@@ -71,7 +71,6 @@ class AccountInvoice(models.Model):
                                   partner_id = self.env['res.partner'].create(values)
                           invoice_id = self.env['account.move'].search(
                               [('twikey_invoice_id', '=', data.get('id'))])
-                                invoice_id, invoice_id.state)
                           if not invoice_id:
                               invoice_id = self.env['account.move'].create({'twikey_invoice_id': data.get('id'),
                                                                             'name': data.get('title'),
@@ -88,7 +87,7 @@ class AccountInvoice(models.Model):
                                   invoice_lines = self.env['account.move.line'].create({'product_id': self.env.ref('twikey_integration.product_product_twikey_invoice').id,
                                                                                         'quantity': 1.0,
                                                                                         'price_unit': data.get('amount'),
-                                                                                        'invoice_id': invoice_id.id,
+                                                                                        'move_id': invoice_id.id,
                                                                                         'name': 'Twikey Invoice Product',
                                                                                         'account_id': invoice_account,
                                                                                         })
@@ -97,13 +96,13 @@ class AccountInvoice(models.Model):
                               invoice_id.action_post()
                               inv_ref = invoice_id._get_invoice_computed_reference()
                               if invoice_id.state == 'draft':
-                                  journa_id = self.env['account.journal'].search(
-                                      [('id', '=', 7)])
+                                  journal_id = self.env['account.journal'].search(
+                                      [('type', '=', 'bank')],limit=1)
                                   payment_method = self.env.ref(
                                       'account.account_payment_method_manual_in')
-                                  journal_payment_methods = journa_id.inbound_payment_method_ids
+                                  journal_payment_methods = journal_id.inbound_payment_method_ids
                                   payment_id = self.env['account.payment'].create({'amount': invoice_id.amount_total,
-                                                                                   'journal_id': 7,
+                                                                                   'journal_id': journal_id.id,
                                                                                    'state': 'draft',
                                                                                    'payment_type': 'inbound',
                                                                                    'partner_type': 'customer',
