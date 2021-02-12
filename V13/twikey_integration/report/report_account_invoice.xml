@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="report_invoice_document_inherit_sale_twikey" inherit_id="account.report_invoice_document">
+            <xpath expr="//div[@id='qrcode']" position="after">
+                <a t-if="o.twikey_url" t-att-href="o.twikey_url" target="_blank" class="btn-link">Click to Open Twikey Invoice</a>
+                <br/>
+                <img t-if="o.twikey_url" t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.twikey_url, 120, 120)" style="width:120px;height:120px;"/>
+            </xpath>
+        </template>
+    </data>
+</odoo>

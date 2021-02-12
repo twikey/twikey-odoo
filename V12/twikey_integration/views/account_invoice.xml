@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+       <record id="account_invoice_form_twikey" model="ir.ui.view">
+           <field name="name">account.invoice.view.twikey.form.inherit</field>
+           <field name="model">account.invoice</field>
+           <field name="inherit_id" ref="account.invoice_form"/>
+           <field name="arch" type="xml">
+               <xpath expr="//field[@name='payment_term_id']" position="after">
+                    <field name="twikey_url" widget="url"/>
+                    <field name="twikey_invoice_id"/>
+               </xpath>
+           </field>
+       </record>
+</odoo>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mandate_details_view_twikey_form" model="ir.ui.view">
+        <field name="name">mandate.details.view.twikey.form</field>
+        <field name="model">mandate.details</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="%(twikey_integration.mandate_cancel_reason_action)d" string="Cancel" type="action" class="oe_highlight"/>
+                    <button name="update_mandate_details" string="Update Mandate Details on Twikey" type="object" class="oe_highlight"/>
+                    <field name="state" widget="statusbar" nolabel="1"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="partner_id" placeholder="Customer"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="creditor_id"/>
+                            <field name="reference" readonly="1"/>
+                            <field name="contract"/>
+                            <field name="url" widget="url"/>
+                        </group>
+                        <group>
+                            <field name="iban"/>
+                            <field name="bic"/>
+                            <field name="lang"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Description"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <record id="mandate_details_view_twikey_tree" model="ir.ui.view">
+        <field name="name">mandate.details.view.twikey.tree</field>
+        <field name="model">mandate.details</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="partner_id"/>
+                <field name="creditor_id"/>
+                <field name="reference"/>
+                <field name="contract"/>
+                <field name="lang"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="mandate_details_action" model="ir.actions.act_window">
+        <field name="name">Mandate</field>
+        <field name="res_model">mandate.details</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+    
+    <menuitem id="menu_action_mandate_details_view" action="mandate_details_action"
+                  parent="contacts.menu_contacts" sequence="1"/>
+</odoo>

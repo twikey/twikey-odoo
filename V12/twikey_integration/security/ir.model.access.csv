@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mandate_details,access_all_mandate_details,model_mandate_details,,1,1,1,1
+access_mandate_cancel_reason,access_all_mandate_cancel_reason,model_mandate_cancel_reason,,1,1,1,1
