@@ -207,7 +207,6 @@ class AccountPayment(models.TransientModel):
         for rec in self:
             invoice_id = self.env['account.move'].search([('id','=',self.env.context.get('active_id'))])
             if invoice_id:
-                      invoice_id.payment_state)
                 if invoice_id.payment_state == "paid":
                     authorization_token = self.env['ir.config_parameter'].sudo().get_param(
                         'twikey_integration.authorization_token')
