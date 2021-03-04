@@ -5,7 +5,7 @@ import requests
 import json
 from datetime import datetime
 import base64
-
+import random
 
 class SaleAdvancePaymentInv(models.TransientModel):
     _name = 'sale.advance.payment.inv'
@@ -45,6 +45,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                     }
                     try:
                         response = requests.post('https://api.beta.twikey.com/creditor/invoice', data=data, headers={'authorization' : authorization_token})
+                        resp_obj = response.json()
                         if response.status_code == 400 and resp_obj.get('message') and resp_obj.get('message') == 'Debtor was not found':
                             data = """{
                                     "number" : "%(id)s",
