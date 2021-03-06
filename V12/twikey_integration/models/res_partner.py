@@ -21,6 +21,8 @@ class ResPartner(models.Model):
         if module_twikey:
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
+            base_url=self.env['ir.config_parameter'].sudo().get_param(
+                    'twikey_integration.base_url')
             data = {'ct' : 2833,
                     'customerNumber' : self.id,
                     'firstname' : self.name.split(' ')[0] if self.name and self.company_type == 'person' else '',
@@ -35,7 +37,7 @@ class ResPartner(models.Model):
                     'vatno' : self.vat if self.company_type == 'company' else ''
                 }
             try:
-                response = requests.post("https://api.beta.twikey.com/creditor/invite", data=data, headers={'Authorization' : authorization_token})
+                response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
                 resp_obj = json.loads(response.content)
                 if response.status_code == 200:
                     mandate_id = self.env['mandate.details'].sudo().create({'lang' : self.lang, 'partner_id' : self.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})

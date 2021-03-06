@@ -26,9 +26,11 @@ class MandateDetails(models.Model):
     def update_feed(self):
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')                
         if authorization_token:
             try:
-                response = requests.get("https://api.beta.twikey.com/creditor/mandate", headers={'Authorization' : authorization_token})
+                response = requests.get(base_url+"/creditor/mandate", headers={'Authorization' : authorization_token})
                 resp_obj = json.loads(response.text)
                 if response.status_code == 200:
                     if resp_obj.get('Messages') and resp_obj.get('Messages')[0] and resp_obj.get('Messages')[0] != []:
@@ -124,6 +126,8 @@ class MandateDetails(models.Model):
     def update_mandate_details(self):
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')                
         if authorization_token:
             data = {'mndtId' : self.reference,
                     'iban' : self.iban if self.iban else '',
@@ -140,7 +144,23 @@ class MandateDetails(models.Model):
                     'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
                     }
             try:
-                response = requests.post("https://api.beta.twikey.com/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+                response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                raise exceptions.AccessError(
+                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                )
+                
+    def cancel_or_delete_mandate(self):
+        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')                
+        if authorization_token:
+            data = {'mndtId' : self.reference,
+                    'rsn' : self.rsn if self.rsn else 'No reason given'
+                    }
+            try:
+                response = requests.delete(base_url+"/creditor/mandate", data=data, headers={'Authorization' : authorization_token})
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')

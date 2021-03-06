@@ -17,12 +17,12 @@
                             </div>
                             <div attrs="{'invisible': [('module_twikey', '=', False)]}">
                                 <div class="content-group mt16">
-                                    <label for="api_key" class="o_light_label"/>
-                                    <field name="api_key"/>
+                                    <label for="test" class="o_light_label"/>
+                                    <field name="test"/>
                                 </div>
                                 <div class="content-group mt16">
-                                    <label for="authorization_token" class="o_light_label"/>
-                                    <field name="authorization_token"/>
+                                    <label for="api_key" class="o_light_label"/>
+                                    <field name="api_key"/>
                                 </div>
                             </div>
                         </div>
