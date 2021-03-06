@@ -31,7 +31,7 @@ class MandateDetails(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/mandate", headers={'Authorization' : authorization_token})
-                resp_obj = json.loads(response.text)
+                resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Messages') and resp_obj.get('Messages')[0] and resp_obj.get('Messages')[0] != []:
                         for data in resp_obj.get('Messages'):

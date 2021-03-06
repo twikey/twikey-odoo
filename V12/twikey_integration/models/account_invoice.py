@@ -38,7 +38,7 @@ class AccountInvoice(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
-                resp_obj = json.loads(response.text)
+                resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Invoices') and resp_obj.get('Invoices')[0] and resp_obj.get('Invoices')[0] != []:
                         for data in resp_obj.get('Invoices'):

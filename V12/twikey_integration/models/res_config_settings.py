@@ -17,8 +17,9 @@ class ResConfigSettings(models.TransientModel):
     def authenticate(self):
         api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
+            base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             try:
-                response = requests.post("https://api.beta.twikey.com/creditor", data={'apiToken':api_key})
+                response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
                 param = self.env['ir.config_parameter'].sudo()
                 if response.status_code == 200:
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))

@@ -37,8 +37,10 @@ class ResPartner(models.Model):
                     'vatno' : self.vat if self.company_type == 'company' else ''
                 }
             try:
+                _logger.debug('New invite: {}'.format(data))
                 response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
-                resp_obj = json.loads(response.content)
+                _logger.debug('Response invite: {}'.format(response.content))
+                resp_obj = response.json()
                 if response.status_code == 200:
                     mandate_id = self.env['mandate.details'].sudo().create({'lang' : self.lang, 'partner_id' : self.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
                     self.write({'twikey_reference' : str(self.id)})
