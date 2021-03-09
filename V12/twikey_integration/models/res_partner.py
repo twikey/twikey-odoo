@@ -14,6 +14,7 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
     
     twikey_reference = fields.Char(string="Twikey Reference", help="Twikey Customer Number will be save in this field.")
+    mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
     
     def action_invite_customer(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param(
@@ -21,12 +22,13 @@ class ResPartner(models.Model):
         if module_twikey:
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
+
             base_url=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
             data = {'ct' : 2833,
                     'customerNumber' : self.id,
-                    'firstname' : self.name.split(' ')[0] if self.name and self.company_type == 'person' else '',
-                    'lastname' : self.name.split(' ')[1] if self.name and self.company_type == 'person' else '',
+                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else '',
+                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
                     'email' : self.email if self.email else '',
                     'mobile' : self.mobile if self.mobile else self.phone if self.phone else '',
                     'address' : self.street if self.street else '',
@@ -44,6 +46,21 @@ class ResPartner(models.Model):
                 if response.status_code == 200:
                     mandate_id = self.env['mandate.details'].sudo().create({'lang' : self.lang, 'partner_id' : self.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
                     self.write({'twikey_reference' : str(self.id)})
+                    view = self.env.ref('twikey_integration.success_message_wizard')
+                    view_id = view and view.id or False
+                    context = dict(self._context or {})
+                    context['message'] = "Mandate Created Successfully."
+                    return {
+                        'name': 'Success',
+                        'type': 'ir.actions.act_window',
+                        'view_type': 'form',
+                        'view_mode': 'form',
+                        'res_model': 'success.message.wizard',
+                        'views': [(view.id, 'form')],
+                        'view_id': view.id,
+                        'target': 'new',
+                        'context': context
+                    }
                 else:
                     raise UserError(_('%s')
                                 % (resp_obj.get('message')))

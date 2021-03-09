@@ -3,6 +3,7 @@
 from odoo import api, fields, models, exceptions,_
 import requests
 import json
+from odoo.exceptions import UserError
 
 
 def _lang_get(self):
@@ -18,7 +19,7 @@ class MandateDetails(models.Model):
     reference = fields.Char(tring="Mandate Reference", required=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract = fields.Char(string="Contract")
+    contract = fields.Char(string="Contract Template", default="Mandate for Techultra")
     description = fields.Text(string="Description")
     lang = fields.Selection(_lang_get, string='Language')
     url = fields.Char(string="URL")
@@ -122,19 +123,23 @@ class MandateDetails(models.Model):
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
-
-    def update_mandate_details(self):
+                
+    def sync_mandate(self):
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
         base_url=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.base_url')                
         if authorization_token:
-            data = {'mndtId' : self.reference,
+            self.update_feed()
+            customer_name = self.partner_id.name.split(' ')
+            data = {'mndtId' : self.reference if self.reference else '',
                     'iban' : self.iban if self.iban else '',
                     'bic' : self.bic if self.bic else '',
+                    'l' : self.lang if self.lang else '',
+                    'state' : self.state,
                     'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
-                    'firstname' : self.partner_id.name.split(' ')[0] if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'person' else '',
-                    'lastname' : self.partner_id.name.split(' ')[1] if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'person' else '',
+                    'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
+                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.partner_id.company_type == 'person' else '',
                     'companyName' : self.partner_id.name if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'company' else '',
                     'vatno' : self.partner_id.vat if self.partner_id and self.partner_id.vat and self.partner_id.company_type == 'company' else '',
                     'customerNumber' : self.id,
@@ -165,15 +170,41 @@ class MandateDetails(models.Model):
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+
+    def write(self, values):
+        res = super(MandateDetails, self).write(values)
+        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.authorization_token')
+        if authorization_token:
+#             if values.get('partner_id'):
+#                 customer_name = values.get('partner_id').name.split(' ')
+#             else:
+#                 customer_name = self.partner_id.name.split(' ')
+            data = {'mndtId' : values.get('reference') if values.get('reference') else self.reference,
+                    'iban' : values.get('iban') if values.get('iban') else self.iban if self.iban else '',
+                    'bic' : values.get('bic') if values.get('bic') else self.bic if self.bic else '',
+                    'l' : values.get('lang') if values.get('lang') else self.lang if self.lang else ''
+                }
+#                     'state' : values.get('state') if values.get('state') else self.state
+#                     'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
+#                     'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
+#                     'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.partner_id.company_type == 'person' else '',
+#                     'companyName' : values.get('partner_id').name if values.get('partner_id') else self.partner_id.name if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'company' else '',
+#                     'vatno' : self.partner_id.vat if self.partner_id and self.partner_id.vat and self.partner_id.company_type == 'company' else '',
+#                     'customerNumber' : self.id,
+#                     'address' : self.partner_id.street if self.partner_id and self.partner_id.street else '',
+#                     'city' : self.partner_id.city if self.partner_id and self.partner_id.city else '',
+#                     'zip' : self.partner_id.zip if self.partner_id and self.partner_id.zip else '',
+#                     'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
+#                     }
+            try:
+                response = requests.post("https://api.beta.twikey.com/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+                if response.status_code != 204:
+                    resp_obj = json.loads(response.content)
+                    raise UserError(_('%s')
+                                % (resp_obj.get('message')))
+            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                raise exceptions.AccessError(
+                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                )
+        return res

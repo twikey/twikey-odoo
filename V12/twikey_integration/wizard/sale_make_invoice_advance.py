@@ -47,6 +47,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                         response = requests.post('https://api.beta.twikey.com/creditor/invoice', data=data, headers={'authorization' : authorization_token})
                         resp_obj = response.json()
                         if response.status_code == 400 and resp_obj.get('message') and resp_obj.get('message') == 'Debtor was not found':
+                            partner_name = invoice_id.partner_id.name.split(' ')
                             data = """{
                                     "number" : "%(id)s",
                                     "title" : "INVOICE_%(id)s",
@@ -72,8 +73,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                             'DueDate' : invoice_id.date_due if invoice_id.date_due else fields.Date.context_today(self),
                                             'CustomerNumber' : invoice_id.partner_id.id if invoice_id.partner_id else '',
                                             'Email' : invoice_id.partner_id.email if invoice_id.partner_id.email else '',
-                                            'FirstName' : invoice_id.partner_id.name.split(' ')[0] if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'person' else 'unknown',
-                                            'LastName' : invoice_id.partner_id.name.split(' ')[1] if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                                            'FirstName' : partner_name[0] if partner_name and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                                            'LastName' : partner_name[1] if partner_name and len(partner_name) > 1 and invoice_id.partner_id.company_type == 'person' else 'unknown',
                                             'CompanyName' : invoice_id.partner_id.name if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'company' else '',
                                             'Coc' : invoice_id.partner_id.vat if invoice_id.partner_id and invoice_id.partner_id.vat and invoice_id.partner_id.company_type == 'company' else '',
                                             'Address' : invoice_id.partner_id.street if invoice_id.partner_id and invoice_id.partner_id.street else '',
