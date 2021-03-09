@@ -33,10 +33,12 @@ class AccountInvoice(models.Model):
     def update_invoice_feed(self):
         authorization_token = self.env['ir.config_parameter'].sudo().get_param(
             'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')     
         if authorization_token:
             try:
-                response = requests.get("https://api.beta.twikey.com/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
-                resp_obj = json.loads(response.text)
+                response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
+                resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Invoices') and resp_obj.get('Invoices')[0] and resp_obj.get('Invoices')[0] != []:
                         for data in resp_obj.get('Invoices'):
@@ -133,6 +135,8 @@ class AccountInvoice(models.Model):
         res = super(AccountInvoice, self).write(values)
         authorization_token = self.env['ir.config_parameter'].sudo().get_param(
                         'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                    'twikey_integration.base_url')
         if authorization_token:
             for rec in self:
                 if rec.twikey_invoice_id:
@@ -149,7 +153,7 @@ class AccountInvoice(models.Model):
                                 'ReportFile': report_file_decode
                                 }
                     try:
-                        response = requests.put('https://api.beta.twikey.com/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                        response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(
                             _('The url that this service requested returned an error. Please check your connection or try after sometime.')

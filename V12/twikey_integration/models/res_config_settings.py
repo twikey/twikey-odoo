@@ -10,14 +10,16 @@ class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
     api_key = fields.Char(string="API Key", help="Add Api Key from Twikey")
+    test = fields.Boolean(string="Test", help="Use Twikey Test environment")
     module_twikey = fields.Boolean(string="Enable Twikey Integration", helgrp="Use for enable Twikey Integration")
     authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.")
 
     def authenticate(self):
         api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
+            base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             try:
-                response = requests.post("https://api.beta.twikey.com/creditor", data={'apiToken':api_key})
+                response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
                 param = self.env['ir.config_parameter'].sudo()
                 if response.status_code == 200:
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))
@@ -34,8 +36,8 @@ class ResConfigSettings(models.TransientModel):
                 'twikey_integration.api_key'),
             module_twikey=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.module_twikey'),
-            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token'),
+            test=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url') != 'https://api.twikey.com',
         )
         return res
 
@@ -44,9 +46,15 @@ class ResConfigSettings(models.TransientModel):
         param = self.env['ir.config_parameter'].sudo()
 
         api_key = self.api_key or False
+        testmode = self.test or False
         module_twikey = self.module_twikey or False
         authorization_token = self.authorization_token or False
 
+        base_url = 'https://api.twikey.com'
+        if testmode:
+            base_url = 'https://api.beta.twikey.com'
+
         param.set_param('twikey_integration.api_key', api_key)
+        param.set_param('twikey_integration.base_url', base_url)
         param.set_param('twikey_integration.module_twikey', module_twikey)
         param.set_param('twikey_integration.authorization_token', authorization_token)

@@ -7,7 +7,7 @@
            <field name="arch" type="xml">
                <xpath expr="//form//sheet" position="before">
                    <header>
-                       <button name="action_invite_customer" string="Document Signature via Twikey" type="object" class="oe_highlight"/>
+                       <button name="action_invite_customer" string="New Twikey" type="object" class="oe_highlight"/>
                    </header>
                </xpath>
                <xpath expr="//field[@name='vat']" position="after">
