@@ -20,10 +20,6 @@
                                     <label for="api_key" class="o_light_label"/>
                                     <field name="api_key"/>
                                 </div>
-                                <div class="content-group mt16">
-                                    <label for="authorization_token" class="o_light_label"/>
-                                    <field name="authorization_token"/>
-                                </div>
                             </div>
                         </div>
                     </div>

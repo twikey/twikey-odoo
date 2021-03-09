@@ -7,29 +7,28 @@
             <form>
                 <header>
                     <button name="%(twikey_integration.mandate_cancel_reason_action)d" string="Cancel" type="action" class="oe_highlight"/>
-                    <button name="update_mandate_details" string="Update Mandate Details on Twikey" type="object" class="oe_highlight"/>
+                    <button name="sync_mandate" string="Sync" type="object" class="oe_highlight"/>
                     <field name="state" widget="statusbar" nolabel="1"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="partner_id" placeholder="Customer"/>
+                            <field name="partner_id" placeholder="Customer" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="creditor_id"/>
                             <field name="reference" readonly="1"/>
-                            <field name="contract"/>
-                            <field name="url" widget="url"/>
+                            <field name="contract" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
+                            <field name="url" widget="url" attrs="{'invisible': [('state', '!=', 'pending')]}"/>
                         </group>
                         <group>
-                            <field name="iban"/>
-                            <field name="bic"/>
-                            <field name="lang"/>
+                            <field name="iban" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
+                            <field name="bic" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
+                            <field name="lang" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                         </group>
                     </group>
-                    <field name="description" placeholder="Description"/>
+                    <field name="description" placeholder="Description" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                 </sheet>
             </form>
         </field>
@@ -41,7 +40,6 @@
         <field name="arch" type="xml">
             <tree>
                 <field name="partner_id"/>
-                <field name="creditor_id"/>
                 <field name="reference"/>
                 <field name="contract"/>
                 <field name="lang"/>

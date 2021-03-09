@@ -18,6 +18,7 @@
         'views/res_config_settings_views.xml',
         'views/res_partner_view.xml',
         'wizard/wizard_cancel_reason.xml',
+        'wizard/success_message_wizard.xml',
         'views/mandate_details.xml',
         'views/account_invoice.xml',
         'report/report_account_invoice.xml',
