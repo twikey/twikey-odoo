@@ -27,8 +27,8 @@ class ResPartner(models.Model):
                     'twikey_integration.base_url')
             data = {'ct' : 2833,
                     'customerNumber' : self.id,
-                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else '',
-                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
+                    'firstname' : self.name.split(' ')[0] if self.name and self.company_type == 'person' else '',
+                    'lastname' : self.name.split(' ')[1] if self.name and self.company_type == 'person' else '',
                     'email' : self.email if self.email else '',
                     'mobile' : self.mobile if self.mobile else self.phone if self.phone else '',
                     'address' : self.street if self.street else '',
