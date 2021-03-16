@@ -25,10 +25,11 @@ class ResPartner(models.Model):
 
             base_url=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
+            customer_name = self.name.split(' ')
             data = {'ct' : 2833,
                     'customerNumber' : self.id,
-                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else '',
-                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
+                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else 'unknown',
+                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else 'unknown',
                     'email' : self.email if self.email else '',
                     'mobile' : self.mobile if self.mobile else self.phone if self.phone else '',
                     'address' : self.street if self.street else '',

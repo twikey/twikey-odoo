@@ -9,7 +9,7 @@
     'author': "TechUltra Solutions",
     'website': "https://www.techultrasolutions.com/",
     'description': """ """,
-    'depends': ['sale_management', 'account', 'product','contacts'],
+    'depends': ['sale_management', 'account', 'product', 'contacts'],
     'data': [
         'data/schedulers.xml',
         'data/mail_template.xml',
@@ -18,6 +18,7 @@
         'views/res_config_settings_views.xml',
         'views/res_partner_view.xml',
         'wizard/wizard_cancel_reason.xml',
+        'wizard/success_message_wizard.xml',
         'views/mandate_details.xml',
         'views/account_move.xml',
         'report/report_account_invoice.xml',
