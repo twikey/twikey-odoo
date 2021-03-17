@@ -9,11 +9,22 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+Field_Type = {'text' : 'char',
+              'number' : 'integer',
+              'amount' : 'float',
+              'select' : 'selection',
+              'plan' : 'char',
+              'email' : 'char',
+              'url' : 'char',
+              'checkbox' : 'boolean',
+              'iban' : 'char',
+              'multi' : 'char'
+              }
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
     
-    twikey_reference = fields.Char(string="Twikey Reference", help="Twikey Customer Number will be save in this field.")
+    twikey_reference = fields.Char(string="Twikey Reference", copy = False, help="Twikey Customer Number will be save in this field.")
     mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
     
     def action_invite_customer(self):
@@ -22,52 +33,55 @@ class ResPartner(models.Model):
         if module_twikey:
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
-
             base_url=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
-            data = {'ct' : 2833,
-                    'customerNumber' : self.id,
-                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else '',
-                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
-                    'email' : self.email if self.email else '',
-                    'mobile' : self.mobile if self.mobile else self.phone if self.phone else '',
-                    'address' : self.street if self.street else '',
-                    'city' : self.city if self.city else '',
-                    'zip' : self.zip if self.zip else '',
-                    'country' : self.country_id.name if self.country_id else '',
-                    'companyName' : self.name if self.company_type == 'company' else '',
-                    'vatno' : self.vat if self.company_type == 'company' else ''
-                }
-            try:
-                _logger.debug('New invite: {}'.format(data))
-                response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
-                _logger.debug('Response invite: {}'.format(response.content))
+            response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
+            if response.status_code == 200:
                 resp_obj = response.json()
-                if response.status_code == 200:
-                    mandate_id = self.env['mandate.details'].sudo().create({'lang' : self.lang, 'partner_id' : self.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                    self.write({'twikey_reference' : str(self.id)})
-                    view = self.env.ref('twikey_integration.success_message_wizard')
-                    view_id = view and view.id or False
-                    context = dict(self._context or {})
-                    context['message'] = "Mandate Created Successfully."
-                    return {
-                        'name': 'Success',
-                        'type': 'ir.actions.act_window',
-                        'view_type': 'form',
-                        'view_mode': 'form',
-                        'res_model': 'success.message.wizard',
-                        'views': [(view.id, 'form')],
-                        'view_id': view.id,
-                        'target': 'new',
-                        'context': context
-                    }
-                else:
-                    raise UserError(_('%s')
-                                % (resp_obj.get('message')))
-            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                fields_list = []
+                for resp in resp_obj:
+                    
+                    template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id'))])
+                    if not template_id:
+                        template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
+                    if resp.get('Attributes') != []:
+                        for attr in resp.get('Attributes'):
+                            select_list = []
+                            field_type = attr.get('type')
+                            if field_type == 'select':
+                                for select in attr.get('Options'):
+                                    select_list.append((str(select),str(select)))
+                            search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name'))])
+                            if not search_fields and field_type != 'iban':
+                                ir_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name'),
+                                              'field_description': attr.get('description'),
+                                              'model_id': 296,
+                                              'ttype': Field_Type[field_type],
+                                              'required': attr.get('mandatory'),
+                                              'store': True,
+                                              'readonly': attr.get('readonly'),
+                                              'selection': str(select_list) if select_list != [] else '',
+                                              })
+                                fields_list.append(ir_fields)
+                        inherit_id = self.env.ref('twikey_integration.contract_template_wizard_view_twikey_form')
+                        if fields_list != []:
+                            arch_base = _('<?xml version="1.0"?>'
+                                         '<data>'
+                                         '<field name="template_id" position="after">')
+                            for f in fields_list:
+                                arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)]}"/>''' %(f.name, template_id.id)
+                            
+                            arch_base += _('</field>'
+                                        '</data>')
+                            view = self.env['ir.ui.view'].sudo().create({'name': 'attribute.dynamic.fields.',
+                                                                 'type': 'form',
+                                                                 'model': 'contract.template.wizard',
+                                                                 'mode': 'extension',
+                                                                 'inherit_id': inherit_id.id,
+                                                                 'arch_base': arch_base,
+                                                                 'active': True})
+            action = self.env.ref('twikey_integration.contract_template_wizard_action').read()[0]
+            return action
         else:
             raise UserError(_('Please enable Twikey integration from Settings.'))
         

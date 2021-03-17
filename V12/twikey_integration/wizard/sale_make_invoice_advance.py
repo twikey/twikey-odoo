@@ -50,7 +50,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                             partner_name = invoice_id.partner_id.name.split(' ')
                             data = """{
                                     "number" : "%(id)s",
-                                    "title" : "INVOICE_%(id)s",
+                                    "title" : "INV_%(id)s",
                                     "ct" : 2833,
                                     "amount" : %(Amount)s,
                                     "date" : "%(InvoiceDate)s",
@@ -95,7 +95,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                             pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
                             report_file = base64.b64encode(pdf)
                             report_file_decode = report_file.decode('utf-8')
-                            data = """{"title" : "%(Title)s",
+                            data = """{"title" : "INV_%(Title)s",
                                        "date" : "%(InvoiceDate)s",
                                        "duedate" : "%(DueDate)s",
                                        "status" : "booked",
