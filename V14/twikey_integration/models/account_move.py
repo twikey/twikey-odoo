@@ -28,7 +28,7 @@ class AccountInvoice(models.Model):
     twikey_invoice_id = fields.Char(string="Twikey Invoice ID")
 
     def update_invoice_feed(self):
-        authorization_token   = self.env['ir.config_parameter'].sudo().get_param(
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
             'twikey_integration.authorization_token')
         if authorization_token:
             try:
