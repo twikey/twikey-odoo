@@ -13,7 +13,7 @@ _logger = logging.getLogger(__name__)
 class ResPartner(models.Model):
     _inherit = 'res.partner'
     
-    twikey_reference = fields.Char(string="Twikey Reference", help="Twikey Customer Number will be save in this field.")
+    twikey_reference = fields.Char(string="Twikey Reference", copy = False, help="Twikey Customer Number will be save in this field.")
     mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
     
     def action_invite_customer(self):

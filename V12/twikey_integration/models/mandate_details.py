@@ -40,15 +40,15 @@ class MandateDetails(models.Model):
                             if data.get('AmdmntRsn'):
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
-                                    partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') else '')])
+                                    partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 if not partner_id:
                                     if data.get('Mndt').get('Dbtr').get('Nm'):
                                         partner_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Dbtr').get('Nm'))])
                                     if not partner_id:
                                         partner_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Dbtr').get('Nm')})
-                                creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
-                                if not creditor_id:
-                                    creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
+                                # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
+                                # if not creditor_id:
+                                #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
                                 if mandate_id:
                                     lst = data.get('Mndt').get('SplmtryData')
                                     lang = False
@@ -60,7 +60,6 @@ class MandateDetails(models.Model):
                                     mandate_id.write({'reference' : data.get('Mndt').get('MndtId') if data.get('Mndt').get('MndtId') else False,
                                                    'partner_id' : partner_id.id if partner_id else False,
                                                    'state' : 'signed',
-                                                   'creditor_id' : creditor_id.id if creditor_id else False,
                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                    'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                    'lang': lang_id.code if lang_id else False
@@ -79,31 +78,30 @@ class MandateDetails(models.Model):
                                         partner_id.write({'street' : address,
                                                           'name' : data.get('Mndt').get('Dbtr').get('Nm'),
                                                           'zip' : zip,
-                                                          'twikey_reference':data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') else '',
+                                                          'twikey_reference':data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '',
                                                           'city' : city,
                                                           'country_id' : country_id.id if country_id else False,
                                                           'lang': lang_id.code if lang_id else False,
                                                           'email' : data.get('Mndt').get('Dbtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('EmailAdr') else False})
 
-                                    if creditor_id:
-                                        address = False
-                                        zip = False
-                                        city = False
-                                        country_id = False
-                                        if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('PstlAdr'):
-                                            address_line = data.get('Mndt').get('Cdtr').get('PstlAdr')
-                                            address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
-                                            zip = address_line.get('PstCd') if address_line.get('PstCd') else False
-                                            city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
-                                            country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
-                                        creditor_id.write({'street' : address,
-                                                          'zip' : zip,
-                                                          'city' : city,
-                                                          'country_id' : country_id.id if country_id else False,
-                                                          'email' : data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('CtctDtls') and data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') else False})
+                                    # if creditor_id:
+                                    #     address = False
+                                    #     zip = False
+                                    #     city = False
+                                    #     country_id = False
+                                    #     if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('PstlAdr'):
+                                    #         address_line = data.get('Mndt').get('Cdtr').get('PstlAdr')
+                                    #         address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
+                                    #         zip = address_line.get('PstCd') if address_line.get('PstCd') else False
+                                    #         city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
+                                    #         country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
+                                    #     creditor_id.write({'street' : address,
+                                    #                       'zip' : zip,
+                                    #                       'city' : city,
+                                    #                       'country_id' : country_id.id if country_id else False,
+                                    #                       'email' : data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('CtctDtls') and data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') else False})
                                 else:
                                     mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False,
-                                                                                            'creditor_id' : creditor_id.id if creditor_id else False,
                                                                                             'reference' : data.get('Mndt').get('MndtId'),
                                                                                             'state' : 'signed'
                                                                                             })
@@ -120,7 +118,7 @@ class MandateDetails(models.Model):
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('Mndt').get('MndtId'))])
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
 
-                                    partner_id = self.env['res.partner'].search([('id', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') else '')])
+                                    partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 elif data.get('Mndt').get('Dbtr').get('Nm'):
                                     partner_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Dbtr').get('Nm'))])
                                 else:
@@ -139,17 +137,17 @@ class MandateDetails(models.Model):
                                     partner_id.write({'street' : address,
                                                       'name' : data.get('Mndt').get('Dbtr').get('Nm') if data.get('Mndt').get('Dbtr').get('Nm') else False,
                                                       'zip' : zip,
-                                                      'twikey_reference':data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') else '',
+                                                      'twikey_reference': data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '',
                                                       'city' : city,
                                                       'country_id' : country_id.id if country_id else False,
                                                       'email' : data.get('Mndt').get('Dbtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('EmailAdr') else False})
 
-                                creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
-                                if not creditor_id:
-                                    creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
+                                # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
+                                # if not creditor_id:
+                                #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
 
                                 if not mandate_id:
-                                    mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False, 'reference' : data.get('Mndt').get('MndtId'), 'creditor_id' : creditor_id.id if creditor_id else False, 'state' : 'signed'})
+                                    mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False, 'reference' : data.get('Mndt').get('MndtId'), 'state' : 'signed'})
                                 else:
                                     lst = data.get('Mndt').get('SplmtryData')
                                     lang = False
@@ -159,7 +157,6 @@ class MandateDetails(models.Model):
                                     lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
                                     mandate_id.write({'state' : 'signed',
                                                    'partner_id' : partner_id.id if partner_id else False,
-                                                   'creditor_id' : creditor_id.id if creditor_id else False,
                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                    'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                    'lang': lang_id.code if lang_id else False,
