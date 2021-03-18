@@ -28,6 +28,7 @@ class ContractTemplateWizard(models.Model):
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
         data = {'ct' : self.template_id.template_id,
+            'sendInvite' : True,
             'customerNumber' : partner_id.id,
             'firstname' : customer_name[0] if customer_name and partner_id.company_type == 'person' else '',
             'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and partner_id.company_type == 'person' else '',
@@ -50,7 +51,8 @@ class ContractTemplateWizard(models.Model):
             new_keys = []
             field_id = False
             for key,value in get_fields[0].items():
-                field_id = self.env['ir.model.fields'].search([('name', '=', key)])
+                model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
+                field_id = self.env['ir.model.fields'].search([('name', '=', key), ('model_id', '=', model_id.id)])
                 if field_id.ttype != 'boolean' and value == False:
                     get_fields[0].update({key : ''})
                 new_keys.append(key.lstrip('x_'))
@@ -63,7 +65,8 @@ class ContractTemplateWizard(models.Model):
             resp_obj = response.json()
             if response.status_code == 200:
                 mandate_id = self.env['mandate.details'].sudo().create({'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                self.write({'twikey_reference' : str(partner_id.id)})
+                partner_id.write({'twikey_reference' : str(partner_id.id)})
+                mandate_id.write(get_fields[0])
                 view = self.env.ref('twikey_integration.success_message_wizard')
                 view_id = view and view.id or False
                 context = dict(self._context or {})

@@ -30,6 +30,6 @@ class MandateCancelReason(models.TransientModel):
         if response.status_code == 200:
             self.mandate_id.write({'state' : 'cancelled', 'description' : self.name})
         else:
-            resp_obj = json.loads(response.content)
+            resp_obj = response.json()
             raise UserError(_('%s')
                         % (resp_obj.get('message')))

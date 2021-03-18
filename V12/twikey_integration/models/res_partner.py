@@ -39,8 +39,8 @@ class ResPartner(models.Model):
             if response.status_code == 200:
                 resp_obj = response.json()
                 fields_list = []
+                mandate_field_list = []
                 for resp in resp_obj:
-                    
                     template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id'))])
                     if not template_id:
                         template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
@@ -51,11 +51,14 @@ class ResPartner(models.Model):
                             if field_type == 'select':
                                 for select in attr.get('Options'):
                                     select_list.append((str(select),str(select)))
-                            search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name'))])
+                            model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
+                            mandate_model_id = self.env['ir.model'].search([('model', '=', 'mandate.details')])
+                            search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')), ('model_id', '=', model_id.id)])
+                            search_mandate_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')), ('model_id', '=', mandate_model_id.id)])
                             if not search_fields and field_type != 'iban':
                                 ir_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name'),
                                               'field_description': attr.get('description'),
-                                              'model_id': 296,
+                                              'model_id': model_id.id,
                                               'ttype': Field_Type[field_type],
                                               'required': attr.get('mandatory'),
                                               'store': True,
@@ -63,6 +66,17 @@ class ResPartner(models.Model):
                                               'selection': str(select_list) if select_list != [] else '',
                                               })
                                 fields_list.append(ir_fields)
+                            if not search_mandate_fields and field_type != 'iban':
+                                mandate_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name'),
+                                              'field_description': attr.get('description'),
+                                              'model_id': mandate_model_id.id,
+                                              'ttype': Field_Type[field_type],
+                                              'required': attr.get('mandatory'),
+                                              'store': True,
+                                              'readonly': attr.get('readonly'),
+                                              'selection': str(select_list) if select_list != [] else '',
+                                              })
+                                mandate_field_list.append(mandate_fields)
                         inherit_id = self.env.ref('twikey_integration.contract_template_wizard_view_twikey_form')
                         if fields_list != []:
                             arch_base = _('<?xml version="1.0"?>'
@@ -79,6 +93,24 @@ class ResPartner(models.Model):
                                                                  'mode': 'extension',
                                                                  'inherit_id': inherit_id.id,
                                                                  'arch_base': arch_base,
+                                                                 'active': True})
+                            
+                        inherit_mandate_id = self.env.ref('twikey_integration.mandate_details_view_twikey_form')
+                        if mandate_field_list != []:
+                            mandate_arch_base = _('<?xml version="1.0"?>'
+                                         '<data>'
+                                         '<field name="url" position="after">')
+                            for m in mandate_field_list:
+                                mandate_arch_base += '''<field name="%s"/>''' %(m.name)
+                            
+                            mandate_arch_base += _('</field>'
+                                        '</data>')
+                            view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
+                                                                 'type': 'form',
+                                                                 'model': 'mandate.details',
+                                                                 'mode': 'extension',
+                                                                 'inherit_id': inherit_mandate_id.id,
+                                                                 'arch_base': mandate_arch_base,
                                                                  'active': True})
             action = self.env.ref('twikey_integration.contract_template_wizard_action').read()[0]
             return action
