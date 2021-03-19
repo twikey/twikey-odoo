@@ -25,11 +25,17 @@ class MandateCancelReason(models.TransientModel):
         host_url = 'https://api.beta.twikey.com/creditor/mandate'
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
-        prepared_url = host_url + '?mndtId=' + self.mandate_id.reference + '&rsn=' + self.name
-        response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-        if response.status_code == 200:
-            self.mandate_id.write({'state' : 'cancelled', 'description' : self.name})
-        else:
-            resp_obj = json.loads(response.content)
-            raise UserError(_('%s')
-                        % (resp_obj.get('message')))
+        if authorization_token:
+            prepared_url = host_url + '?mndtId=' + self.mandate_id.reference + '&rsn=' + self.name
+            response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+            if response.status_code == 200:
+                self.mandate_id.update_feed()
+                if self.mandate_id.state == 'signed':
+                    self.mandate_id.write({'state' : 'cancelled', 'description' : self.name})
+                if self.mandate_id.state == 'pending':
+                    self.mandate_id.unlink()
+                    return self.env.ref('twikey_integration.mandate_details_action').read()[0]
+            else:
+                resp_obj = response.json()
+                raise UserError(_('%s')
+                            % (resp_obj.get('message')))

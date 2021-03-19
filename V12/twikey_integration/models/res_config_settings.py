@@ -25,8 +25,10 @@ class ResConfigSettings(models.TransientModel):
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+            )        
+        else:
+            raise UserError('Please Add Twikey Api Key from Settings.')
 
     @api.model
     def get_values(self):
