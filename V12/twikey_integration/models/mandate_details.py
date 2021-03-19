@@ -202,29 +202,29 @@ class MandateDetails(models.Model):
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
 
-    def cancel_or_delete_mandate(self):
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
-        if authorization_token:
-            self.update_feed()
-            host_url = base_url+"/creditor/mandate"
-            prepared_url = host_url + '?mndtId=' + self.reference + '&rsn=' + 'Reason'
-#             data = {'mndtId' : self.reference,
-#                     'rsn' : 'No reason given'
-#                     }
-            try:
-                response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-                if response.status_code == 200:
-                    if self.state == 'signed':
-                        self.write({'state' : 'cancelled'})
-                    if self.state == 'pending':
-                        self.unlink()
-            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+#     def cancel_or_delete_mandate(self):
+#         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+#                 'twikey_integration.authorization_token')
+#         base_url=self.env['ir.config_parameter'].sudo().get_param(
+#                 'twikey_integration.base_url')
+#         if authorization_token:
+#             self.update_feed()
+#             host_url = base_url+"/creditor/mandate"
+#             prepared_url = host_url + '?mndtId=' + self.reference + '&rsn=' + 'Reason'
+# #             data = {'mndtId' : self.reference,
+# #                     'rsn' : 'No reason given'
+# #                     }
+#             try:
+#                 response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+#                 if response.status_code == 200:
+#                     if self.state == 'signed':
+#                         self.write({'state' : 'cancelled'})
+#                     if self.state == 'pending':
+#                         self.unlink()
+#             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+#                 raise exceptions.AccessError(
+#                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+#                 )
 
     def write(self, values):
         res = super(MandateDetails, self).write(values)
