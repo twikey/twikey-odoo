@@ -38,7 +38,6 @@ class MandateDetails(models.Model):
                     if resp_obj.get('Messages') and resp_obj.get('Messages')[0] and resp_obj.get('Messages')[0] != []:
                         for data in resp_obj.get('Messages'):
                             if data.get('AmdmntRsn'):
-                                mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 if not partner_id:
@@ -46,6 +45,15 @@ class MandateDetails(models.Model):
                                         partner_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Dbtr').get('Nm'))])
                                     if not partner_id:
                                         partner_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Dbtr').get('Nm')})
+                                mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
+                                if not mandate_id:
+                                    mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False,
+                                                                                            'reference' : data.get('Mndt').get('MndtId'),
+                                                                                            'state' : 'signed',
+                                                                                            'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
+                                                                                            'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
+                                                                                            'lang': lang_id.code if lang_id else False
+                                                                                            })
                                 # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
                                 # if not creditor_id:
                                 #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
@@ -99,14 +107,6 @@ class MandateDetails(models.Model):
                                     #                       'city' : city,
                                     #                       'country_id' : country_id.id if country_id else False,
                                     #                       'email' : data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('CtctDtls') and data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') else False})
-                                else:
-                                    mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False,
-                                                                                            'reference' : data.get('Mndt').get('MndtId'),
-                                                                                            'state' : 'signed',
-                                                                                            'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
-                                                                                            'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
-                                                                                            'lang': lang_id.code if lang_id else False
-                                                                                            })
                             elif data.get('CxlRsn'):
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if mandate_id:
@@ -225,7 +225,7 @@ class MandateDetails(models.Model):
 #                 raise exceptions.AccessError(
 #                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
 #                 )
-
+    @api.multi
     def write(self, values):
         res = super(MandateDetails, self).write(values)
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
@@ -265,3 +265,34 @@ class MandateDetails(models.Model):
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
         return res
+
+    def unlink(self):
+        self.sync_mandate()
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')
+        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.authorization_token')
+        if self.state in ['signed', 'cancelled']:
+            raise UserError(_('This mandate is in already signed or cancelled. It can not be deleted.'))
+        elif self.state == 'pending' and authorization_token:
+            prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
+            response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+            return super(MandateDetails, self).unlink()
+        else:
+            return super(MandateDetails, self).unlink()
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
