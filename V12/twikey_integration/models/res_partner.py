@@ -26,7 +26,14 @@ class ResPartner(models.Model):
     
     twikey_reference = fields.Char(string="Twikey Reference", copy = False, help="Twikey Customer Number will be save in this field.")
     mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
-    
+    twikey_inv_ids = fields.One2many('account.invoice', 'partner_id', string='Invoices', readonly=True, copy=False,
+                                  compute='_compute_invoice_ids')
+
+    def _compute_invoice_ids(self):
+        for res in self:
+            flt_invoice = res.invoice_ids.filtered(lambda x: x.type == 'out_invoice' and x.twikey_invoice_id != False)
+            res.twikey_inv_ids = [(6, 0, [x.id for x in flt_invoice])]
+
     def action_invite_customer(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.module_twikey')
@@ -121,38 +128,65 @@ class ResPartner(models.Model):
     @api.multi
     def write(self, values):
         res = super(ResPartner, self).write(values)
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
+            'twikey_integration.authorization_token')
+        base_url = self.env['ir.config_parameter'].sudo().get_param(
+            'twikey_integration.base_url')
+
+        if self.company_type == 'person':
+            if values.get('name'):
+                customer_name = values.get('name').split(' ')
+            else:
+                customer_name = self.name.split(' ')
+        country_id = False
+        if values.get('country_id'):
+            country_id = self.env['res.country'].browse(values.get('country_id'))
+
+        data = {
+                'email': values.get('email') if values.get('email') else self.email if self.email else '',
+                'firstname': customer_name[0] if customer_name and self.company_type == 'person' else '',
+                'lastname': customer_name[1] if customer_name and len(
+                    customer_name) > 1 and self.company_type == 'person' else '',
+                'companyName': values.get('name') if values.get(
+                    'name') and self.company_type == 'company' else self.name if self.company_type == 'company' else '',
+                'vatno': values.get('vat') if values.get(
+                    'vat') and self.company_type == 'company' else self.vat if self.vat and self.company_type == 'company' else '',
+                'customerNumber': int(values.get('twikey_reference')) if values.get('twikey_reference') else int(
+                    self.twikey_reference) if self.twikey_reference else '',
+                'address': values.get('street') if values.get('street') else self.street if self.street else '',
+                'city': values.get('city') if values.get('city') else self.city if self.city else '',
+                'zip': values.get('zip') if values.get('zip') else self.zip if self.zip else '',
+                'country': country_id.code if country_id != False else self.country_id.code if self.country_id else ''
+                }
         if self.mandate_ids:
-            print ("\n\n\n >>>>>>>>ifififi>>>>>", values)
+            print("\n\n\n >>>>>>>>ifififi>>>>>", values)
             mandate_id = self.mandate_ids[0]
-            if self.company_type == 'person':
-                if values.get('name'):
-                    customer_name = values.get('name').split(' ')
-                else:
-                    customer_name = self.name.split(' ')
-            print ("-----customer_name---------", customer_name)
-            data = {'mndtId' : mandate_id.reference,
-                    'email' : values.get('email') if values.get('email') else self.email if self.email else '',
-                    'firstname' : customer_name[0] if customer_name and self.company_type == 'person' else '',
-                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
-                    'companyName' : values.get('name') if values.get('name') and self.company_type == 'company' else self.name if self.company_type == 'company' else '',
-                    'vatno' : values.get('vat') if values.get('vat') and self.company_type == 'company'else self.vat if self.vat and self.company_type == 'company' else '',
-                    'customerNumber' : int(values.get('twikey_reference')) if values.get('twikey_reference') else int(self.twikey_reference) if self.twikey_reference else '',
-                    'address' : values.get('street') if values.get('street') else self.street if self.street else '',
-                    'city' : values.get('city') if values.get('city') else self.city if self.city else '',
-                    'zip' : values.get('zip') if values.get('zip') else self.zip if self.zip else '',
-                    'country' : self.country_id.code if self.country_id else ''
-                    }
-            print ("*****data********", data)
+            data.update({'mndtId': mandate_id.reference})
             try:
-                response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                print ("========response=========", response)
-            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                response = requests.post(base_url + "/creditor/mandate/update", data=data,
+                                         headers={'Authorization': authorization_token})
+                if response.status_code != 204:
+                    raise UserError(_('%s')
+                                    % (response.json().get('message')))
+
+            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
+                    requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                    _(
+                        'The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
+        # else:
+        #     if self.twikey_inv_ids:
+        #         twikey_inv_id = self.twikey_inv_ids[0]
+        #         try:
+        #             response = requests.put(base_url+'/creditor/invoice/%s'%twikey_inv_id.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+        #             if response.status_code != 200:
+        #                 raise UserError(_('%s')
+        #                                 % (response.json().get('message')))
+        #         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
+        #                 requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+        #             raise exceptions.AccessError(
+        #                 _(
+        #                     'The url that this service requested returned an error. Please check your connection or try after sometime.')
+        #             )
         return res
-        

@@ -18,6 +18,11 @@
                         <field name="mandate_ids"/>
                     </page>
                </xpath>
+               <xpath expr="//notebook" position="inside">
+                   <page name="invoice" string="Invoice">
+                       <field name="twikey_inv_ids"/>
+                   </page>
+               </xpath>
            </field>
        </record>
 </odoo>
