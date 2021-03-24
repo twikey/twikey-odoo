@@ -9,6 +9,9 @@
                     <field name="twikey_url" widget="url"/>
                     <field name="twikey_invoice_id"/>
                </xpath>
+               <xpath expr="//button[@name='preview_invoice']" position="after">
+                    <button name="sync_invoice" string="Sync" type="object" class="oe_highlight"/>
+               </xpath>
            </field>
        </record>
 </odoo>

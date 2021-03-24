@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 import requests
 import json
 import base64
+from odoo.exceptions import UserError
 
 InvoiceStatus = {
     'BOOKED': 'draft',
@@ -34,7 +35,7 @@ class AccountInvoice(models.Model):
         authorization_token = self.env['ir.config_parameter'].sudo().get_param(
             'twikey_integration.authorization_token')
         base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')     
+                'twikey_integration.base_url')
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
@@ -130,6 +131,78 @@ class AccountInvoice(models.Model):
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
                 
+    def sync_invoice(self):
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
+            'twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url')
+        if authorization_token and self.twikey_invoice_id:
+            try:
+                response = requests.get(base_url+"/creditor/invoice/"+self.twikey_invoice_id+"?include=customer", headers={'authorization' : authorization_token})
+                if response.status_code == 200:
+                    resp_obj = response.json()
+                    if resp_obj.get('customer'):
+                        customer_id = resp_obj.get('customer')
+                        country_id = self.env['res.country'].search([('code', '=', customer_id.get('country'))])
+                        if customer_id.get('companyName') and customer_id.get('companyName') != '':
+                            customer_name = customer_id.get('companyName')
+                            company_type = 'company'
+                        else:
+                            customer_name = str(customer_id.get('firstname') + customer_id.get('lastname'))
+                            company_type = 'person'
+                        values = {'name': customer_name,
+                                  'company_type': company_type,
+                                  'email': customer_id.get('email'),
+                                  'street': customer_id.get('address'),
+                                  'city': customer_id.get('city'),
+                                  'zip': customer_id.get('zip'),
+                                  'country_id': country_id.id,
+                                  'mobile': customer_id.get('mobile'),
+                                  'twikey_reference': customer_id.get('customerNumber')
+                                  }
+                        if customer_id.get('customerNumber') and customer_id.get('customerNumber') != None:
+                            partner_id = self.env['res.partner'].search([('twikey_reference', '=', customer_id.get('customerNumber'))])
+                            if partner_id:
+                                partner_id.write(values)
+                            else:
+                                partner_id = self.env['res.partner'].create(values)
+                        else:
+                            partner_id = self.env['res.partner'].create(values)
+                    
+                    self.write({'number': resp_obj.get('number'),
+                                  'partner_id': partner_id.id if partner_id else False,
+                                  'date_due': resp_obj.get('duedate'),
+                                  'date_invoice': resp_obj.get('date'),
+                                  'amount_total': resp_obj.get('amount'),
+                                  'twikey_url': resp_obj.get('url'),
+                                  'state': InvoiceStatus[resp_obj.get('state')]
+                                      })
+            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                raise exceptions.AccessError(
+                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                )
+            pdf = self.env.ref('account.account_invoices').render_qweb_pdf([self.id])[0]
+            report_file = base64.b64encode(pdf)
+            report_file_decode = report_file.decode('utf-8')
+            data = """{"date" : "%(InvoiceDate)s",
+                       "duedate" : "%(DueDate)s",
+                       "pdf" : "%(ReportFile)s"
+            }""" % {'InvoiceDate': self.date_invoice if self.date_invoice else '',
+                    'DueDate': self.date_due if self.date_due else '',
+                    'ReportFile': report_file_decode
+                    }
+            try:
+                response = requests.put(base_url+'/creditor/invoice/%s' %self.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                if response.status_code != 200:
+                    resp_obj = response.json()
+                    raise UserError(_('%s')
+                                % (resp_obj.get('message')))
+            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                raise exceptions.AccessError(
+                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                )
+
+
     @api.multi
     def write(self, values):
         res = super(AccountInvoice, self).write(values)
@@ -144,16 +217,20 @@ class AccountInvoice(models.Model):
                     report_file = base64.b64encode(pdf)
                     report_file_decode = report_file.decode('utf-8')
                     data = """{"date" : "%(InvoiceDate)s",
-                               "duedate" : "%(DueDate)s",
-                               "status" : "%(InvoiceStatus)s",
-                               "pdf" : "%(ReportFile)s"
-                        }""" % {'InvoiceDate': values.get('date_invoice') if values.get('date_invoice') else rec.date_invoice,
-                                'DueDate': values.get('date_due') if values.get('date_due') else rec.date_due,
-                                'InvoiceStatus': TwikeyInvoiceStatus[values.get('state')] if values.get('state') else TwikeyInvoiceStatus[rec.state],
-                                'ReportFile': report_file_decode
-                                }
+                           "duedate" : "%(DueDate)s",
+                           "status" : "%(InvoiceStatus)s",
+                           "pdf" : "%(ReportFile)s"
+                    }""" % {'InvoiceDate': values.get('date_invoice') if values.get('date_invoice') else rec.date_invoice,
+                            'DueDate': values.get('date_due') if values.get('date_due') else rec.date_due,
+                            'InvoiceStatus': TwikeyInvoiceStatus[values.get('state')] if values.get('state') else TwikeyInvoiceStatus[rec.state],
+                            'ReportFile': report_file_decode
+                            }
                     try:
                         response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                        if response.status_code != 200:
+                            resp_obj = response.json()
+                            raise UserError(_('%s')
+                                % (resp_obj.get('message')))
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(
                             _('The url that this service requested returned an error. Please check your connection or try after sometime.')

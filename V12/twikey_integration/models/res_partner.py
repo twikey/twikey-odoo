@@ -159,7 +159,6 @@ class ResPartner(models.Model):
                 'country': country_id.code if country_id != False else self.country_id.code if self.country_id else ''
                 }
         if self.mandate_ids:
-            print("\n\n\n >>>>>>>>ifififi>>>>>", values)
             mandate_id = self.mandate_ids[0]
             data.update({'mndtId': mandate_id.reference})
             try:

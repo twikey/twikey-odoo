@@ -8,6 +8,7 @@ from odoo.exceptions import UserError
 
 class MandateCancelReason(models.TransientModel):
     _name = 'mandate.cancel.reason'
+    _description = "Add Reason for select contract template"
     
     @api.model
     def default_get(self, fields):

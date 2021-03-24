@@ -14,6 +14,7 @@ _logger = logging.getLogger(__name__)
 
 class ContractTemplateWizard(models.Model):
     _name = 'contract.template.wizard'
+    _description = "Wizard for Select Contract Template"
     
     name = fields.Char(string="Name")
     template_id = fields.Many2one('contract.template', string="Contract Template")

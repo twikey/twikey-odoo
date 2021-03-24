@@ -12,6 +12,7 @@ def _lang_get(self):
 
 class MandateDetails(models.Model):
     _name = 'mandate.details'
+    _description = "Mandate details of Twikey"
     _rec_name = 'partner_id'
 
     partner_id = fields.Many2one('res.partner', string="Customer")
