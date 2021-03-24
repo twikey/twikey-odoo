@@ -193,10 +193,10 @@ class AccountInvoice(models.Model):
                     }
             try:
                 response = requests.put(base_url+'/creditor/invoice/%s' %self.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                if response.status_code != 200:
-                    resp_obj = response.json()
-                    raise UserError(_('%s')
-                                % (resp_obj.get('message')))
+#                 if response.status_code != 200:
+#                     resp_obj = response.json()
+#                     raise UserError(_('%s')
+#                                 % (resp_obj.get('message')))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
@@ -227,10 +227,10 @@ class AccountInvoice(models.Model):
                             }
                     try:
                         response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                        if response.status_code != 200:
-                            resp_obj = response.json()
-                            raise UserError(_('%s')
-                                % (resp_obj.get('message')))
+#                         if response.status_code != 200:
+#                             resp_obj = response.json()
+#                             raise UserError(_('%s')
+#                                 % (resp_obj.get('message')))
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(
                             _('The url that this service requested returned an error. Please check your connection or try after sometime.')
