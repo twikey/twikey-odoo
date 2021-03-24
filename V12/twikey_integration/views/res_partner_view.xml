@@ -19,8 +19,8 @@
                     </page>
                </xpath>
                <xpath expr="//notebook" position="inside">
-                   <page name="invoice" string="Invoice">
-                       <field name="twikey_inv_ids"/>
+                   <page name="invoice" string="Twikey Invoices">
+                       <field name="twikey_inv_ids" context="{'tree_view_ref':'account.invoice_tree', 'form_view_ref': 'account.invoice_form'}"/>
                    </page>
                </xpath>
            </field>
