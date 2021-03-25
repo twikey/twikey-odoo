@@ -20,6 +20,7 @@
         'views/res_partner_view.xml',
         'wizard/wizard_cancel_reason.xml',
         'wizard/success_message_wizard.xml',
+        'wizard/sale_make_invoice_advance.xml',
         'views/mandate_details.xml',
         'views/account_invoice.xml',
         'views/contract_template.xml',

@@ -21,5 +21,3 @@ class ContractTemplateAttribute(models.Model):
     name = fields.Char(string="Contract Template Attribute")
     contract_template_id = fields.Many2one('contract.template', string="Contract Template")
     type = fields.Selection([('char','Text'),('integer','Number'),('float','Amount'),('selection','Select')])
-    value_char = fields.Char(string="Attribute Value")
-    value_sel = fields.Selection([('', '')], string="Value")

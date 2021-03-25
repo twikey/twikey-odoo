@@ -26,7 +26,7 @@ class ResPartner(models.Model):
     
     twikey_reference = fields.Char(string="Twikey Reference", copy = False, help="Twikey Customer Number will be save in this field.")
     mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
-    twikey_inv_ids = fields.One2many('account.invoice', 'partner_id', string='Invoices', readonly=True, copy=False,
+    twikey_inv_ids = fields.One2many('account.invoice', 'partner_id', readonly=True, copy=False,
                                   compute='_compute_invoice_ids')
 
     def _compute_invoice_ids(self):
@@ -46,13 +46,20 @@ class ResPartner(models.Model):
                 response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
                 if response.status_code == 200:
                     resp_obj = response.json()
-                    fields_list = []
-                    mandate_field_list = []
+                    twikey_temp_list = []
+                    template_ids = self.env['contract.template'].search([('active', 'in', [True, False])])
+                    temp_list = []
+                    for temp in template_ids:
+                        temp_list.append(temp.template_id)
                     for resp in resp_obj:
-                        template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id'))])
+                        twikey_temp_list.append(resp.get('id'))
+                        template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
+
                         if not template_id:
                             template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
                         if resp.get('Attributes') != []:
+                            fields_list = []
+                            mandate_field_list = []
                             for attr in resp.get('Attributes'):
                                 select_list = []
                                 field_type = attr.get('type')
@@ -85,6 +92,15 @@ class ResPartner(models.Model):
                                                   'selection': str(select_list) if select_list != [] else '',
                                                   })
                                     mandate_field_list.append(mandate_fields)
+                                attr_vals = {'contract_template_id': template_id.template_id,
+                                             'name': attr.get('name'),
+                                             'type': Field_Type[attr.get('type')]}
+                                if template_id.attribute_ids:
+                                    # for attrs in template_id.attribute_ids:
+                                        if attr.get('name') not in template_id.attribute_ids.mapped('name'):
+                                            template_id.write({'attribute_ids': [(0, 0, attr_vals)]})
+                                else:
+                                    template_id.write({'attribute_ids': [(0, 0, attr_vals)]})
                             inherit_id = self.env.ref('twikey_integration.contract_template_wizard_view_twikey_form')
                             if fields_list != []:
                                 arch_base = _('<?xml version="1.0"?>'
@@ -92,7 +108,7 @@ class ResPartner(models.Model):
                                              '<field name="template_id" position="after">')
                                 for f in fields_list:
                                     arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)]}"/>''' %(f.name, template_id.id)
-                                
+
                                 arch_base += _('</field>'
                                             '</data>')
                                 view = self.env['ir.ui.view'].sudo().create({'name': 'attribute.dynamic.fields.',
@@ -102,7 +118,7 @@ class ResPartner(models.Model):
                                                                      'inherit_id': inherit_id.id,
                                                                      'arch_base': arch_base,
                                                                      'active': True})
-                                
+
                             inherit_mandate_id = self.env.ref('twikey_integration.mandate_details_view_twikey_form')
                             if mandate_field_list != []:
                                 mandate_arch_base = _('<?xml version="1.0"?>'
@@ -110,7 +126,7 @@ class ResPartner(models.Model):
                                              '<field name="url" position="after">')
                                 for m in mandate_field_list:
                                     mandate_arch_base += '''<field name="%s"/>''' %(m.name)
-                                
+
                                 mandate_arch_base += _('</field>'
                                             '</data>')
                                 view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
@@ -120,10 +136,22 @@ class ResPartner(models.Model):
                                                                      'inherit_id': inherit_mandate_id.id,
                                                                      'arch_base': mandate_arch_base,
                                                                      'active': True})
+                    diff_list = []
+                    for temp_diff in temp_list:
+                        if temp_diff not in twikey_temp_list:
+                            diff_list.append(temp_diff)
+                            if diff_list != []:
+                                for a in diff_list:
+                                    template_ids = self.env['contract.template'].search([('template_id','=',a),('active', 'in', [True, False])])
+                                    if template_ids:
+                                        template_ids.unlink()
+
                 action = self.env.ref('twikey_integration.contract_template_wizard_action').read()[0]
                 return action
             else:
-                raise UserError(_('Please enable Twikey integration from Settings.'))
+                raise UserError(_("Authorization Token Not Found, Please Run Authenticate Twikey Scheduled Actions Manually!!!"))
+        else:
+            raise UserError(_('Please enable Twikey integration from Settings.'))
     
     @api.multi
     def write(self, values):

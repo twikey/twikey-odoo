@@ -5,3 +5,4 @@ from . import res_partner
 from . import mandate_details
 from . import account_invoice
 from . import contract_template
+from . import sale_order

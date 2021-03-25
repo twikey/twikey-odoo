@@ -53,7 +53,6 @@ class MandateDetails(models.Model):
                                                                                             'state' : 'signed',
                                                                                             'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                                                             'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
-                                                                                            'lang': lang_id.code if lang_id else False
                                                                                             })
                                 # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
                                 # if not creditor_id:

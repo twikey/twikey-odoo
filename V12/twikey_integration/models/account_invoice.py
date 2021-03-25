@@ -30,6 +30,15 @@ class AccountInvoice(models.Model):
                              help="URL of the Twikey Invoice")
     twikey_invoice_id = fields.Char(
         string="Twikey Invoice ID", help="Invoice ID of Twikey.")
+    template_id = fields.Many2one('contract.template', string="Contract Template")
+    is_twikey = fields.Boolean(compute='compute_twikey')
+
+    def compute_twikey(self):
+        module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
+        if module_twikey:
+            self.update({'is_twikey': True})
+        else:
+            self.update({'is_twikey': False})
 
     def update_invoice_feed(self):
         authorization_token = self.env['ir.config_parameter'].sudo().get_param(
