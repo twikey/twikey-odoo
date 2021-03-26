@@ -38,7 +38,7 @@ class ContractTemplateWizard(models.Model):
             'address' : partner_id.street if partner_id.street else '',
             'city' : partner_id.city if partner_id.city else '',
             'zip' : partner_id.zip if partner_id.zip else '',
-            'country' : partner_id.country_id.name if partner_id.country_id else '',
+            'country' : partner_id.country_id.code if partner_id.country_id else '',
             'companyName' : partner_id.name if partner_id.company_type == 'company' else '',
             'vatno' : partner_id.vat if partner_id.company_type == 'company' else ''
         }
