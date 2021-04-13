@@ -44,11 +44,14 @@ class ContractTemplateWizard(models.Model):
         }
         lst =[]
         for name,field in self._fields.items():
-            if name.startswith('x_'):
+            if name.startswith('x_') or name == 'template_id':
                 lst.append(name)
         get_fields = self.read(fields=lst, load='_classic_read')
         if get_fields:
+            template_id = get_fields[0].get('template_id')[0]
+            get_template_id = self.env['contract.template'].browse(template_id)
             get_fields[0].pop("id")
+            get_fields[0].pop("template_id")
             new_keys = []
             field_id = False
             for key,value in get_fields[0].items():
@@ -68,6 +71,7 @@ class ContractTemplateWizard(models.Model):
                 mandate_id = self.env['mandate.details'].sudo().create({'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
                 partner_id.write({'twikey_reference' : str(partner_id.id)})
                 mandate_id.write(get_fields[0])
+                mandate_id.write({'contract_temp_id' : get_template_id.id})
                 view = self.env.ref('twikey_integration.success_message_wizard')
                 view_id = view and view.id or False
                 context = dict(self._context or {})

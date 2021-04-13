@@ -21,7 +21,7 @@ class MandateDetails(models.Model):
     reference = fields.Char(tring="Mandate Reference", required=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract = fields.Char(string="Contract Template", default="Mandate for Techultra")
+    contract_temp_id = fields.Many2one(comodel_name="contract.template", string="Contract Template")
     description = fields.Text(string="Description")
     lang = fields.Selection(_lang_get, string='Language')
     url = fields.Char(string="URL")
@@ -267,32 +267,20 @@ class MandateDetails(models.Model):
         return res
 
     def unlink(self):
-        self.sync_mandate()
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token')
-        if self.state in ['signed', 'cancelled']:
-            raise UserError(_('This mandate is in already signed or cancelled. It can not be deleted.'))
-        elif self.state == 'pending' and authorization_token:
-            prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
-            response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-            return super(MandateDetails, self).unlink()
+        context = self._context
+        if not context.get('by_controller'):
+            self.sync_mandate()
+            base_url=self.env['ir.config_parameter'].sudo().get_param(
+                    'twikey_integration.base_url')
+            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+                    'twikey_integration.authorization_token')
+            if self.state in ['signed', 'cancelled']:
+                raise UserError(_('This mandate is in already signed or cancelled. It can not be deleted.'))
+            elif self.state == 'pending' and authorization_token:
+                prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
+                response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+                return super(MandateDetails, self).unlink()
+            else:
+                return super(MandateDetails, self).unlink()
         else:
             return super(MandateDetails, self).unlink()
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        

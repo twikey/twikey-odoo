@@ -9,17 +9,18 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
-Field_Type = {'text' : 'char',
-              'number' : 'integer',
-              'amount' : 'float',
-              'select' : 'selection',
-              'plan' : 'char',
-              'email' : 'char',
-              'url' : 'char',
-              'checkbox' : 'boolean',
-              'iban' : 'char',
-              'multi' : 'char'
+Field_Type = {'text': 'char',
+              'number': 'integer',
+              'amount': 'float',
+              'select': 'selection',
+              'plan': 'char',
+              'email': 'char',
+              'url': 'char',
+              'checkbox': 'boolean',
+              'iban': 'char',
+              'multi': 'char'
               }
+
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -55,7 +56,6 @@ class ResPartner(models.Model):
                         for resp in resp_obj:
                             twikey_temp_list.append(resp.get('id'))
                             template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
-    
                             if not template_id:
                                 template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
                             if resp.get('Attributes') != []:
@@ -126,8 +126,7 @@ class ResPartner(models.Model):
                                                  '<data>'
                                                  '<field name="url" position="after">')
                                     for m in mandate_field_list:
-                                        mandate_arch_base += '''<field name="%s"/>''' %(m.name)
-    
+                                        mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)]}"/>''' % (m.name, template_id.id)
                                     mandate_arch_base += _('</field>'
                                                 '</data>')
                                     view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
