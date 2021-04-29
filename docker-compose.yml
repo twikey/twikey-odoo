@@ -1,0 +1,20 @@
+version: '2'
+services:
+  web:
+    image: odoo:12.0
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./V12/twikey_integration:/mnt/extra-addons/twikey_integration
+  db:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+volumes:
+  odoo-web-data:

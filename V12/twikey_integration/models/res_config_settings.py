@@ -4,7 +4,9 @@ from odoo import api, fields, models,_
 from odoo.exceptions import UserError
 import requests
 import json
+import logging
 
+_logger = logging.getLogger(__name__)
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
@@ -18,6 +20,7 @@ class ResConfigSettings(models.TransientModel):
         api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
             base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
+            _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
             try:
                 response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
                 param = self.env['ir.config_parameter'].sudo()
