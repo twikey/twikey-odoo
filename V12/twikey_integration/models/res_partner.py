@@ -51,6 +51,7 @@ class ResPartner(models.Model):
                         twikey_temp_list = []
                         template_ids = self.env['contract.template'].search([('active', 'in', [True, False])])
                         temp_list = []
+                        _logger.info("Retrieved %d templates from Twikey",len(resp_obj))
                         for temp in template_ids:
                             temp_list.append(temp.template_id)
                         for resp in resp_obj:
@@ -65,8 +66,12 @@ class ResPartner(models.Model):
                                     select_list = []
                                     field_type = attr.get('type')
                                     if field_type == 'select':
-                                        for select in attr.get('Options'):
-                                            select_list.append((str(select),str(select)))
+                                        if attr.get('Options'):
+                                            for select in attr.get('Options'):
+                                                select_list.append((str(select),str(select)))
+                                        else:
+                                            _logger.warn("Skipping attribute %s as selection without options",attr.get('name'))
+                                            continue
                                     model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
                                     mandate_model_id = self.env['ir.model'].search([('model', '=', 'mandate.details')])
                                     search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')), ('model_id', '=', model_id.id)])
@@ -150,6 +155,7 @@ class ResPartner(models.Model):
                     return action
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                     requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                    _logger.error("Error retrieving template",e)
                     raise exceptions.AccessError(
                         _(
                             'The url that this service requested returned an error. Please check your connection or try after sometime.')
