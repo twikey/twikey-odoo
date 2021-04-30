@@ -60,7 +60,11 @@ class ContractTemplateWizard(models.Model):
                 if field_id.ttype != 'boolean' and value == False:
                     get_fields[0].update({key : ''})
                 new_keys.append(key.lstrip('x_'))
-            final_dict = dict(zip(new_keys, list(get_fields[0].values())))
+            final_dict = {}
+            attr_list = []
+            for attr in self.template_id.attribute_ids:
+                attr_list.append(attr.name)
+            final_dict = dict(zip(attr_list, list(get_fields[0].values())))
             data.update(final_dict)
         try:
             _logger.debug('New invite: {}'.format(data))
