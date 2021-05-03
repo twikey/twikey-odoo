@@ -81,7 +81,7 @@ class ResPartner(models.Model):
                                                       'field_description': attr.get('description'),
                                                       'model_id': model_id.id,
                                                       'ttype': Field_Type[field_type],
-                                                      'required': attr.get('mandatory'),
+#                                                       'required': attr.get('mandatory'),
                                                       'store': True,
                                                       'readonly': attr.get('readonly'),
                                                       'selection': str(select_list) if select_list != [] else '',
@@ -92,7 +92,7 @@ class ResPartner(models.Model):
                                                       'field_description': attr.get('description'),
                                                       'model_id': mandate_model_id.id,
                                                       'ttype': Field_Type[field_type],
-                                                      'required': attr.get('mandatory'),
+#                                                       'required': attr.get('mandatory'),
                                                       'store': True,
                                                       'readonly': attr.get('readonly'),
                                                       'selection': str(select_list) if select_list != [] else '',
@@ -113,7 +113,11 @@ class ResPartner(models.Model):
                                                  '<data>'
                                                  '<field name="template_id" position="after">')
                                     for f in fields_list:
-                                        arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)]}"/>''' %(f.name, template_id.id)
+                                        if attr.get('mandatory'):
+                                            arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)], 'required': [('template_id', '=', %s)]}"/>''' %(f.name, template_id.id, template_id.id)
+                                        else:
+                                            arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)]}"/>''' %(f.name, template_id.id)
+                                        
     
                                     arch_base += _('</field>'
                                                 '</data>')
@@ -131,7 +135,10 @@ class ResPartner(models.Model):
                                                  '<data>'
                                                  '<field name="url" position="after">')
                                     for m in mandate_field_list:
-                                        mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)]}"/>''' % (m.name, template_id.id)
+                                        if attr.get('mandatory'):
+                                            mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)], 'required': [('contract_temp_id', '=', %s)]}"/>''' % (m.name, template_id.id, template_id.id)
+                                        else:
+                                            mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)]}"/>''' % (m.name, template_id.id)
                                     mandate_arch_base += _('</field>'
                                                 '</data>')
                                     view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
