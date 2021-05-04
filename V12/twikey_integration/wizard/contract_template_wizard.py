@@ -43,8 +43,14 @@ class ContractTemplateWizard(models.Model):
             'vatno' : partner_id.vat if partner_id.company_type == 'company' else ''
         }
         lst =[]
+        sp_lst = []
+        attr_list = []
+        for attr in self.template_id.attribute_ids:
+            attr_list.append(attr.name)
+            sp_lst.append('x_'+attr.name )
         for name,field in self._fields.items():
-            if name.startswith('x_') or name == 'template_id':
+            if name in sp_lst or name == 'template_id':
+                # if name.startswith('x_') or name == 'template_id':
                 lst.append(name)
         get_fields = self.read(fields=lst, load='_classic_read')
         if get_fields:
@@ -60,11 +66,7 @@ class ContractTemplateWizard(models.Model):
                 if field_id.ttype != 'boolean' and value == False:
                     get_fields[0].update({key : ''})
                 new_keys.append(key.lstrip('x_'))
-            final_dict = {}
-            attr_list = []
-            for attr in self.template_id.attribute_ids:
-                attr_list.append(attr.name)
-            final_dict = dict(zip(attr_list, list(get_fields[0].values())))
+            final_dict = dict(zip(new_keys, list(get_fields[0].values())))
             data.update(final_dict)
         try:
             _logger.debug('New invite: {}'.format(data))
@@ -73,9 +75,9 @@ class ContractTemplateWizard(models.Model):
             resp_obj = response.json()
             if response.status_code == 200:
                 mandate_id = self.env['mandate.details'].sudo().create({'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                partner_id.write({'twikey_reference' : str(partner_id.id)})
-                mandate_id.write(get_fields[0])
                 mandate_id.write({'contract_temp_id' : get_template_id.id})
+                partner_id.write({'twikey_reference': str(partner_id.id)})
+                mandate_id.write(get_fields[0])
                 view = self.env.ref('twikey_integration.success_message_wizard')
                 view_id = view and view.id or False
                 context = dict(self._context or {})
