@@ -16,8 +16,9 @@ class ResConfigSettings(models.TransientModel):
     module_twikey = fields.Boolean(string="Enable Twikey Integration", helgrp="Use for enable Twikey Integration")
     authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.")
 
-    def authenticate(self):
-        api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
+    def authenticate(self, api_key=False):
+        if not api_key:
+            api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
             base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
@@ -62,4 +63,11 @@ class ResConfigSettings(models.TransientModel):
         param.set_param('twikey_integration.api_key', api_key)
         param.set_param('twikey_integration.base_url', base_url)
         param.set_param('twikey_integration.module_twikey', module_twikey)
-        param.set_param('twikey_integration.authorization_token', authorization_token)
+
+
+    @api.model
+    def create(self, values):
+        res = super(ResConfigSettings, self).create(values)
+        if res and values.get('api_key'):
+            self.authenticate(values.get('api_key'))
+        return res
