@@ -10,7 +10,10 @@ class ContractTemplate(models.Model):
     name = fields.Char(string="Contract Template", required=True)
     template_id = fields.Integer(string="Template ID")
     active = fields.Boolean(string="Active", default=True)
-    type = fields.Selection([('CORE', 'CORE'), ('B2B', 'B2B'), ('CONTRACT', 'CONTRACT'), ('CONSENT', 'CONSENT'), ('IDENT', 'IDENT'), ('CREDITCARD', 'CREDITCARD'), ('WIK', 'WIK')], string="Type")
+
+    # Avoids err_mandatenumber_required so mandateNumber parameter should be in the invite call
+    mandateNumberRequired = fields.Boolean(string="MandateNumberRequired", default=True)
+    type = fields.Selection([('CORE', 'CORE'), ('B2B', 'B2B'), ('CODA', 'CODA'), ('CONTRACT', 'CONTRACT'), ('CONSENT', 'CONSENT'), ('IDENT', 'IDENT'), ('CREDITCARD', 'CREDITCARD'), ('WIK', 'WIK'), ('PAYROLL', 'PAYROLL')], string="Type")
     attribute_ids = fields.One2many('contract.template.attribute', 'contract_template_id', string="Attributes")
     
     

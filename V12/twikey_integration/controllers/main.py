@@ -17,7 +17,18 @@ class TwikeyController(http.Controller):
         _logger.info(
             'Twikey: entering form_feedback with post data %s', pprint.pformat(post))
         if post:
-            if post.get('event') == 'Invite' and post.get('reason') == 'removed':
-                mandate_id = request.env['mandate.details'].search([('reference', '=', post.get('mandateNumber'))])
-                if mandate_id:
-                    mandate_id.with_context(by_controller=True).unlink()
+            # See https://www.twikey.com/api/#webhooks
+            if post.get('type') == 'contract':
+                # Removal of a prepared mandate doesn't show up in the feed
+                if post.get('event') == 'Invite' and post.get('reason') == 'removed':
+                    mandate_id = request.env['mandate.details'].search([('reference', '=', post.get('mandateNumber'))])
+                    if mandate_id:
+                        mandate_id.with_context(by_controller=True).unlink()
+                # else
+                #      cron
+                #        // update mandatefeed
+            # else if post.get('type') == 'payment':
+            #         /// update invoice feed
+                # return True
+        # else:
+        #         return True
