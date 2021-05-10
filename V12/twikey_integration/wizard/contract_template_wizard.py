@@ -74,8 +74,8 @@ class ContractTemplateWizard(models.Model):
             _logger.debug('Response invite: {}'.format(response.content))
             resp_obj = response.json()
             if response.status_code == 200:
-                mandate_id = self.env['mandate.details'].sudo().create({'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                mandate_id.write({'contract_temp_id' : get_template_id.id})
+                mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
+                # mandate_id.write({'contract_temp_id' : get_template_id.id})
                 partner_id.write({'twikey_reference': str(partner_id.id)})
                 mandate_id.write(get_fields[0])
                 view = self.env.ref('twikey_integration.success_message_wizard')
