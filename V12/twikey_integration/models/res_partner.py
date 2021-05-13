@@ -58,7 +58,7 @@ class ResPartner(models.Model):
                             twikey_temp_list.append(resp.get('id'))
                             template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
                             if not template_id:
-                                template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
+                                template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type'),'mandateNumberRequired': resp.get('mandateNumberRequired')})
                             if resp.get('Attributes') != []:
                                 fields_list = []
                                 mandate_field_list = []
@@ -66,7 +66,7 @@ class ResPartner(models.Model):
                                     select_list = []
                                     field_type = attr.get('type')
                                     if field_type == 'select':
-                                        if attr.get('Options'):
+                                        if attr.get('Options') != []:
                                             for select in attr.get('Options'):
                                                 select_list.append((str(select),str(select)))
                                         else:
@@ -74,10 +74,10 @@ class ResPartner(models.Model):
                                             continue
                                     model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
                                     mandate_model_id = self.env['ir.model'].search([('model', '=', 'mandate.details')])
-                                    search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')), ('model_id', '=', model_id.id)])
-                                    search_mandate_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')), ('model_id', '=', mandate_model_id.id)])
+                                    search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')+'_'+str(resp.get('id'))), ('model_id', '=', model_id.id)])
+                                    search_mandate_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')+'_'+str(resp.get('id'))), ('model_id', '=', mandate_model_id.id)])
                                     if not search_fields and field_type != 'iban':
-                                        ir_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name'),
+                                        ir_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name')+'_'+str(resp.get('id')),
                                                       'field_description': attr.get('description'),
                                                       'model_id': model_id.id,
                                                       'ttype': Field_Type[field_type],
@@ -88,7 +88,7 @@ class ResPartner(models.Model):
                                                       })
                                         fields_list.append(ir_fields)
                                     if not search_mandate_fields and field_type != 'iban':
-                                        mandate_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name'),
+                                        mandate_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name')+'_'+str(resp.get('id')),
                                                       'field_description': attr.get('description'),
                                                       'model_id': mandate_model_id.id,
                                                       'ttype': Field_Type[field_type],

@@ -31,6 +31,7 @@ class ContractTemplateWizard(models.Model):
         data = {'ct' : self.template_id.template_id,
             'sendInvite' : True,
             'customerNumber' : partner_id.id,
+            'mandateNumber': partner_id.id if self.template_id.mandateNumberRequired == False else '',
             'firstname' : partner_id.name.split(' ')[0] if partner_id.name and partner_id.company_type == 'person' else '',
             'lastname' : partner_id.name.split(' ')[1] if partner_id.name and len(partner_id.name.split(' ')) > 1 and partner_id.company_type == 'person' else '',
             'email' : partner_id.email if partner_id.email else '',
@@ -75,12 +76,11 @@ class ContractTemplateWizard(models.Model):
             resp_obj = response.json()
             if response.status_code == 200:
                 mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                # mandate_id.write({'contract_temp_id' : get_template_id.id})
+                mandate_id.with_context(fields_data=True).write(get_fields[0])
                 partner_id.write({'twikey_reference': str(partner_id.id)})
-                mandate_id.write(get_fields[0])
                 view = self.env.ref('twikey_integration.success_message_wizard')
-                view_id = view and view.id or False
                 context = dict(self._context or {})
+                view_id = view and view.id or False
                 context['message'] = "Mandate Created Successfully."
                 return {
                     'name': 'Success',
