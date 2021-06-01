@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, exceptions,_
 import requests
 import json
 import base64
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 InvoiceStatus = {
     'BOOKED': 'draft',
@@ -48,6 +51,7 @@ class AccountInvoice(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
+                _logger.info('Sync Mandate Successfully.. %s' % (response))
                 resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Invoices') and resp_obj.get('Invoices')[0] and resp_obj.get('Invoices')[0] != []:
@@ -148,6 +152,7 @@ class AccountInvoice(models.Model):
         if authorization_token and self.twikey_invoice_id:
             try:
                 response = requests.get(base_url+"/creditor/invoice/"+self.twikey_invoice_id+"?include=customer", headers={'authorization' : authorization_token})
+                _logger.info('Sync Invoice Data.. %s' % (response.json()))
                 if response.status_code == 200:
                     resp_obj = response.json()
                     if resp_obj.get('customer'):
@@ -202,6 +207,7 @@ class AccountInvoice(models.Model):
                     }
             try:
                 response = requests.put(base_url+'/creditor/invoice/%s' %self.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                _logger.info('Invoice Update.. %s' % (response.json()))
 #                 if response.status_code != 200:
 #                     resp_obj = response.json()
 #                     raise UserError(_('%s')
@@ -236,6 +242,7 @@ class AccountInvoice(models.Model):
                             }
                     try:
                         response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                        _logger.info('Invoice Update.. %s' % (response.json()))
 #                         if response.status_code != 200:
 #                             resp_obj = response.json()
 #                             raise UserError(_('%s')

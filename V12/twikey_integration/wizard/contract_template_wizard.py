@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import logging
 
 from odoo import api, fields, models, exceptions, _
 import requests
 import json
 from odoo.exceptions import UserError
-from lxml import etree
-import xml.etree.ElementTree as xee
+import logging
 
 _logger = logging.getLogger(__name__)
 
@@ -73,6 +71,7 @@ class ContractTemplateWizard(models.Model):
             _logger.debug('New invite: {}'.format(data))
             response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
             _logger.debug('Response invite: {}'.format(response.content))
+            _logger.info('Response invite:.. %s' % (response.json()))
             resp_obj = response.json()
             if response.status_code == 200:
                 mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})

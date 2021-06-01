@@ -46,6 +46,7 @@ class ResPartner(models.Model):
             if authorization_token:
                 try:
                     response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
+                    _logger.info('Template Get.. %s' % (response.json()))
                     if response.status_code == 200:
                         resp_obj = response.json()
                         twikey_temp_list = []
@@ -212,6 +213,7 @@ class ResPartner(models.Model):
             try:
                 response = requests.post(base_url + "/creditor/mandate/update", data=data,
                                          headers={'Authorization': authorization_token})
+                _logger.info('Mandate Update.. %s' % (response.json()))
                 if response.status_code != 204:
                     raise UserError(_('%s')
                                     % (response.json().get('message')))

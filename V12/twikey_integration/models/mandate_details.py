@@ -5,6 +5,9 @@ import requests
 import json
 from operator import itemgetter
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 def _lang_get(self):
@@ -34,11 +37,15 @@ class MandateDetails(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/mandate", headers={'Authorization' : authorization_token})
+                _logger.info('Mandate Data Get.. %s' % (response.json()))
                 resp_obj = response.json()
                 if response.status_code == 200:
+                    _logger.info('Response status_code.. %s' % (response))
                     if resp_obj.get('Messages') and resp_obj.get('Messages')[0] and resp_obj.get('Messages')[0] != []:
+                        _logger.info('Response Messages.. %s' % (resp_obj.get('Messages')))
                         for data in resp_obj.get('Messages'):
                             if data.get('AmdmntRsn'):
+                                _logger.info('Response AmdmntRsn.. %s' % (data.get('AmdmntRsn')))
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 if not partner_id:
@@ -108,6 +115,7 @@ class MandateDetails(models.Model):
                                     #                       'country_id' : country_id.id if country_id else False,
                                     #                       'email' : data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('CtctDtls') and data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') else False})
                             elif data.get('CxlRsn'):
+                                _logger.info('Response CxlRsn.. %s' % (data.get('CxlRsn')))
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if mandate_id:
                                     mandate_id.write({'state' : 'cancelled', 'description' : data.get('CxlRsn').get('Rsn')})
@@ -117,6 +125,7 @@ class MandateDetails(models.Model):
                                                                                             'state' : 'cancelled'
                                                                                             })
                             elif data.get('Mndt'):
+                                _logger.info('Response Mndt.. %s' % (data.get('Mndt')))
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('Mndt').get('MndtId'))])
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
@@ -197,6 +206,7 @@ class MandateDetails(models.Model):
                     }
             try:
                 response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+                _logger.info('Mandate Data Update.. %s' % (response.json()))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
@@ -257,6 +267,7 @@ class MandateDetails(models.Model):
     #                     }
                 try:
                     response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+                    _logger.info('Mandate Update.. %s' % (response.json()))
                     if response.status_code != 204:
                         resp_obj = response.json()
                         raise UserError(_('%s')
@@ -280,6 +291,7 @@ class MandateDetails(models.Model):
             elif self.state == 'pending' and authorization_token:
                 prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
                 response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+                _logger.info('Mandate Delete.. %s' % (response.json()))
                 return super(MandateDetails, self).unlink()
             else:
                 return super(MandateDetails, self).unlink()

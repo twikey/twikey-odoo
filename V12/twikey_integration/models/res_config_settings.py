@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import api, fields, models,_
+from odoo import api, fields, models, exceptions,_
 from odoo.exceptions import UserError
 import requests
 import json
@@ -24,6 +24,7 @@ class ResConfigSettings(models.TransientModel):
             _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
             try:
                 response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
+                _logger.info('Authentication.. %s' % (response.json()))
                 param = self.env['ir.config_parameter'].sudo()
                 if response.status_code == 200:
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))

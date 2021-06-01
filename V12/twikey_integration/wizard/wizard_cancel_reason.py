@@ -4,6 +4,9 @@ from odoo import api, fields, models,_
 import requests
 import json
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class MandateCancelReason(models.TransientModel):
@@ -15,7 +18,7 @@ class MandateCancelReason(models.TransientModel):
         res = super(MandateCancelReason, self).default_get(fields)
         context = self.env.context
         if 'active_id' in context:
-            res.update({'mandate_id' : context.get('active_id')})
+            res.update({'mandate_id': context.get('active_id')})
         return res
     
     name = fields.Text(string="Reason for Cancellation", required=True)
@@ -23,15 +26,16 @@ class MandateCancelReason(models.TransientModel):
     
     def action_cancel_confirm(self):
         context = self.env.context
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
+        base_url = self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.base_url')
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
         if authorization_token:
             prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.mandate_id.reference + '&rsn=' + self.name
             self.mandate_id.update_feed()
             if self.mandate_id.state != 'cancelled':
-                response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
+                response = requests.delete(prepared_url, headers={'Authorization': authorization_token})
+                _logger.info('Mandate Cancel.. %s' % (response.json()))
                 if response.status_code == 200:
     #                 self.mandate_id.update_feed()
                     if self.mandate_id.state == 'signed':
