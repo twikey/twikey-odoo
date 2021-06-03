@@ -2,10 +2,13 @@
 
 from odoo import api, fields, models, exceptions,_
 import requests
+import logging
 import json
 from operator import itemgetter
 from odoo.exceptions import UserError
 import logging
+
+_logger = logging.getLogger(__name__)
 
 _logger = logging.getLogger(__name__)
 

@@ -200,8 +200,8 @@ class ResPartner(models.Model):
                     'name') and self.company_type == 'company' else self.name if self.company_type == 'company' else '',
                 'vatno': values.get('vat') if values.get(
                     'vat') and self.company_type == 'company' else self.vat if self.vat and self.company_type == 'company' else '',
-                'customerNumber': int(values.get('twikey_reference')) if values.get('twikey_reference') else int(
-                    self.twikey_reference) if self.twikey_reference else '',
+                'customerNumber': values.get('twikey_reference') if values.get('twikey_reference') else
+                    self.twikey_reference if self.twikey_reference else '',
                 'address': values.get('street') if values.get('street') else self.street if self.street else '',
                 'city': values.get('city') if values.get('city') else self.city if self.city else '',
                 'zip': values.get('zip') if values.get('zip') else self.zip if self.zip else '',
