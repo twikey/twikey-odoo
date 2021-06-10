@@ -35,7 +35,7 @@ class MandateCancelReason(models.TransientModel):
             self.mandate_id.update_feed()
             if self.mandate_id.state != 'cancelled':
                 response = requests.delete(prepared_url, headers={'Authorization': authorization_token})
-                _logger.info('Mandate Cancel.. %s' % (response.json()))
+                _logger.info('Cancelling Mandate %s' % (response.content))
                 if response.status_code == 200:
     #                 self.mandate_id.update_feed()
                     if self.mandate_id.state == 'signed':

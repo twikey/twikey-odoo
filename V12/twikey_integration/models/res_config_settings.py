@@ -24,11 +24,12 @@ class ResConfigSettings(models.TransientModel):
             _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
             try:
                 response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
-                _logger.info('Authentication.. %s' % (response.json()))
+                _logger.info('Response from Authentication %s' % (response.content))
                 param = self.env['ir.config_parameter'].sudo()
                 if response.status_code == 200:
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Exception raised during Authentication %s' % (e))
                 raise exceptions.AccessError(
                 _('The url that this service requested returned an error. Please check your connection or try after sometime.')
             )        
@@ -69,6 +70,7 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def create(self, values):
         res = super(ResConfigSettings, self).create(values)
+        self.set_values()
         if res and values.get('api_key'):
             self.authenticate(values.get('api_key'))
         return res

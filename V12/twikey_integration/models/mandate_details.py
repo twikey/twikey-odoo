@@ -40,7 +40,7 @@ class MandateDetails(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/mandate", headers={'Authorization' : authorization_token})
-                _logger.info('Mandate Data Get.. %s' % (response.json()))
+                _logger.info('Fetching all mandate data from twikey %s' % (response.content))
                 resp_obj = response.json()
                 if response.status_code == 200:
                     _logger.info('Response status_code.. %s' % (response))
@@ -48,6 +48,7 @@ class MandateDetails(models.Model):
                         _logger.info('Response Messages.. %s' % (resp_obj.get('Messages')))
                         for data in resp_obj.get('Messages'):
                             if data.get('AmdmntRsn'):
+                                partner_id = False
                                 _logger.info('Response AmdmntRsn.. %s' % (data.get('AmdmntRsn')))
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
@@ -57,16 +58,7 @@ class MandateDetails(models.Model):
                                     if not partner_id:
                                         partner_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Dbtr').get('Nm')})
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
-                                if not mandate_id:
-                                    mandate_id = self.env['mandate.details'].sudo().create({'partner_id' : partner_id.id if partner_id else False,
-                                                                                            'reference' : data.get('Mndt').get('MndtId'),
-                                                                                            'state' : 'signed',
-                                                                                            'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
-                                                                                            'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
-                                                                                            })
-                                # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
-                                # if not creditor_id:
-                                #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
+                                print(mandate_id,"@@@@@@@@@@@@@@@@@@@@@@@@@@@")
                                 if mandate_id:
                                     lst = data.get('Mndt').get('SplmtryData')
                                     lang = False
@@ -74,7 +66,7 @@ class MandateDetails(models.Model):
                                         if ls.get('Key') == 'Language':
                                             lang = ls.get('Value')
                                     lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
-                                    mandate_id.write({'reference' : data.get('Mndt').get('MndtId') if data.get('Mndt').get('MndtId') else False,
+                                    mandate_id.with_context(update_feed=True).write({'reference' : data.get('Mndt').get('MndtId') if data.get('Mndt').get('MndtId') else False,
                                                    'partner_id' : partner_id.id if partner_id else False,
                                                    'state' : 'signed',
                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
@@ -117,11 +109,25 @@ class MandateDetails(models.Model):
                                     #                       'city' : city,
                                     #                       'country_id' : country_id.id if country_id else False,
                                     #                       'email' : data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') if data.get('Mndt').get('Cdtr') and data.get('Mndt').get('Cdtr').get('CtctDtls') and data.get('Mndt').get('Cdtr').get('CtctDtls').get('EmailAdr') else False})
+                                if not mandate_id:
+                                    mandate_vals = {'partner_id' : partner_id.id if partner_id else False,
+                                                    'reference' : data.get('Mndt').get('MndtId'),
+                                                    'state' : 'signed',
+                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
+                                                    'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
+                                                    }
+                                    print(mandate_vals,"LLmandate")
+                                    mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
+                                    print(mandate_id,"created")
+                                # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
+                                # if not creditor_id:
+                                #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
+
                             elif data.get('CxlRsn'):
                                 _logger.info('Response CxlRsn.. %s' % (data.get('CxlRsn')))
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if mandate_id:
-                                    mandate_id.write({'state' : 'cancelled', 'description' : data.get('CxlRsn').get('Rsn')})
+                                    mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : data.get('CxlRsn').get('Rsn')})
                                 else:
                                     mandate_id = self.env['mandate.details'].sudo().create({
                                                                                             'reference' : data.get('OrgnlMndtId'),
@@ -170,13 +176,14 @@ class MandateDetails(models.Model):
                                         if ls.get('Key') == 'Language':
                                             lang = ls.get('Value')
                                     lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
-                                    mandate_id.write({'state' : 'signed',
+                                    mandate_id.with_context(update_feed=True).write({'state' : 'signed',
                                                    'partner_id' : partner_id.id if partner_id else False,
                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                    'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                    'lang': lang_id.code if lang_id else False,
                                                     })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Update Feed Exception %s' % (e))
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
@@ -209,8 +216,9 @@ class MandateDetails(models.Model):
                     }
             try:
                 response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                _logger.info('Mandate Data Update.. %s' % (response.json()))
+                _logger.info('Updating mandate data to Twikey with response %s' % (response.content))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Sync Mandate Exception %s' % (e))
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
@@ -241,7 +249,7 @@ class MandateDetails(models.Model):
     @api.multi
     def write(self, values):
         res = super(MandateDetails, self).write(values)
-        if not self._context.get('fields_data'):
+        if not self._context.get('fields_data') or not self._context.get('update_feed'):
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
             base_url = self.env['ir.config_parameter'].sudo().get_param(
@@ -270,12 +278,13 @@ class MandateDetails(models.Model):
     #                     }
                 try:
                     response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                    _logger.info('Mandate Update.. %s' % (response.json()))
+                    _logger.info('Updating mandate data to Twikey %s' % (response.content))
                     if response.status_code != 204:
                         resp_obj = response.json()
                         raise UserError(_('%s')
                                     % (resp_obj.get('message')))
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                    _logger.info('Mandate Write Exception %s' % (e))
                     raise exceptions.AccessError(
                         _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                     )
@@ -294,7 +303,7 @@ class MandateDetails(models.Model):
             elif self.state == 'pending' and authorization_token:
                 prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
                 response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-                _logger.info('Mandate Delete.. %s' % (response.json()))
+                _logger.info('Deleting mandate %s' % (response.content))
                 return super(MandateDetails, self).unlink()
             else:
                 return super(MandateDetails, self).unlink()

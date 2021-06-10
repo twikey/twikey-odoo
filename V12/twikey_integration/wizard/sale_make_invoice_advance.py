@@ -120,7 +120,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                 invoice_ids = []
                 try:
                     response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
-                    _logger.info('Template Get.. %s' % (response.json()))
+                    _logger.info('Fetching contract templates from Twikey %s' % (response.content))
                     if response.status_code == 200:
                         resp_obj = response.json()
                         for resp in resp_obj:
@@ -128,6 +128,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                             if not template_id:
                                 template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                            _logger.info('Exception raised while fetching contract templates %s' % (e))
                             raise exceptions.AccessError(
                                 _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                             )
@@ -155,7 +156,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                     }
                     try:
                         response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                        _logger.info('Invoice Update.. %s' % (response.json()))
+                        _logger.info('Creating new Invoice with Customer Ref %s' % (response.content))
                         resp_obj = response.json()
                         if response.status_code == 400 and resp_obj.get('message') and resp_obj.get('message') == 'Debtor was not found':
                             partner_name = invoice_id.partner_id.name.split(' ')
@@ -197,7 +198,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                 }
                             try:
                                 response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                                _logger.info('Invoice Update.. %s' % (response.json()))
+                                _logger.info('Creating new Invoice %s' % (response.content))
                             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                                 raise exceptions.AccessError(
                                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
@@ -220,7 +221,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                         }
                             try:
                                 update_response = requests.put(base_url+"/creditor/invoice/"+resp_obj.get('id'), data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                                _logger.info('Update Invoice Response.. %s' % (update_response.json()))
+                                _logger.info('Update pdf to Twikey Invoice %s' % (update_response.content))
                             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                                 raise exceptions.AccessError(
                                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')

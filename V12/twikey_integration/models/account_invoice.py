@@ -51,7 +51,7 @@ class AccountInvoice(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
-                _logger.info('Sync Mandate Successfully.. %s' % (response))
+                _logger.info('Fetching Invoices from Twikey %s' % (response.content))
                 resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Invoices') and resp_obj.get('Invoices')[0] and resp_obj.get('Invoices')[0] != []:
@@ -140,6 +140,7 @@ class AccountInvoice(models.Model):
                                               'state': InvoiceStatus[data.get('state')]
                                               })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Exception raised while fetching Invoice data from Twikey %s' % (e))
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
@@ -152,7 +153,7 @@ class AccountInvoice(models.Model):
         if authorization_token and self.twikey_invoice_id:
             try:
                 response = requests.get(base_url+"/creditor/invoice/"+self.twikey_invoice_id+"?include=customer", headers={'authorization' : authorization_token})
-                _logger.info('Sync Invoice Data.. %s' % (response.json()))
+                _logger.info('Fetching Invoice Data from Twikey.. %s' % (response.content))
                 if response.status_code == 200:
                     resp_obj = response.json()
                     if resp_obj.get('customer'):
@@ -192,6 +193,7 @@ class AccountInvoice(models.Model):
                                   'state': InvoiceStatus[resp_obj.get('state')]
                                       })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Exception raised while syncing Invoice %s' % (e))
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
@@ -207,12 +209,13 @@ class AccountInvoice(models.Model):
                     }
             try:
                 response = requests.put(base_url+'/creditor/invoice/%s' %self.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                _logger.info('Invoice Update.. %s' % (response.json()))
+                _logger.info('Updating pdf to invoice %s' % (response.content))
 #                 if response.status_code != 200:
 #                     resp_obj = response.json()
 #                     raise UserError(_('%s')
 #                                 % (resp_obj.get('message')))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Exception raised while updating pdf to invoice %s' % (e))
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
@@ -242,12 +245,13 @@ class AccountInvoice(models.Model):
                             }
                     try:
                         response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                        _logger.info('Invoice Update.. %s' % (response.json()))
+                        _logger.info('Updating invoice data to twikey %s' % (response.content))
 #                         if response.status_code != 200:
 #                             resp_obj = response.json()
 #                             raise UserError(_('%s')
 #                                 % (resp_obj.get('message')))
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                        _logger.info('Exception raised while updating invoice data to Twikey %s' % (e))
                         raise exceptions.AccessError(
                             _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                         )

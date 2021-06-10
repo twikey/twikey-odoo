@@ -46,7 +46,7 @@ class ResPartner(models.Model):
             if authorization_token:
                 try:
                     response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
-                    _logger.info('Template Get.. %s' % (response.json()))
+                    _logger.info('Fetching contract template data %s' % (response.content))
                     if response.status_code == 200:
                         resp_obj = response.json()
                         twikey_temp_list = []
@@ -163,7 +163,7 @@ class ResPartner(models.Model):
                     return action
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                     requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                    _logger.error("Error retrieving template",e)
+                    _logger.info('Exception raised while fetching Contract Templates %s' % (e))
                     raise exceptions.AccessError(
                         _(
                             'The url that this service requested returned an error. Please check your connection or try after sometime.')
@@ -213,12 +213,13 @@ class ResPartner(models.Model):
             try:
                 response = requests.post(base_url + "/creditor/mandate/update", data=data,
                                          headers={'Authorization': authorization_token})
-                _logger.info('Mandate Update.. %s' % (response.json()))
+                _logger.info('Updating customer details in mandate %s' % (response.content))
                 if response.status_code != 204:
                     raise UserError(_('%s')
                                     % (response.json().get('message')))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                     requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                _logger.info('Exception raised while updating customer details to Twikey %s' % (e))
                 raise exceptions.AccessError(
                     _(
                         'The url that this service requested returned an error. Please check your connection or try after sometime.')
