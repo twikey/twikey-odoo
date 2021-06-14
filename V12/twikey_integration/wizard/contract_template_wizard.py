@@ -46,7 +46,7 @@ class ContractTemplateWizard(models.Model):
         attr_list = []
         for attr in self.template_id.attribute_ids:
             attr_list.append(attr.name)
-            sp_lst.append('x_'+attr.name )
+            sp_lst.append('x_'+attr.name+ '_' +str(self.template_id.template_id))
         for name,field in self._fields.items():
             if name in sp_lst or name == 'template_id':
                 # if name.startswith('x_') or name == 'template_id':
@@ -64,7 +64,9 @@ class ContractTemplateWizard(models.Model):
                 field_id = self.env['ir.model.fields'].search([('name', '=', key), ('model_id', '=', model_id.id)])
                 if field_id.ttype != 'boolean' and value == False:
                     get_fields[0].update({key : ''})
-                new_keys.append(key.lstrip('x_'))
+                key_split = key.split('_')
+                if len(key_split) > 0:
+                    new_keys.append(key_split[1])
             final_dict = dict(zip(new_keys, list(get_fields[0].values())))
             data.update(final_dict)
         try:

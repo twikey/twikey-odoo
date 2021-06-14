@@ -7,7 +7,7 @@
             <form>
                 <header>
                     <button name="%(twikey_integration.mandate_cancel_reason_action)d" string="Cancel" type="action" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'signed')]}"/>
-                    <button name="sync_mandate" string="Sync" type="object" class="oe_highlight"/>
+                    <button name="update_feed" string="Sync" type="object" class="oe_highlight"/>
                     <field name="state" widget="statusbar" nolabel="1"/>
                 </header>
                 <sheet>
@@ -43,6 +43,7 @@
                 <field name="reference"/>
                 <field name="contract_temp_id"/>
                 <field name="lang"/>
+                <field name="state"/>
             </tree>
         </field>
     </record>

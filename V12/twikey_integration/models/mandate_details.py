@@ -188,40 +188,40 @@ class MandateDetails(models.Model):
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
 
-    def sync_mandate(self):
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
-        if authorization_token:
-            self.update_feed()
-            customer_name = False
-            if self.partner_id:
-                customer_name = self.partner_id.name.split(' ')
-            data = {'mndtId' : self.reference if self.reference else '',
-                    'iban' : self.iban if self.iban else '',
-                    'bic' : self.bic if self.bic else '',
-                    'l' : self.lang if self.lang else '',
-                    'state' : self.state,
-                    'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
-                    'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
-                    'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.partner_id.company_type == 'person' else '',
-                    'companyName' : self.partner_id.name if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'company' else '',
-                    'vatno' : self.partner_id.vat if self.partner_id and self.partner_id.vat and self.partner_id.company_type == 'company' else '',
-                    'customerNumber' : self.partner_id.id,
-                    'address' : self.partner_id.street if self.partner_id and self.partner_id.street else '',
-                    'city' : self.partner_id.city if self.partner_id and self.partner_id.city else '',
-                    'zip' : self.partner_id.zip if self.partner_id and self.partner_id.zip else '',
-                    'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
-                    }
-            try:
-                response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                _logger.info('Updating mandate data to Twikey with response %s' % (response.content))
-            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Sync Mandate Exception %s' % (e))
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+#     def sync_mandate(self):
+#         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
+#                 'twikey_integration.authorization_token')
+#         base_url=self.env['ir.config_parameter'].sudo().get_param(
+#                 'twikey_integration.base_url')
+#         if authorization_token:
+#             self.update_feed()
+#             customer_name = False
+#             if self.partner_id:
+#                 customer_name = self.partner_id.name.split(' ')
+#             data = {'mndtId' : self.reference if self.reference else '',
+#                     'iban' : self.iban if self.iban else '',
+#                     'bic' : self.bic if self.bic else '',
+#                     'l' : self.lang if self.lang else '',
+#                     'state' : self.state,
+#                     'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
+#                     'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
+#                     'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.partner_id.company_type == 'person' else '',
+#                     'companyName' : self.partner_id.name if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'company' else '',
+#                     'vatno' : self.partner_id.vat if self.partner_id and self.partner_id.vat and self.partner_id.company_type == 'company' else '',
+#                     'customerNumber' : self.partner_id.id,
+#                     'address' : self.partner_id.street if self.partner_id and self.partner_id.street else '',
+#                     'city' : self.partner_id.city if self.partner_id and self.partner_id.city else '',
+#                     'zip' : self.partner_id.zip if self.partner_id and self.partner_id.zip else '',
+#                     'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
+#                     }
+#             try:
+#                 response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+#                 _logger.info('Updating mandate data to Twikey with response %s' % (response.content))
+#             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+#                 _logger.info('Sync Mandate Exception %s' % (e))
+#                 raise exceptions.AccessError(
+#                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+#                 )
 
 #     def cancel_or_delete_mandate(self):
 #         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
