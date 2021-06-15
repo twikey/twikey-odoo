@@ -119,6 +119,19 @@ class MandateDetails(models.Model):
                                     print(mandate_vals,"LLmandate")
                                     mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
                                     print(mandate_id,"created")
+
+# Rsn': 'uncollectable|user' -> Suspended
+# Rsn': 'collectable|user' -> Resumed / signed
+#  _T50, // AccountChanged,
+#  _T51, // AddressChanged,
+#  _T52, // MandateNumberChanged
+#  _T53, // Name changed
+#  _T54, // Email changed
+#  _T55, // Mobile changed
+#  _T56, // Language changed
+#  _T57, // Owner Mandate changed
+
+
                                 # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
                                 # if not creditor_id:
                                 #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
