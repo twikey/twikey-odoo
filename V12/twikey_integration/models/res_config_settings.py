@@ -13,7 +13,7 @@ class ResConfigSettings(models.TransientModel):
 
     api_key = fields.Char(string="API Key", help="Add Api Key from Twikey")
     test = fields.Boolean(string="Test", help="Use Twikey Test environment")
-    module_twikey = fields.Boolean(string="Enable Twikey Integration", helgrp="Use for enable Twikey Integration")
+    module_twikey = fields.Boolean(string="Enable Twikey Integration", help="Use for enable Twikey Integration")
     authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.")
 
     def authenticate(self, api_key=False):
@@ -39,38 +39,45 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def get_values(self):
         res = super(ResConfigSettings, self).get_values()
+        print(self.env['ir.config_parameter'].sudo().get_param(
+                'twikey_integration.base_url'))
         res.update(
             api_key=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.api_key'),
             module_twikey=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.module_twikey'),
             test=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url') != 'https://api.twikey.com',
+                'twikey_integration.test'),
         )
         return res
 
-    def set_values(self):
+    def set_values(self, test=True):
         super(ResConfigSettings, self).set_values()
         param = self.env['ir.config_parameter'].sudo()
-
+        print(test,"test00000000000000")
         api_key = self.api_key or False
-        testmode = self.test or False
+        testmode = test
         module_twikey = self.module_twikey or False
         authorization_token = self.authorization_token or False
 
         base_url = 'https://api.twikey.com'
         if testmode:
             base_url = 'https://api.beta.twikey.com'
+        print(base_url,"baseurl")
 
         param.set_param('twikey_integration.api_key', api_key)
+        param.set_param('twikey_integration.test', testmode)
         param.set_param('twikey_integration.base_url', base_url)
         param.set_param('twikey_integration.module_twikey', module_twikey)
+        print(self.env['ir.config_parameter'].sudo().get_param(
+            'twikey_integration.base_url'),'kkkkkkkkkkkkkkkk')
 
 
     @api.model
     def create(self, values):
         res = super(ResConfigSettings, self).create(values)
-        self.set_values()
+        self.set_values(values['test'])
+        print(values,"LLLLL")
         if res and values.get('api_key'):
             self.authenticate(values.get('api_key'))
         return res

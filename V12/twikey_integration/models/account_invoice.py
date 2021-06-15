@@ -228,9 +228,10 @@ class AccountInvoice(models.Model):
                         'twikey_integration.authorization_token')
         base_url=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
+        self.update_invoice_feed()
         if authorization_token:
             for rec in self:
-                if rec.twikey_invoice_id:
+                if rec.twikey_invoice_id and rec.state != 'paid':
                     pdf = self.env.ref('account.account_invoices').render_qweb_pdf([rec.id])[0]
                     report_file = base64.b64encode(pdf)
                     report_file_decode = report_file.decode('utf-8')

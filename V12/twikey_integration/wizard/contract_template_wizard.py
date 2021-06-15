@@ -70,9 +70,8 @@ class ContractTemplateWizard(models.Model):
             final_dict = dict(zip(new_keys, list(get_fields[0].values())))
             data.update(final_dict)
         try:
-            _logger.debug('New mandate creation data: {}'.format(data))
+            _logger.info('New mandate creation data: {}'.format(data))
             response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
-            _logger.debug('Response invite: {}'.format(response.content))
             _logger.info('Creating new mandate with response: %s' % (response.content))
             resp_obj = response.json()
             if response.status_code == 200:
