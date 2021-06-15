@@ -254,16 +254,25 @@ class MandateDetails(models.Model):
                     'twikey_integration.authorization_token')
             base_url = self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
-            if authorization_token:
+            data = {}
+            if authorization_token and self.state != 'signed':
     #             if values.get('partner_id'):
     #                 customer_name = values.get('partner_id').name.split(' ')
     #             else:
     #                 customer_name = self.partner_id.name.split(' ')
-                data = {'mndtId' : values.get('reference') if values.get('reference') else self.reference,
-                        'iban' : values.get('iban') if values.get('iban') else self.iban if self.iban else '',
-                        'bic' : values.get('bic') if values.get('bic') else self.bic if self.bic else '',
-                        'l' : values.get('lang') if values.get('lang') else self.lang if self.lang else ''
-                    }
+#                 if 'reference' in values:
+                data['mndtId'] = values.get('reference') if values.get('reference') else self.reference
+                if 'iban' in values:
+                    data['iban'] = values.get('iban')
+                if 'bic' in values:
+                    data['bic'] = values.get('bic')
+                if 'lang' in values:
+                    data['l'] = values.get('lang')
+#                 data = {'mndtId' : values.get('reference') if values.get('reference') else self.reference,
+#                         'iban' : values.get('iban') if values.get('iban') else self.iban if self.iban else '',
+#                         'bic' : values.get('bic') if values.get('bic') else self.bic if self.bic else '',
+#                         'l' : values.get('lang') if values.get('lang') else self.lang if self.lang else ''
+#                     }
     #                     'state' : values.get('state') if values.get('state') else self.state
     #                     'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
     #                     'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
@@ -277,12 +286,13 @@ class MandateDetails(models.Model):
     #                     'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
     #                     }
                 try:
-                    response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                    _logger.info('Updating mandate data to Twikey %s' % (response.content))
-                    if response.status_code != 204:
-                        resp_obj = response.json()
-                        raise UserError(_('%s')
-                                    % (resp_obj.get('message')))
+                    if data != {}:
+                        response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
+                        _logger.info('Updating mandate data to Twikey %s' % (response.content))
+                        if response.status_code != 204:
+                            resp_obj = response.json()
+                            raise UserError(_('%s')
+                                        % (resp_obj.get('message')))
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                     _logger.info('Mandate Write Exception %s' % (e))
                     raise exceptions.AccessError(
