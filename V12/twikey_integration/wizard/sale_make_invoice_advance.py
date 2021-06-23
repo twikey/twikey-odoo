@@ -204,7 +204,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                                 )
                         if response.status_code == 200:
-                            invoice_id.write({'twikey_url' : resp_obj.get('url'), 'twikey_invoice_id' : resp_obj.get('id')})
+                            invoice_id.with_context(update_feed=True).write({'twikey_url' : resp_obj.get('url'), 'twikey_invoice_id' : resp_obj.get('id')})
         #                 update invoice API
                             pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
                             report_file = base64.b64encode(pdf)

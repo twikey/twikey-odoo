@@ -2,13 +2,10 @@
 
 from odoo import api, fields, models, exceptions,_
 import requests
-import logging
 import json
 from operator import itemgetter
 from odoo.exceptions import UserError
 import logging
-
-_logger = logging.getLogger(__name__)
 
 _logger = logging.getLogger(__name__)
 
@@ -18,11 +15,12 @@ def _lang_get(self):
 
 class MandateDetails(models.Model):
     _name = 'mandate.details'
+    _inherit = ['portal.mixin', 'mail.thread', 'mail.activity.mixin']
     _description = "Mandate details of Twikey"
     _rec_name = 'partner_id'
 
     partner_id = fields.Many2one('res.partner', string="Customer")
-    state = fields.Selection([('pending', 'Pending'), ('signed', 'Signed'), ('suspended', 'Suspended'), ('cancelled', 'Cancelled')], default='pending')
+    state = fields.Selection([('pending', 'Pending'), ('signed', 'Signed'), ('suspended', 'Suspended'), ('cancelled', 'Cancelled')], track_visibility='onchange', default='pending')
     creditor_id = fields.Many2one('res.partner', string="Creditor-ID")
     reference = fields.Char(tring="Mandate Reference", required=True)
     iban = fields.Char(string="IBAN")
@@ -49,6 +47,11 @@ class MandateDetails(models.Model):
                         for data in resp_obj.get('Messages'):
                             if data.get('AmdmntRsn'):
                                 partner_id = False
+                                state = False
+                                if data.get('AmdmntRsn').get('Rsn') and data.get('AmdmntRsn').get('Rsn') == 'uncollectable|user':
+                                    state = 'suspended'
+                                else:
+                                    state = 'signed'
                                 _logger.info('Response AmdmntRsn.. %s' % (data.get('AmdmntRsn')))
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
@@ -58,7 +61,6 @@ class MandateDetails(models.Model):
                                     if not partner_id:
                                         partner_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Dbtr').get('Nm')})
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
-                                print(mandate_id,"@@@@@@@@@@@@@@@@@@@@@@@@@@@")
                                 if mandate_id:
                                     lst = data.get('Mndt').get('SplmtryData')
                                     lang = False
@@ -68,7 +70,7 @@ class MandateDetails(models.Model):
                                     lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
                                     mandate_id.with_context(update_feed=True).write({'reference' : data.get('Mndt').get('MndtId') if data.get('Mndt').get('MndtId') else False,
                                                    'partner_id' : partner_id.id if partner_id else False,
-                                                   'state' : 'signed',
+                                                   'state' : state,
                                                    'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                    'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                    'lang': lang_id.code if lang_id else False
@@ -112,13 +114,11 @@ class MandateDetails(models.Model):
                                 if not mandate_id:
                                     mandate_vals = {'partner_id' : partner_id.id if partner_id else False,
                                                     'reference' : data.get('Mndt').get('MndtId'),
-                                                    'state' : 'signed',
+                                                    'state' : state,
                                                     'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                     'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                     }
-                                    print(mandate_vals,"LLmandate")
                                     mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
-                                    print(mandate_id,"created")
 
 # Rsn': 'uncollectable|user' -> Suspended
 # Rsn': 'collectable|user' -> Resumed / signed

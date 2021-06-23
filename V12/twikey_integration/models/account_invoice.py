@@ -130,7 +130,7 @@ class AccountInvoice(models.Model):
                                     if credit_aml_id:
                                         invoice_id.assign_outstanding_credit(
                                             credit_aml_id.id)
-                            invoice_id.write({'number': data.get('number'),
+                            invoice_id.with_context(update_invoice=True).write({'number': data.get('number'),
                                               'partner_id': partner_id.id,
                                               'date_due': data.get('duedate'),
                                               'date_invoice': data.get('date'),
@@ -223,37 +223,39 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def write(self, values):
+        context = self._context
         res = super(AccountInvoice, self).write(values)
-        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
-                        'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.base_url')
-        self.update_invoice_feed()
-        if authorization_token:
-            for rec in self:
-                if rec.twikey_invoice_id and rec.state != 'paid':
-                    pdf = self.env.ref('account.account_invoices').render_qweb_pdf([rec.id])[0]
-                    report_file = base64.b64encode(pdf)
-                    report_file_decode = report_file.decode('utf-8')
-                    data = """{"date" : "%(InvoiceDate)s",
-                           "duedate" : "%(DueDate)s",
-                           "status" : "%(InvoiceStatus)s",
-                           "pdf" : "%(ReportFile)s"
-                    }""" % {'InvoiceDate': values.get('date_invoice') if values.get('date_invoice') else rec.date_invoice,
-                            'DueDate': values.get('date_due') if values.get('date_due') else rec.date_due,
-                            'InvoiceStatus': TwikeyInvoiceStatus[values.get('state')] if values.get('state') else TwikeyInvoiceStatus[rec.state],
-                            'ReportFile': report_file_decode
-                            }
-                    try:
-                        response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                        _logger.info('Updating invoice data to twikey %s' % (response.content))
-#                         if response.status_code != 200:
-#                             resp_obj = response.json()
-#                             raise UserError(_('%s')
-#                                 % (resp_obj.get('message')))
-                    except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                        _logger.info('Exception raised while updating invoice data to Twikey %s' % (e))
-                        raise exceptions.AccessError(
-                            _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                        )
+        if not 'update_feed' in context or not 'by_controller' in context or not 'update_invoice' in context:
+            authorization_token = self.env['ir.config_parameter'].sudo().get_param(
+                            'twikey_integration.authorization_token')
+            base_url=self.env['ir.config_parameter'].sudo().get_param(
+                        'twikey_integration.base_url')
+            self.update_invoice_feed()
+            if authorization_token:
+                for rec in self:
+                    if rec.twikey_invoice_id and values.get('state') == 'paid':
+                        pdf = self.env.ref('account.account_invoices').render_qweb_pdf([rec.id])[0]
+                        report_file = base64.b64encode(pdf)
+                        report_file_decode = report_file.decode('utf-8')
+                        data = """{"date" : "%(InvoiceDate)s",
+                               "duedate" : "%(DueDate)s",
+                               "status" : "%(InvoiceStatus)s",
+                               "pdf" : "%(ReportFile)s"
+                        }""" % {'InvoiceDate': values.get('date_invoice') if values.get('date_invoice') else rec.date_invoice,
+                                'DueDate': values.get('date_due') if values.get('date_due') else rec.date_due,
+                                'InvoiceStatus': TwikeyInvoiceStatus[values.get('state')] if values.get('state') else TwikeyInvoiceStatus[rec.state],
+                                'ReportFile': report_file_decode
+                                }
+                        try:
+                            response = requests.put(base_url+'/creditor/invoice/%s' %rec.twikey_invoice_id, data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
+                            _logger.info('Updating invoice data to twikey %s' % (response.content))
+    #                         if response.status_code != 200:
+    #                             resp_obj = response.json()
+    #                             raise UserError(_('%s')
+    #                                 % (resp_obj.get('message')))
+                        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                            _logger.info('Exception raised while updating invoice data to Twikey %s' % (e))
+                            raise exceptions.AccessError(
+                                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                            )
         return res
