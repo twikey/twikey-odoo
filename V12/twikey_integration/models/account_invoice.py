@@ -144,7 +144,7 @@ class AccountInvoice(models.Model):
                 raise exceptions.AccessError(
                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                 )
-                
+
     def sync_invoice(self):
         authorization_token = self.env['ir.config_parameter'].sudo().get_param(
             'twikey_integration.authorization_token')
@@ -223,9 +223,10 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def write(self, values):
+        print('==============write================')
         context = self._context
         res = super(AccountInvoice, self).write(values)
-        if not 'update_feed' in context or not 'by_controller' in context or not 'update_invoice' in context:
+        if not 'update_feed' in context and not 'by_controller' in context and not 'update_invoice' in context:
             authorization_token = self.env['ir.config_parameter'].sudo().get_param(
                             'twikey_integration.authorization_token')
             base_url=self.env['ir.config_parameter'].sudo().get_param(
@@ -259,3 +260,10 @@ class AccountInvoice(models.Model):
                                 _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                             )
         return res
+
+    @api.multi
+    def action_invoice_re_open(self):
+        if self.filtered(lambda inv: inv.state not in ('in_payment', 'paid')):
+            raise UserError(_('Invoice must be paid in order to set it to register payment.'))
+        if self:
+            return self.with_context(by_controller=True).write({'state': 'open'})

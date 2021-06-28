@@ -15,6 +15,8 @@ class ContractTemplate(models.Model):
     mandateNumberRequired = fields.Boolean(string="MandateNumberRequired", default=True)
     type = fields.Selection([('CORE', 'CORE'), ('B2B', 'B2B'), ('CODA', 'CODA'), ('CONTRACT', 'CONTRACT'), ('CONSENT', 'CONSENT'), ('IDENT', 'IDENT'), ('CREDITCARD', 'CREDITCARD'), ('WIK', 'WIK'), ('PAYROLL', 'PAYROLL')], string="Type")
     attribute_ids = fields.One2many('contract.template.attribute', 'contract_template_id', string="Attributes")
+
+    _sql_constraints = [('template_id_unique', 'unique(template_id)', 'Already Exist!')]
     
     
 class ContractTemplateAttribute(models.Model):
