@@ -9,18 +9,6 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
-Field_Type = {'text': 'char',
-              'number': 'integer',
-              'amount': 'float',
-              'select': 'selection',
-              'plan': 'char',
-              'email': 'char',
-              'url': 'char',
-              'checkbox': 'boolean',
-              'iban': 'char',
-              'multi': 'char'
-              }
-
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -41,133 +29,10 @@ class ResPartner(models.Model):
         if module_twikey:
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
-            base_url=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.base_url')
             if authorization_token:
-                try:
-                    response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
-                    _logger.info('Fetching contract template data %s' % (response.content))
-                    if response.status_code == 200:
-                        resp_obj = response.json()
-                        twikey_temp_list = []
-                        template_ids = self.env['contract.template'].search([('active', 'in', [True, False])])
-                        temp_list = []
-                        _logger.info("Retrieved %d templates from Twikey",len(resp_obj))
-                        for temp in template_ids:
-                            temp_list.append(temp.template_id)
-                        for resp in resp_obj:
-                            twikey_temp_list.append(resp.get('id'))
-                            template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
-                            if not template_id:
-                                template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type'),'mandateNumberRequired': resp.get('mandateNumberRequired')})
-                            if resp.get('Attributes') != []:
-                                fields_list = []
-                                mandate_field_list = []
-                                for attr in resp.get('Attributes'):
-                                    select_list = []
-                                    field_type = attr.get('type')
-                                    if field_type == 'select':
-                                        if attr.get('Options') != []:
-                                            for select in attr.get('Options'):
-                                                select_list.append((str(select),str(select)))
-                                        else:
-                                            _logger.warn("Skipping attribute %s as selection without options",attr.get('name'))
-                                            continue
-                                    model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
-                                    mandate_model_id = self.env['ir.model'].search([('model', '=', 'mandate.details')])
-                                    search_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')+'_'+str(resp.get('id'))), ('model_id', '=', model_id.id)])
-                                    search_mandate_fields = self.env['ir.model.fields'].sudo().search([('name', '=', 'x_' + attr.get('name')+'_'+str(resp.get('id'))), ('model_id', '=', mandate_model_id.id)])
-                                    if not search_fields and field_type != 'iban':
-                                        ir_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name')+'_'+str(resp.get('id')),
-                                                      'field_description': attr.get('description'),
-                                                      'model_id': model_id.id,
-                                                      'ttype': Field_Type[field_type],
-#                                                       'required': attr.get('mandatory'),
-                                                      'store': True,
-                                                      'readonly': attr.get('readonly'),
-                                                      'selection': str(select_list) if select_list != [] else '',
-                                                      })
-                                        fields_list.append(ir_fields)
-                                    if not search_mandate_fields and field_type != 'iban':
-                                        mandate_fields = self.env['ir.model.fields'].sudo().create({'name': 'x_' + attr.get('name')+'_'+str(resp.get('id')),
-                                                      'field_description': attr.get('description'),
-                                                      'model_id': mandate_model_id.id,
-                                                      'ttype': Field_Type[field_type],
-#                                                       'required': attr.get('mandatory'),
-                                                      'store': True,
-                                                      'readonly': attr.get('readonly'),
-                                                      'selection': str(select_list) if select_list != [] else '',
-                                                      })
-                                        mandate_field_list.append(mandate_fields)
-                                    attr_vals = {'contract_template_id': template_id.template_id,
-                                                 'name': attr.get('name'),
-                                                 'type': Field_Type[attr.get('type')]}
-                                    if template_id.attribute_ids:
-                                        # for attrs in template_id.attribute_ids:
-                                            if attr.get('name') not in template_id.attribute_ids.mapped('name'):
-                                                template_id.write({'attribute_ids': [(0, 0, attr_vals)]})
-                                    else:
-                                        template_id.write({'attribute_ids': [(0, 0, attr_vals)]})
-                                inherit_id = self.env.ref('twikey_integration.contract_template_wizard_view_twikey_form')
-                                if fields_list != []:
-                                    arch_base = _('<?xml version="1.0"?>'
-                                                 '<data>'
-                                                 '<field name="template_id" position="after">')
-                                    for f in fields_list:
-                                        if attr.get('mandatory'):
-                                            arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)], 'required': [('template_id', '=', %s)]}"/>''' %(f.name, template_id.id, template_id.id)
-                                        else:
-                                            arch_base += '''<field name="%s" attrs="{'invisible': [('template_id', '!=', %s)]}"/>''' %(f.name, template_id.id)
-                                        
-    
-                                    arch_base += _('</field>'
-                                                '</data>')
-                                    view = self.env['ir.ui.view'].sudo().create({'name': 'attribute.dynamic.fields.',
-                                                                         'type': 'form',
-                                                                         'model': 'contract.template.wizard',
-                                                                         'mode': 'extension',
-                                                                         'inherit_id': inherit_id.id,
-                                                                         'arch_base': arch_base,
-                                                                         'active': True})
-    
-                                inherit_mandate_id = self.env.ref('twikey_integration.mandate_details_view_twikey_form')
-                                if mandate_field_list != []:
-                                    mandate_arch_base = _('<?xml version="1.0"?>'
-                                                 '<data>'
-                                                 '<field name="url" position="after">')
-                                    for m in mandate_field_list:
-                                        if attr.get('mandatory'):
-                                            mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)], 'required': [('contract_temp_id', '=', %s)]}"/>''' % (m.name, template_id.id, template_id.id)
-                                        else:
-                                            mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)]}"/>''' % (m.name, template_id.id)
-                                    mandate_arch_base += _('</field>'
-                                                '</data>')
-                                    view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
-                                                                         'type': 'form',
-                                                                         'model': 'mandate.details',
-                                                                         'mode': 'extension',
-                                                                         'inherit_id': inherit_mandate_id.id,
-                                                                         'arch_base': mandate_arch_base,
-                                                                         'active': True})
-                        diff_list = []
-                        for temp_diff in temp_list:
-                            if temp_diff not in twikey_temp_list:
-                                diff_list.append(temp_diff)
-                                if diff_list != []:
-                                    for a in diff_list:
-                                        template_ids = self.env['contract.template'].search([('template_id','=',a),('active', 'in', [True, False])])
-                                        if template_ids:
-                                            template_ids.unlink()
-    
-                    action = self.env.ref('twikey_integration.contract_template_wizard_action').read()[0]
-                    return action
-                except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
-                    requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                    _logger.info('Exception raised while fetching Contract Templates %s' % (e))
-                    raise exceptions.AccessError(
-                        _(
-                            'The url that this service requested returned an error. Please check your connection or try after sometime.')
-                    )
+                self.env['res.config.settings'].sync_contract_template()
+                action = self.env.ref('twikey_integration.contract_template_wizard_action').read()[0]
+                return action
             else:
                 raise UserError(_("Authorization Token Not Found, Please Run Authenticate Twikey Scheduled Actions Manually!!!"))
         else:

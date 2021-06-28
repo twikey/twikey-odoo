@@ -212,7 +212,6 @@ class SaleAdvancePaymentInv(models.TransientModel):
                             data = """{"title" : "INV_%(Title)s",
                                        "date" : "%(InvoiceDate)s",
                                        "duedate" : "%(DueDate)s",
-                                       "status" : "booked",
                                        "pdf" : "%(ReportFile)s"
                                 }""" % {'Title' : invoice_number[0],
                                         'InvoiceDate' : fields.Date.context_today(self),

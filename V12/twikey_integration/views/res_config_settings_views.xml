@@ -24,11 +24,13 @@
                                     <label for="api_key" class="o_light_label"/>
                                     <field name="api_key"/>
                                 </div>
+                                <div>
+                                    <button name="sync_contract_template" string="Sync Contract Template" type="object" class="oe_link" icon="fa-arrow-right"/>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </xpath>
             </field>
         </record>
-
 </odoo>

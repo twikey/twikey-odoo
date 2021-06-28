@@ -223,7 +223,6 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def write(self, values):
-        print('==============write================')
         context = self._context
         res = super(AccountInvoice, self).write(values)
         if not 'update_feed' in context and not 'by_controller' in context and not 'update_invoice' in context:
