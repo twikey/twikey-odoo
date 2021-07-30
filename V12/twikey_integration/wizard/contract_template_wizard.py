@@ -76,7 +76,7 @@ class ContractTemplateWizard(models.Model):
             resp_obj = response.json()
             if response.status_code == 200:
                 mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
-                mandate_id.with_context(fields_data=True).write(get_fields[0])
+                mandate_id.with_context(update_feed=True).write(get_fields[0])
                 partner_id.write({'twikey_reference': str(partner_id.id)})
                 view = self.env.ref('twikey_integration.success_message_wizard')
                 context = dict(self._context or {})

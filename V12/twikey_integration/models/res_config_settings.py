@@ -82,7 +82,7 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def create(self, values):
         res = super(ResConfigSettings, self).create(values)
-#         self.set_values(values['test'])
+        self.set_values(values['test'])
         if res and values.get('api_key'):
             self.authenticate(values.get('api_key'))
         return res

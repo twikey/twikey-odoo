@@ -262,7 +262,7 @@ class MandateDetails(models.Model):
     @api.multi
     def write(self, values):
         res = super(MandateDetails, self).write(values)
-        if not self._context.get('fields_data') or not self._context.get('update_feed'):
+        if not self._context.get('update_feed'):
             authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.authorization_token')
             base_url = self.env['ir.config_parameter'].sudo().get_param(
