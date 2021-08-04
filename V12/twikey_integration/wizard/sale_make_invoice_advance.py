@@ -221,15 +221,14 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                         }
                             try:
                                 update_response = requests.put(base_url+"/creditor/invoice/"+resp_obj.get('id'), data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                                _logger.info('Update pdf to Twikey Invoice %s' % (update_response.content))
+                                if update_response.status_code < 300:
+                                    _logger.info('Update pdf to Twikey Invoice %s %d' % (invoice_number[0],update_response.status_code))
+                                else:
+                                    _logger.error('Update pdf to Twikey Invoice %s failed %s' % (invoice_number[0],x.headers))
                             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                raise exceptions.AccessError(
-                                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                                )
+                                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                        raise exceptions.AccessError(
-                            _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                        )
+                        raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
             else:
                 raise UserError(_("Authorization Token Not Found, Please Run Authenticate Twikey Scheduled Actions Manually!!!"))
             if context.get('open_invoices', False):
