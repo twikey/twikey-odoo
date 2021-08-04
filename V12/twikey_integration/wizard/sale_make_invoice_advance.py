@@ -124,9 +124,10 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     if response.status_code == 200:
                         resp_obj = response.json()
                         for resp in resp_obj:
-                            template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id'))])
-                            if not template_id:
-                                template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
+                            if resp.get('id'):
+                                template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
+                                if not template_id:
+                                    template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                             _logger.info('Exception raised while fetching contract templates %s' % (e))
                             raise exceptions.AccessError(

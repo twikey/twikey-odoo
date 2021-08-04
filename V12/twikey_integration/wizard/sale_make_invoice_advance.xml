@@ -6,7 +6,7 @@
            <field name="inherit_id" ref="sale.view_sale_advance_payment_inv"/>
            <field name="arch" type="xml">
                <xpath expr="//field[@name='advance_payment_method']" position="after">
-                    <field name="template_id" attrs="{'invisible': [('is_twikey', '=', False)],'required': [('is_twikey', '=', True)]}"/>
+                    <field name="template_id" attrs="{'invisible': [('is_twikey', '=', False)]}"/>
                     <field name="is_twikey" invisible="1"/>
                </xpath>
            </field>
