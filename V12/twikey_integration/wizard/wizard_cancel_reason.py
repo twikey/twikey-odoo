@@ -39,7 +39,7 @@ class MandateCancelReason(models.TransientModel):
                 if response.status_code == 200:
     #                 self.mandate_id.update_feed()
                     if self.mandate_id.state == 'signed':
-                        self.mandate_id.write({'state' : 'cancelled', 'description' : self.name})
+                        self.mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : self.name})
                     if self.mandate_id.state == 'pending':
                         self.mandate_id.unlink()
                         return self.env.ref('twikey_integration.mandate_details_action').read()[0]

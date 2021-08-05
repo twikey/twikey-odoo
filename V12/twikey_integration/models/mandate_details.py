@@ -309,7 +309,7 @@ class MandateDetails(models.Model):
 
     def unlink(self):
         context = self._context
-        if not context.get('by_controller'):
+        if not context.get('update_feed'):
             self.sync_mandate()
             base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')

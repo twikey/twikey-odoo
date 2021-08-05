@@ -141,7 +141,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     invoice_id._onchange_payment_term_date_invoice()
                     invoice_number =  str(uuid.uuid1())
 
-                    url = "https://app.beta.twikey.com/11475/"+invoice_number
+                    url = base_url + "/11475/"+invoice_number
                     invoice_id.with_context(update_feed=True).write({'twikey_url' : url, 'twikey_invoice_id' : invoice_number})
                     #                 update invoice API
                     pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]

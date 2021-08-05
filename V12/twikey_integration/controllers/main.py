@@ -23,11 +23,11 @@ class TwikeyController(http.Controller):
                 if post.get('event') == 'Invite' and post.get('reason') == 'removed':
                     mandate_id = request.env['mandate.details'].search([('reference', '=', post.get('mandateNumber'))])
                     if mandate_id:
-                        mandate_id.with_context(by_controller=True).unlink()
+                        mandate_id.with_context(update_feed=True).unlink()
                 elif post.get('event') == 'Sign':
                     mandate_id = request.env['mandate.details'].search([('reference', '=', post.get('mandateNumber'))])
                     if mandate_id:
-                        mandate_id.with_context(by_controller=True).write({'state': 'signed'})
+                        mandate_id.with_context(update_feed=True).write({'state': 'signed'})
                 else:
                     mandate_obj = request.env['mandate.details']
                     mandate_obj.update_feed()
