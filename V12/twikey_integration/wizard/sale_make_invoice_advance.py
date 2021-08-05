@@ -8,6 +8,7 @@ from datetime import datetime
 import base64
 import random
 import logging
+import uuid
 
 _logger = logging.getLogger(__name__)
 
@@ -138,95 +139,63 @@ class SaleAdvancePaymentInv(models.TransientModel):
                 if invoice_id:
                     invoice_id.date_invoice = fields.Date.context_today(self)
                     invoice_id._onchange_payment_term_date_invoice()
-                    invoice_number = random.sample(range(10000000,99999999),1)
-                    data = """{
+                    invoice_number =  str(uuid.uuid1())
+
+                    url = "https://app.beta.twikey.com/11475/"+invoice_number
+                    invoice_id.with_context(update_feed=True).write({'twikey_url' : url, 'twikey_invoice_id' : invoice_number})
+                    #                 update invoice API
+                    pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
+                    report_file = base64.b64encode(pdf)
+
+                    try:
+                        partner_name = invoice_id.partner_id.name.split(' ')
+                        data = """{
                                 "number" : "%(id)s",
                                 "title" : "INV_%(id)s",
                                 "ct" : %(Template)s,
                                 "amount" : %(Amount)s,
-                                "remittance": "INV_%(id)s",
                                 "date" : "%(InvoiceDate)s",
                                 "duedate" : "%(DueDate)s",
-                                "customerByRef" : "%(CustomerByRef)s"
-                                }""" % {'id' : invoice_number[0],
-                                        'Template' : self.template_id.template_id,
-                                        'Amount' : invoice_id.amount_total,
-                                        'InvoiceDate' : fields.Date.context_today(self),
-                                        'DueDate' : invoice_id.date_due if invoice_id.date_due else fields.Date.context_today(self),
-                                        'CustomerByRef' : invoice_id.partner_id.id
-                                    }
-                    try:
-                        response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                        _logger.info('Creating new Invoice with Customer Ref %s' % (response.content))
-                        resp_obj = response.json()
-                        if response.status_code == 400 and resp_obj.get('message') and resp_obj.get('message') == 'Debtor was not found':
-                            partner_name = invoice_id.partner_id.name.split(' ')
-                            data = """{
-                                    "number" : "%(id)s",
-                                    "title" : "INV_%(id)s",
-                                    "ct" : %(Template)s,
-                                    "amount" : %(Amount)s,
-                                    "date" : "%(InvoiceDate)s",
-                                    "duedate" : "%(DueDate)s",
-                                    "customer": {"customerNumber" : "%(CustomerNumber)s",
-                                     "email" : "%(Email)s",
-                                     "firstname" : "%(FirstName)s",
-                                     "lastname" : "%(LastName)s",
-                                     "companyName" : "%(CompanyName)s",
-                                     "coc" : "%(Coc)s",
-                                     "address" : "%(Address)s",
-                                     "city" : "%(City)s",
-                                     "zip" : "%(Zip)s",
-                                     "country" : "%(Country)s",
-                                     "mobile" : "%(Mobile)s"
-                                    }
-                            }""" % {'id' : invoice_number[0],
-                                    'Template' : self.template_id.template_id,
-                                    'Amount' : invoice_id.amount_total,
-                                    'InvoiceDate' : fields.Date.context_today(self),
-                                    'DueDate' : invoice_id.date_due if invoice_id.date_due else fields.Date.context_today(self),
-                                    'CustomerNumber' : invoice_id.partner_id.id if invoice_id.partner_id else '',
-                                    'Email' : invoice_id.partner_id.email if invoice_id.partner_id.email else '',
-                                    'FirstName' : partner_name[0] if partner_name and invoice_id.partner_id.company_type == 'person' else 'unknown',
-                                    'LastName' : partner_name[1] if partner_name and len(partner_name) > 1 and invoice_id.partner_id.company_type == 'person' else 'unknown',
-                                    'CompanyName' : invoice_id.partner_id.name if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'company' else '',
-                                    'Coc' : invoice_id.partner_id.vat if invoice_id.partner_id and invoice_id.partner_id.vat and invoice_id.partner_id.company_type == 'company' else '',
-                                    'Address' : invoice_id.partner_id.street if invoice_id.partner_id and invoice_id.partner_id.street else '',
-                                    'City' : invoice_id.partner_id.city if invoice_id.partner_id and invoice_id.partner_id.city else '',
-                                    'Zip' : invoice_id.partner_id.zip if invoice_id.partner_id and invoice_id.partner_id.zip else '',
-                                    'Country' : invoice_id.partner_id.country_id.code if invoice_id.partner_id and invoice_id.partner_id.country_id else '',
-                                    'Mobile' : invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else ''
+                                "pdf": "%(pdf)s",
+                                "customer": {"customerNumber" : "%(CustomerNumber)s",
+                                 "email" : "%(Email)s",
+                                 "firstname" : "%(FirstName)s",
+                                 "lastname" : "%(LastName)s",
+                                 "companyName" : "%(CompanyName)s",
+                                 "coc" : "%(Coc)s",
+                                 "address" : "%(Address)s",
+                                 "city" : "%(City)s",
+                                 "zip" : "%(Zip)s",
+                                 "country" : "%(Country)s",
+                                 "mobile" : "%(Mobile)s"
                                 }
-                            try:
-                                response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                                _logger.info('Creating new Invoice %s' % (response.content))
-                            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                raise exceptions.AccessError(
-                                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                                )
-                        if response.status_code == 200:
-                            invoice_id.with_context(update_feed=True).write({'twikey_url' : resp_obj.get('url'), 'twikey_invoice_id' : resp_obj.get('id')})
-        #                 update invoice API
-                            pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
-                            report_file = base64.b64encode(pdf)
-                            report_file_decode = report_file.decode('utf-8')
-                            data = """{"title" : "INV_%(Title)s",
-                                       "date" : "%(InvoiceDate)s",
-                                       "duedate" : "%(DueDate)s",
-                                       "pdf" : "%(ReportFile)s"
-                                }""" % {'Title' : invoice_number[0],
-                                        'InvoiceDate' : fields.Date.context_today(self),
-                                        'DueDate' : invoice_id.date_due if invoice_id.date_due else fields.Date.context_today(self),
-                                        'ReportFile' : report_file_decode
-                                        }
-                            try:
-                                update_response = requests.put(base_url+"/creditor/invoice/"+resp_obj.get('id'), data=data, headers={'authorization' : authorization_token, 'Content-Type': 'application/json'})
-                                if update_response.status_code < 300:
-                                    _logger.info('Update pdf to Twikey Invoice %s %d' % (invoice_number[0],update_response.status_code))
-                                else:
-                                    _logger.error('Update pdf to Twikey Invoice %s failed %s' % (invoice_number[0],x.headers))
-                            except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+                        }""" % {'id' : invoice_number,
+                                'Template' : self.template_id.template_id,
+                                'Amount' : invoice_id.amount_total,
+                                'InvoiceDate' : fields.Date.context_today(self),
+                                'DueDate' : invoice_id.date_due if invoice_id.date_due else fields.Date.context_today(self),
+                                'pdf': report_file.decode('utf-8'),
+                                'CustomerNumber' : invoice_id.partner_id.id if invoice_id.partner_id else '',
+                                'Email' : invoice_id.partner_id.email if invoice_id.partner_id.email else '',
+                                'FirstName' : partner_name[0] if partner_name and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                                'LastName' : partner_name[1] if partner_name and len(partner_name) > 1 and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                                'CompanyName' : invoice_id.partner_id.name if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'company' else '',
+                                'Coc' : invoice_id.partner_id.vat if invoice_id.partner_id and invoice_id.partner_id.vat and invoice_id.partner_id.company_type == 'company' else '',
+                                'Address' : invoice_id.partner_id.street if invoice_id.partner_id and invoice_id.partner_id.street else '',
+                                'City' : invoice_id.partner_id.city if invoice_id.partner_id and invoice_id.partner_id.city else '',
+                                'Zip' : invoice_id.partner_id.zip if invoice_id.partner_id and invoice_id.partner_id.zip else '',
+                                'Country' : invoice_id.partner_id.country_id.code if invoice_id.partner_id and invoice_id.partner_id.country_id else '',
+                                'Mobile' : invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else ''
+                            }
+                        try:
+                            _logger.debug('Creating new Invoice %s' % (data))
+                            response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
+                            _logger.info('Creating new Invoice %s' % (response.content))
+                        except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                            raise exceptions.AccessError(
+                                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
+                            )
+
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
             else:
