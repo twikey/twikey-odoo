@@ -26,21 +26,25 @@ class ResConfigSettings(models.TransientModel):
 
     api_key = fields.Char(string="API Key", help="Add Api Key from Twikey")
     test = fields.Boolean(string="Test", help="Use Twikey Test environment")
+    merchant_id = fields.Integer(string="Twikey ID",help="Your Twikey customer ID", readonly=True)
     module_twikey = fields.Boolean(string="Enable Twikey Integration", help="Use for enable Twikey Integration")
-    authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.")
+    authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.", readonly=True)
 
     def authenticate(self, api_key=False):
         if not api_key:
             api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
             base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
-            _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
+            _logger.debug('Authenticating to Twikey on %s with %s',base_url, api_key)
             try:
                 response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
-                _logger.debug('Response from Authentication %s' % (response.content))
                 param = self.env['ir.config_parameter'].sudo()
-                if response.status_code == 200:
-                    param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))
+                if response.headers['Authorization']:
+                    param.set_param('twikey_integration.authorization_token', response.headers['Authorization'])
+                    param.set_param('twikey_integration.merchant_id', response.headers['X-MERCHANT-ID'])
+                    _logger.info('Authenticated to Twikey on %s twikey=%s' % (base_url,response.headers['X-MERCHANT-ID']))
+                else:
+                    _logger.error('Failed authenticating to Twikey on %s error=%s for apikey=%s' % (base_url,response.headers['ApiError'],api_key))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 _logger.error('Exception raised during Authentication %s' % (e))
                 raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))

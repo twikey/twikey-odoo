@@ -3,16 +3,14 @@
 from odoo import api, fields, models, exceptions,_
 from odoo.exceptions import UserError, ValidationError
 import requests
-import json
-from datetime import datetime
 import base64
-import random
 import logging
 import uuid
 
 _logger = logging.getLogger(__name__)
 
 class SaleAdvancePaymentInv(models.TransientModel):
+
     _name = 'sale.advance.payment.inv'
     _inherit = 'sale.advance.payment.inv'
     
@@ -101,13 +99,16 @@ class SaleAdvancePaymentInv(models.TransientModel):
     
     @api.multi
     def create_invoices(self):
-        module_twikey = self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.module_twikey')
+        params = self.env['ir.config_parameter'].sudo()
+        module_twikey = params.get_param('twikey_integration.module_twikey')
         if module_twikey:
-            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.authorization_token')
-            base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
+            authorization_token = params.get_param('twikey_integration.authorization_token')
+            base_url = params.get_param('twikey_integration.base_url')
+            merchant_id = params.get_param('twikey_integration.merchant_id')
+            test_mode = params.get_param('twikey_integration.test')
+            base_invoice_url = "https://app.twikey.com/"+merchant_id+"/"
+            if test_mode:
+                base_invoice_url = "https://app.beta.twikey.com/"+merchant_id+"/"
             if authorization_token:
                 context = dict(self._context)
                 context.update({'template_id' : self.template_id})
@@ -118,8 +119,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     sale_orders.with_context(context).action_invoice_create(final=True)
                 else:
                     res = super(SaleAdvancePaymentInv, self).create_invoices()
-                invoice_ids = []
                 try:
+                    # TODO Why are we getting the templates again?
                     response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
                     _logger.info('Fetching contract templates from Twikey %s' % (response.content))
                     if response.status_code == 200:
@@ -141,7 +142,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     invoice_id._onchange_payment_term_date_invoice()
                     invoice_number =  str(uuid.uuid1())
 
-                    url = base_url + "/11475/"+invoice_number
+                    url = base_invoice_url + invoice_number
                     invoice_id.with_context(update_feed=True).write({'twikey_url' : url, 'twikey_invoice_id' : invoice_number})
                     #                 update invoice API
                     pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
@@ -150,7 +151,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     try:
                         partner_name = invoice_id.partner_id.name.split(' ')
                         data = """{
-                                "number" : "%(id)s",
+                                "id" : "%(id)s",
+                                "number" : "%(number)s",
                                 "title" : "INV_%(id)s",
                                 "ct" : %(Template)s,
                                 "amount" : %(Amount)s,
@@ -170,6 +172,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                  "mobile" : "%(Mobile)s"
                                 }
                         }""" % {'id' : invoice_number,
+                                'number' : invoice_id.id,
                                 'Template' : self.template_id.template_id,
                                 'Amount' : invoice_id.amount_total,
                                 'InvoiceDate' : fields.Date.context_today(self),
@@ -190,11 +193,9 @@ class SaleAdvancePaymentInv(models.TransientModel):
                         try:
                             _logger.debug('Creating new Invoice %s' % (data))
                             response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                            _logger.info('Creating new Invoice %s' % (response.content))
+                            _logger.info('Created new Invoice %s' % (response.content))
                         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                            raise exceptions.AccessError(
-                                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                            )
+                            raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
 
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
@@ -204,13 +205,4 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     return sale_orders.action_view_invoice()
         else:
             return super(SaleAdvancePaymentInv, self).create_invoices()
-
-
-
-
-
-
-
-
-
 
