@@ -37,15 +37,13 @@ class ResConfigSettings(models.TransientModel):
             _logger.info('Authenticating to Twikey on %s with %s',base_url, api_key)
             try:
                 response = requests.post(base_url+"/creditor", data={'apiToken':api_key})
-                _logger.info('Response from Authentication %s' % (response.content))
+                _logger.debug('Response from Authentication %s' % (response.content))
                 param = self.env['ir.config_parameter'].sudo()
                 if response.status_code == 200:
                     param.set_param('twikey_integration.authorization_token', json.loads(response.text).get('Authorization'))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Exception raised during Authentication %s' % (e))
-                raise exceptions.AccessError(
-                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-            )        
+                _logger.error('Exception raised during Authentication %s' % (e))
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
         else:
             raise UserError('Please Add Twikey Api Key from Settings.')
 
@@ -53,12 +51,9 @@ class ResConfigSettings(models.TransientModel):
     def get_values(self):
         res = super(ResConfigSettings, self).get_values()
         res.update(
-            api_key=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.api_key'),
-            module_twikey=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.module_twikey'),
-            test=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.test'),
+            api_key=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key'),
+            module_twikey=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey'),
+            test=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.test'),
         )
         return res
 
@@ -88,17 +83,14 @@ class ResConfigSettings(models.TransientModel):
         return res
         
     def sync_contract_template(self):
-        module_twikey = self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.module_twikey')
+        module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
         if module_twikey:
-            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.authorization_token')
-            base_url=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.base_url')
+            authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+            base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             if authorization_token:
                 try:
                     response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
-                    _logger.info('Fetching contract template data %s' % (response.content))
+                    _logger.debug('Fetching contract template data %s' % (response.content))
                     if response.status_code == 200:
                         resp_obj = response.json()
                         twikey_temp_list = []
@@ -123,7 +115,7 @@ class ResConfigSettings(models.TransientModel):
                                             for select in attr.get('Options'):
                                                 select_list.append((str(select),str(select)))
                                         else:
-                                            _logger.warn("Skipping attribute %s as selection without options",attr.get('name'))
+                                            _logger.warning("Skipping attribute %s as selection without options",attr.get('name'))
                                             continue
                                     model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
                                     mandate_model_id = self.env['ir.model'].search([('model', '=', 'mandate.details')])
@@ -212,8 +204,5 @@ class ResConfigSettings(models.TransientModel):
                                             template_ids.unlink()
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                             requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                            _logger.info('Exception raised while fetching Contract Templates %s' % (e))
-                            raise exceptions.AccessError(
-                                _(
-                                    'The url that this service requested returned an error. Please check your connection or try after sometime.')
-                            )
+                            _logger.error('Exception raised while fetching Contract Templates %s' % (e))
+                            raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))

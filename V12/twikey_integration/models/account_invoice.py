@@ -29,10 +29,8 @@ TwikeyInvoiceStatus = {
 class AccountInvoice(models.Model):
     _inherit = 'account.invoice'
 
-    twikey_url = fields.Char(string="Twikey Invoice URL",
-                             help="URL of the Twikey Invoice")
-    twikey_invoice_id = fields.Char(
-        string="Twikey Invoice ID", help="Invoice ID of Twikey.")
+    twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice")
+    twikey_invoice_id = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.")
     template_id = fields.Many2one('contract.template', string="Contract Template")
     is_twikey = fields.Boolean(compute='compute_twikey')
 
@@ -44,17 +42,16 @@ class AccountInvoice(models.Model):
             self.update({'is_twikey': False})
 
     def update_invoice_feed(self):
-        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
-            'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+        base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/invoice?include=customer&include=meta", headers={'authorization' : authorization_token})
-                _logger.info('Fetching Invoices from Twikey %s' % (response.content))
+                _logger.debug('Fetching Invoices from Twikey %s' % (response.content))
                 resp_obj = response.json()
                 if response.status_code == 200:
                     if resp_obj.get('Invoices') and resp_obj.get('Invoices')[0] and resp_obj.get('Invoices')[0] != []:
+                        _logger.info('Retrieved %d invoices updates' % (len(resp_obj.get('Invoices'))))
                         for data in resp_obj.get('Invoices'):
                             if data.get('customer'):
                                 try:
@@ -80,9 +77,7 @@ class AccountInvoice(models.Model):
                                 ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                                 requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                                     _logger.info('Update customer Data %s' % (e))
-                                    raise exceptions.AccessError(
-                                        _('Something went wrong.')
-                                    )
+                                    raise exceptions.AccessError(_('Something went wrong.'))
 
                                 if customer_id.get('customerNumber') and customer_id.get('customerNumber') != None:
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', customer_id.get('customerNumber'))])
@@ -108,10 +103,8 @@ class AccountInvoice(models.Model):
                                 except (
                                 ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                                 requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                    _logger.info('Create Invoice Data %s' % (e))
-                                    raise exceptions.AccessError(
-                                        _('Something went wrong.')
-                                    )
+                                    _logger.error('Error creating invoice in odoo %s' % (e))
+                                    raise exceptions.AccessError(_('Something went wrong.'))
                                 if invoice_id:
                                     invoice_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_account_type_receivable').id)], limit=1).id
                                     invoice_lines = self.env['account.invoice.line'].create({'product_id': self.env.ref('twikey_integration.product_product_twikey_invoice').id,
@@ -128,10 +121,8 @@ class AccountInvoice(models.Model):
                                         invoice_id.action_invoice_open()
                                     if invoice_id.state == 'open':
                                         inv_ref = invoice_id._get_computed_reference()
-                                        journal_id = self.env['account.journal'].search(
-                                            [('type', '=', 'bank')], limit=1)
-                                        payment_method = self.env.ref(
-                                            'account.account_payment_method_manual_in')
+                                        journal_id = self.env['account.journal'].search([('type', '=', 'bank')], limit=1)
+                                        payment_method = self.env.ref('account.account_payment_method_manual_in')
                                         journal_payment_methods = journal_id.inbound_payment_method_ids
                                         payment_id = self.env['account.payment'].create({'amount': invoice_id.amount_total,
                                                                                          'journal_id': journal_id.id,
@@ -146,14 +137,12 @@ class AccountInvoice(models.Model):
                                         payment_id.post()
                                         credit_aml_id = self.env['account.move.line'].search([('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
                                         if credit_aml_id:
-                                            invoice_id.assign_outstanding_credit(
-                                                credit_aml_id.id)
+                                            invoice_id.assign_outstanding_credit(credit_aml_id.id)
                                 except (
                                 ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                                 requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                    _logger.info('Invoice Paid %s' % (e))
-                                    raise exceptions.AccessError(
-                                        _('Something went wrong.')
+                                    _logger.error('Error marking invoice as paid in odoo %s' % (e))
+                                    raise exceptions.AccessError(_('Something went wrong.')
                                     )
                             invoice_id.with_context(update_invoice=True).write({'number': data.get('number'),
                                               'partner_id': partner_id.id,
@@ -165,20 +154,17 @@ class AccountInvoice(models.Model):
                                               'state': InvoiceStatus[data.get('state')]
                                               })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Exception raised while fetching Invoice data from Twikey %s' % (e))
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                _logger.error('Exception raised while fetching Invoice data from Twikey %s' % (e))
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
 
     def sync_invoice(self):
-        authorization_token = self.env['ir.config_parameter'].sudo().get_param(
-            'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
+        # TODO: How is this different from update_invoice_feed?
+        authorization_token = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
         if authorization_token and self.twikey_invoice_id:
             try:
                 response = requests.get(base_url+"/creditor/invoice/"+self.twikey_invoice_id+"?include=customer", headers={'authorization' : authorization_token})
-                _logger.info('Fetching Invoice Data from Twikey.. %s' % (response.content))
+                _logger.debug('Fetching Invoice Data from Twikey.. %s' % (response.content))
                 if response.status_code == 200:
                     resp_obj = response.json()
                     if resp_obj.get('customer'):
@@ -218,10 +204,8 @@ class AccountInvoice(models.Model):
                                   'state': InvoiceStatus[resp_obj.get('state')]
                                       })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Exception raised while syncing Invoice %s' % (e))
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                _logger.error('Exception raised while syncing Invoice %s' % (e))
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
             pdf = self.env.ref('account.account_invoices').render_qweb_pdf([self.id])[0]
             report_file = base64.b64encode(pdf)
             report_file_decode = report_file.decode('utf-8')
@@ -240,10 +224,8 @@ class AccountInvoice(models.Model):
 #                     raise UserError(_('%s')
 #                                 % (resp_obj.get('message')))
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Exception raised while updating pdf to invoice %s' % (e))
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                _logger.error('Exception raised while updating pdf to invoice %s' % (e))
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
 
 
     @api.multi
@@ -251,10 +233,8 @@ class AccountInvoice(models.Model):
         context = self._context
         res = super(AccountInvoice, self).write(values)
         if not 'update_feed' in context and not 'by_controller' in context and not 'update_invoice' in context:
-            authorization_token = self.env['ir.config_parameter'].sudo().get_param(
-                            'twikey_integration.authorization_token')
-            base_url=self.env['ir.config_parameter'].sudo().get_param(
-                        'twikey_integration.base_url')
+            authorization_token = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+            base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             self.update_invoice_feed()
             if authorization_token:
                 for rec in self:

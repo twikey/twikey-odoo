@@ -9,7 +9,6 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-
 def _lang_get(self):
     return self.env['res.lang'].get_installed()
 
@@ -31,28 +30,27 @@ class MandateDetails(models.Model):
     url = fields.Char(string="URL")
 
     def update_feed(self):
-        authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.authorization_token')
-        base_url=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url')
+        authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+        base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
         if authorization_token:
             try:
                 response = requests.get(base_url+"/creditor/mandate", headers={'Authorization' : authorization_token})
-                _logger.info('Fetching all mandate data from twikey %s' % (response.content))
+                _logger.debug('Fetching all mandate data from twikey %s' % (response.content))
                 resp_obj = response.json()
                 if response.status_code == 200:
-                    _logger.info('Response status_code.. %s' % (response))
+                    _logger.debug('Response status_code.. %s' % (response))
                     if resp_obj.get('Messages') and resp_obj.get('Messages')[0] and resp_obj.get('Messages')[0] != []:
-                        _logger.info('Response Messages.. %s' % (resp_obj.get('Messages')))
+                        _logger.info('Received %d document updates' % (len(resp_obj.get('Messages'))))
                         for data in resp_obj.get('Messages'):
                             if data.get('AmdmntRsn'):
+                                mandateNumber = data.get('OrgnlMndtId')
                                 partner_id = False
                                 state = False
                                 if data.get('AmdmntRsn').get('Rsn') and data.get('AmdmntRsn').get('Rsn') == 'uncollectable|user':
                                     state = 'suspended'
                                 else:
                                     state = 'signed'
-                                _logger.info('Response AmdmntRsn.. %s' % (data.get('AmdmntRsn')))
+                                _logger.info('Response AmdmntRsn.. %s - %s' % (mandateNumber, data.get('AmdmntRsn')))
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 if not partner_id:
@@ -60,7 +58,7 @@ class MandateDetails(models.Model):
                                         partner_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Dbtr').get('Nm'))])
                                     if not partner_id:
                                         partner_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Dbtr').get('Nm')})
-                                mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
+                                mandate_id = self.env['mandate.details'].search([('reference', '=', mandateNumber)])
                                 if mandate_id:
                                     lst = data.get('Mndt').get('SplmtryData')
                                     lang = False
@@ -137,18 +135,21 @@ class MandateDetails(models.Model):
                                 #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
 
                             elif data.get('CxlRsn'):
-                                _logger.info('Response CxlRsn.. %s' % (data.get('CxlRsn')))
+                                mandateNumber = data.get('OrgnlMndtId')
+                                rsn = data.get('CxlRsn').get('Rsn')
+                                _logger.info('Response CxlRsn.. %s - %s' % (mandateNumber, rsn))
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('OrgnlMndtId'))])
                                 if mandate_id:
-                                    mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : data.get('CxlRsn').get('Rsn')})
+                                    mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : rsn})
                                 else:
                                     mandate_id = self.env['mandate.details'].sudo().create({
                                                                                             'reference' : data.get('OrgnlMndtId'),
                                                                                             'state' : 'cancelled'
                                                                                             })
                             elif data.get('Mndt'):
-                                _logger.info('Response Mndt.. %s' % (data.get('Mndt')))
-                                mandate_id = self.env['mandate.details'].search([('reference', '=', data.get('Mndt').get('MndtId'))])
+                                mandateNumber = data.get('Mndt').get('MndtId')
+                                _logger.info('New mandate.. %s' % (mandateNumber))
+                                mandate_id = self.env['mandate.details'].search([('reference', '=', mandateNumber)])
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr'):
                                     partner_id = self.env['res.partner'].search([('twikey_reference', '=', data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '')])
                                 if not partner_id:
@@ -196,10 +197,8 @@ class MandateDetails(models.Model):
                                                    'lang': lang_id.code if lang_id else False,
                                                     })
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                _logger.info('Update Feed Exception %s' % (e))
-                raise exceptions.AccessError(
-                    _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                )
+                _logger.error('Update Feed Exception %s' % (e))
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
 
 #     def sync_mandate(self):
 #         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
@@ -263,10 +262,8 @@ class MandateDetails(models.Model):
     def write(self, values):
         res = super(MandateDetails, self).write(values)
         if not self._context.get('update_feed'):
-            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.authorization_token')
-            base_url = self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.base_url')
+            authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
+            base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             data = {}
             if authorization_token and self.state != 'signed':
     #             if values.get('partner_id'):
@@ -301,32 +298,27 @@ class MandateDetails(models.Model):
                 try:
                     if data != {}:
                         response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-                        _logger.info('Updating mandate data to Twikey %s' % (response.content))
+                        _logger.info('Updating mandate data to Twikey %s -> %d' % (data, response.status_code))
                         if response.status_code != 204:
                             resp_obj = response.json()
-                            raise UserError(_('%s')
-                                        % (resp_obj.get('message')))
+                            raise UserError(_('%s') % (resp_obj.get('message')))
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                     _logger.info('Mandate Write Exception %s' % (e))
-                    raise exceptions.AccessError(
-                        _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                    )
+                    raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
         return res
 
     def unlink(self):
         context = self._context
         if not context.get('by_controller'):
             self.sync_mandate()
-            base_url=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.base_url')
-            authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-                    'twikey_integration.authorization_token')
+            base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
+            authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
             if self.state in ['signed', 'cancelled']:
                 raise UserError(_('This mandate is in already signed or cancelled. It can not be deleted.'))
             elif self.state == 'pending' and authorization_token:
                 prepared_url = base_url + '/creditor/mandate' + '?mndtId=' + self.reference + '&rsn=' + 'Deleted from odoo'
                 response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-                _logger.info('Deleting mandate %s' % (response.content))
+                _logger.info('Deleting mandate %s -> %d' % (self.reference, response.status_code))
                 return super(MandateDetails, self).unlink()
             else:
                 return super(MandateDetails, self).unlink()
