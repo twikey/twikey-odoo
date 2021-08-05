@@ -116,18 +116,18 @@ class MandateDetails(models.Model):
                                                     'iban' : data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get('DbtrAcct') else False,
                                                     'bic' : data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') if data.get('Mndt').get('DbtrAgt') and data.get('Mndt').get('DbtrAgt').get('FinInstnId') and data.get('Mndt').get('DbtrAgt').get('FinInstnId').get('BICFI') else False,
                                                     }
-                                    mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
+                                    self.env['mandate.details'].sudo().create(mandate_vals)
 
-# Rsn': 'uncollectable|user' -> Suspended
-# Rsn': 'collectable|user' -> Resumed / signed
-#  _T50, // AccountChanged,
-#  _T51, // AddressChanged,
-#  _T52, // MandateNumberChanged
-#  _T53, // Name changed
-#  _T54, // Email changed
-#  _T55, // Mobile changed
-#  _T56, // Language changed
-#  _T57, // Owner Mandate changed
+                                # Rsn': 'uncollectable|user' -> Suspended
+                                # Rsn': 'collectable|user' -> Resumed / signed
+                                #  _T50, // AccountChanged,
+                                #  _T51, // AddressChanged,
+                                #  _T52, // MandateNumberChanged
+                                #  _T53, // Name changed
+                                #  _T54, // Email changed
+                                #  _T55, // Mobile changed
+                                #  _T56, // Language changed
+                                #  _T57, // Owner Mandate changed
 
 
                                 # creditor_id = self.env['res.partner'].search([('name', '=', data.get('Mndt').get('Cdtr').get('Nm'))])
@@ -200,64 +200,6 @@ class MandateDetails(models.Model):
                 _logger.error('Update Feed Exception %s' % (e))
                 raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
 
-#     def sync_mandate(self):
-#         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-#                 'twikey_integration.authorization_token')
-#         base_url=self.env['ir.config_parameter'].sudo().get_param(
-#                 'twikey_integration.base_url')
-#         if authorization_token:
-#             self.update_feed()
-#             customer_name = False
-#             if self.partner_id:
-#                 customer_name = self.partner_id.name.split(' ')
-#             data = {'mndtId' : self.reference if self.reference else '',
-#                     'iban' : self.iban if self.iban else '',
-#                     'bic' : self.bic if self.bic else '',
-#                     'l' : self.lang if self.lang else '',
-#                     'state' : self.state,
-#                     'email' : self.partner_id.email if self.partner_id and self.partner_id.email else '',
-#                     'firstname' : customer_name[0] if customer_name and self.partner_id.company_type == 'person' else '',
-#                     'lastname' : customer_name[1] if customer_name and len(customer_name) > 1 and self.partner_id.company_type == 'person' else '',
-#                     'companyName' : self.partner_id.name if self.partner_id and self.partner_id.name and self.partner_id.company_type == 'company' else '',
-#                     'vatno' : self.partner_id.vat if self.partner_id and self.partner_id.vat and self.partner_id.company_type == 'company' else '',
-#                     'customerNumber' : self.partner_id.id,
-#                     'address' : self.partner_id.street if self.partner_id and self.partner_id.street else '',
-#                     'city' : self.partner_id.city if self.partner_id and self.partner_id.city else '',
-#                     'zip' : self.partner_id.zip if self.partner_id and self.partner_id.zip else '',
-#                     'country' : self.partner_id.country_id.code if self.partner_id and self.partner_id.country_id else ''
-#                     }
-#             try:
-#                 response = requests.post(base_url+"/creditor/mandate/update", data=data, headers={'Authorization' : authorization_token})
-#                 _logger.info('Updating mandate data to Twikey with response %s' % (response.content))
-#             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-#                 _logger.info('Sync Mandate Exception %s' % (e))
-#                 raise exceptions.AccessError(
-#                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-#                 )
-
-#     def cancel_or_delete_mandate(self):
-#         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
-#                 'twikey_integration.authorization_token')
-#         base_url=self.env['ir.config_parameter'].sudo().get_param(
-#                 'twikey_integration.base_url')
-#         if authorization_token:
-#             self.update_feed()
-#             host_url = base_url+"/creditor/mandate"
-#             prepared_url = host_url + '?mndtId=' + self.reference + '&rsn=' + 'Reason'
-# #             data = {'mndtId' : self.reference,
-# #                     'rsn' : 'No reason given'
-# #                     }
-#             try:
-#                 response = requests.delete(prepared_url, headers={'Authorization' : authorization_token})
-#                 if response.status_code == 200:
-#                     if self.state == 'signed':
-#                         self.write({'state' : 'cancelled'})
-#                     if self.state == 'pending':
-#                         self.unlink()
-#             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-#                 raise exceptions.AccessError(
-#                     _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-#                 )
     @api.multi
     def write(self, values):
         res = super(MandateDetails, self).write(values)

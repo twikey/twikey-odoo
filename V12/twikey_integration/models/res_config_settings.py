@@ -170,7 +170,7 @@ class ResConfigSettings(models.TransientModel):
     
                                     arch_base += _('</field>'
                                                 '</data>')
-                                    view = self.env['ir.ui.view'].sudo().create({'name': 'attribute.dynamic.fields.',
+                                    self.env['ir.ui.view'].sudo().create({'name': 'attribute.dynamic.fields.',
                                                                          'type': 'form',
                                                                          'model': 'contract.template.wizard',
                                                                          'mode': 'extension',
@@ -190,7 +190,7 @@ class ResConfigSettings(models.TransientModel):
                                             mandate_arch_base += '''<field name="%s" attrs="{'invisible': [('contract_temp_id', '!=', %s)]}"/>''' % (m.name, template_id.id)
                                     mandate_arch_base += _('</field>'
                                                 '</data>')
-                                    view = self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
+                                    self.env['ir.ui.view'].sudo().create({'name': 'mandate.dynamic.fields.',
                                                                          'type': 'form',
                                                                          'model': 'mandate.details',
                                                                          'mode': 'extension',

@@ -105,10 +105,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
             authorization_token = params.get_param('twikey_integration.authorization_token')
             base_url = params.get_param('twikey_integration.base_url')
             merchant_id = params.get_param('twikey_integration.merchant_id')
-            test_mode = params.get_param('twikey_integration.test')
-            base_invoice_url = "https://app.twikey.com/"+merchant_id+"/"
-            if test_mode:
-                base_invoice_url = "https://app.beta.twikey.com/"+merchant_id+"/"
+            base_invoice_url = base_url + "/" + merchant_id + "/"
             if authorization_token:
                 context = dict(self._context)
                 context.update({'template_id' : self.template_id})
@@ -119,22 +116,6 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     sale_orders.with_context(context).action_invoice_create(final=True)
                 else:
                     res = super(SaleAdvancePaymentInv, self).create_invoices()
-                try:
-                    # TODO Why are we getting the templates again?
-                    response = requests.get(base_url+"/creditor/template", headers={'Authorization' : authorization_token})
-                    _logger.info('Fetching contract templates from Twikey %s' % (response.content))
-                    if response.status_code == 200:
-                        resp_obj = response.json()
-                        for resp in resp_obj:
-                            if resp.get('id'):
-                                template_id = self.env['contract.template'].search([('template_id', '=', resp.get('id')),('active', 'in', [True, False])])
-                                if not template_id:
-                                    template_id = self.env['contract.template'].create({'template_id' : resp.get('id'), 'name' : resp.get('name'), 'active' : resp.get('active'), 'type' : resp.get('type')})
-                except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                            _logger.info('Exception raised while fetching contract templates %s' % (e))
-                            raise exceptions.AccessError(
-                                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-                            )
                 for sale_id in sale_orders:
                     invoice_id = self.env['account.invoice'].search([('id', '=', sale_id.invoice_ids[-1].id)])
                 if invoice_id:
@@ -196,7 +177,6 @@ class SaleAdvancePaymentInv(models.TransientModel):
                             _logger.info('Created new Invoice %s' % (response.content))
                         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                             raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
-
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                         raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
             else:

@@ -6,3 +6,4 @@ from . import mandate_details
 from . import account_invoice
 from . import contract_template
 from . import sale_order
+from . import ir_model
