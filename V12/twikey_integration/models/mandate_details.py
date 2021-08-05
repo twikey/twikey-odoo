@@ -84,7 +84,7 @@ class MandateDetails(models.Model):
                                             zip = address_line.get('PstCd') if address_line.get('PstCd') else False
                                             city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
                                             country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
-                                        partner_id.write({'street' : address,
+                                        partner_id.with_context(update_feed=True).write({'street' : address,
                                                           'name' : data.get('Mndt').get('Dbtr').get('Nm'),
                                                           'zip' : zip,
                                                           'twikey_reference':data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '',
@@ -170,7 +170,7 @@ class MandateDetails(models.Model):
                                         zip = address_line.get('PstCd') if address_line.get('PstCd') else False
                                         city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
                                         country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
-                                    partner_id.write({'street' : address,
+                                    partner_id.with_context(update_feed=True).write({'street' : address,
                                                       'name' : data.get('Mndt').get('Dbtr').get('Nm') if data.get('Mndt').get('Dbtr').get('Nm') else False,
                                                       'zip' : zip,
                                                       'twikey_reference': data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get('Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get('Othr') else '',
