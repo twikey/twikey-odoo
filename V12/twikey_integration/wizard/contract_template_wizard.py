@@ -93,5 +93,5 @@ class ContractTemplateWizard(models.Model):
             else:
                 raise UserError(_('%s') % (resp_obj.get('message')))
         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-            _logger.info('Exception raised while creating a new Mandate %s' % (e))
+            _logger.error('Exception raised while creating a new Mandate %s' % (e))
             raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
