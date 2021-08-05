@@ -3,14 +3,13 @@
 
 from odoo import api, fields, models, exceptions, _
 import requests
-import json
 from odoo.exceptions import UserError
 import logging
 
 _logger = logging.getLogger(__name__)
 
-
 class ContractTemplateWizard(models.Model):
+
     _name = 'contract.template.wizard'
     _description = "Wizard for Select Contract Template"
     
@@ -58,7 +57,6 @@ class ContractTemplateWizard(models.Model):
             get_fields[0].pop("id")
             get_fields[0].pop("template_id")
             new_keys = []
-            field_id = False
             for key,value in get_fields[0].items():
                 model_id = self.env['ir.model'].search([('model', '=', 'contract.template.wizard')])
                 field_id = self.env['ir.model.fields'].search([('name', '=', key), ('model_id', '=', model_id.id)])
@@ -70,7 +68,7 @@ class ContractTemplateWizard(models.Model):
             final_dict = dict(zip(new_keys, list(get_fields[0].values())))
             data.update(final_dict)
         try:
-            _logger.info('New mandate creation data: {}'.format(data))
+            _logger.debug('New mandate creation data: {}'.format(data))
             response = requests.post(base_url+"/creditor/invite", data=data, headers={'Authorization' : authorization_token})
             _logger.info('Creating new mandate with response: %s' % (response.content))
             resp_obj = response.json()
@@ -80,7 +78,6 @@ class ContractTemplateWizard(models.Model):
                 partner_id.write({'twikey_reference': str(partner_id.id)})
                 view = self.env.ref('twikey_integration.success_message_wizard')
                 context = dict(self._context or {})
-                view_id = view and view.id or False
                 context['message'] = "Mandate Created Successfully."
                 return {
                     'name': 'Success',
@@ -94,10 +91,7 @@ class ContractTemplateWizard(models.Model):
                     'context': context
                 }
             else:
-                raise UserError(_('%s')
-                            % (resp_obj.get('message')))
+                raise UserError(_('%s') % (resp_obj.get('message')))
         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             _logger.info('Exception raised while creating a new Mandate %s' % (e))
-            raise exceptions.AccessError(
-                _('The url that this service requested returned an error. Please check your connection or try after sometime.')
-            )
+            raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))

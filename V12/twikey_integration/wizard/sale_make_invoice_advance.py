@@ -3,16 +3,14 @@
 from odoo import api, fields, models, exceptions,_
 from odoo.exceptions import UserError, ValidationError
 import requests
-import json
-from datetime import datetime
 import base64
-import random
 import logging
 import uuid
 
 _logger = logging.getLogger(__name__)
 
 class SaleAdvancePaymentInv(models.TransientModel):
+
     _name = 'sale.advance.payment.inv'
     _inherit = 'sale.advance.payment.inv'
     
