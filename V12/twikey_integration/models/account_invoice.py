@@ -2,7 +2,6 @@
 
 from odoo import models, fields, api, exceptions,_
 import requests
-import json
 import base64
 from odoo.exceptions import UserError
 import logging
@@ -76,7 +75,7 @@ class AccountInvoice(models.Model):
                                 except (
                                 ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                                 requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                                    _logger.info('Update customer Data %s' % (e))
+                                    _logger.error('Error update customer %s' % (e))
                                     raise exceptions.AccessError(_('Something went wrong.'))
 
                                 if customer_id.get('customerNumber') and customer_id.get('customerNumber') != None:
@@ -190,7 +189,7 @@ class AccountInvoice(models.Model):
     #                             raise UserError(_('%s')
     #                                 % (resp_obj.get('message')))
                         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                            _logger.info('Exception raised while updating invoice data to Twikey %s' % (e))
+                            _logger.error('Exception raised while updating invoice data to Twikey %s' % (e))
                             raise exceptions.AccessError(
                                 _('The url that this service requested returned an error. Please check your connection or try after sometime.')
                             )

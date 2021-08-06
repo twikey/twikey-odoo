@@ -2,8 +2,6 @@
 
 from odoo import api, fields, models, exceptions,_
 import requests
-import json
-from operator import itemgetter
 from odoo.exceptions import UserError
 import logging
 
@@ -245,7 +243,7 @@ class MandateDetails(models.Model):
                             resp_obj = response.json()
                             raise UserError(_('%s') % (resp_obj.get('message')))
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
-                    _logger.info('Mandate Write Exception %s' % (e))
+                    _logger.error('Mandate Write Exception %s' % (e))
                     raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
         return res
 

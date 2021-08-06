@@ -2,12 +2,10 @@
 
 from odoo import api, fields, models,_
 import requests
-import json
 from odoo.exceptions import UserError
 import logging
 
 _logger = logging.getLogger(__name__)
-
 
 class MandateCancelReason(models.TransientModel):
     _name = 'mandate.cancel.reason'
@@ -37,7 +35,7 @@ class MandateCancelReason(models.TransientModel):
                 response = requests.delete(prepared_url, headers={'Authorization': authorization_token})
                 _logger.info('Cancelling Mandate %s' % (response.content))
                 if response.status_code == 200:
-    #                 self.mandate_id.update_feed()
+                    # self.mandate_id.update_feed()
                     if self.mandate_id.state == 'signed':
                         self.mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : self.name})
                     if self.mandate_id.state == 'pending':

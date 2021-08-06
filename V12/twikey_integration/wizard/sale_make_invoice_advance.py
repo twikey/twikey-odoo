@@ -20,8 +20,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
     @api.model
     def default_get(self, fields):
         res = super(SaleAdvancePaymentInv, self).default_get(fields)
-        module_twikey = self.env['ir.config_parameter'].sudo().get_param(
-            'twikey_integration.module_twikey')
+        module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
         if module_twikey:
             res.update({'is_twikey': True})
         else:
@@ -105,7 +104,10 @@ class SaleAdvancePaymentInv(models.TransientModel):
             authorization_token = params.get_param('twikey_integration.authorization_token')
             base_url = params.get_param('twikey_integration.base_url')
             merchant_id = params.get_param('twikey_integration.merchant_id')
-            base_invoice_url = base_url + "/" + merchant_id + "/"
+            test_mode = params.get_param('twikey_integration.test')
+            base_invoice_url = "https://app.twikey.com/"+merchant_id+"/"
+            if test_mode:
+                base_invoice_url = "https://app.beta.twikey.com/"+merchant_id+"/"
             if authorization_token:
                 context = dict(self._context)
                 context.update({'template_id' : self.template_id})
@@ -125,7 +127,6 @@ class SaleAdvancePaymentInv(models.TransientModel):
 
                     url = base_invoice_url + invoice_number
                     invoice_id.with_context(update_feed=True).write({'twikey_url' : url, 'twikey_invoice_id' : invoice_number})
-                    #                 update invoice API
                     pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
                     report_file = base64.b64encode(pdf)
 
@@ -174,7 +175,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                         try:
                             _logger.debug('Creating new Invoice %s' % (data))
                             response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
-                            _logger.info('Created new Invoice %s' % (response.content))
+                            _logger.info('Created new invoice %s' % (response.content))
                         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                             raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
                     except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
