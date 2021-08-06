@@ -27,7 +27,12 @@
         <field name="arch" type="xml">
             <xpath expr="//notebook/page[@name='accounting']" position="inside">
                 <group string="Twikey Invoices">
-                    <field name="twikey_inv_ids" context="{'tree_view_ref':'account.invoice_tree', 'form_view_ref': 'account.invoice_form'}"/>
+                    <field nolabel="1" name="twikey_inv_ids" context="{'tree_view_ref':'account.invoice_tree', 'form_view_ref': 'account.invoice_form'}"/>
+                </group>
+            </xpath>
+            <xpath expr="//notebook/page[@name='accounting_disabled']" position="inside">
+                <group string="Twikey Invoices">
+                    <field nolabel="1" name="twikey_inv_ids" context="{'tree_view_ref':'account.invoice_tree', 'form_view_ref': 'account.invoice_form'}"/>
                 </group>
             </xpath>
         </field>
