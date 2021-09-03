@@ -213,7 +213,7 @@ class MandateDetails(models.Model):
 #                 if 'reference' in values:
                 data['mndtId'] = values.get('reference') if values.get('reference') else self.reference
                 if 'iban' in values:
-                    data['iban'] = values.get('iban')
+                    data['iban'] = values.get('iban') or ''
                 if 'bic' in values:
                     data['bic'] = values.get('bic')
                 if 'lang' in values:
@@ -245,6 +245,7 @@ class MandateDetails(models.Model):
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                     _logger.error('Mandate Write Exception %s' % (e))
                     raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+        print("pppppppppppppppppppppppppppppppppppppppppppppppppppppppppp")
         return res
 
     def unlink(self):

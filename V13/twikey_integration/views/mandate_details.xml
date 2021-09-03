@@ -6,8 +6,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="cancel_or_delete_mandate" string="Cancel" type="object" class="oe_highlight"/>
-                    <button name="sync_mandate" string="Sync" type="object" class="oe_highlight"/>
+                    <button name="%(twikey_integration.mandate_cancel_reason_action)d" string="Cancel" type="action" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'signed')]}"/>
+                    <button name="update_feed" string="Sync" type="object" class="oe_highlight"/>
                     <field name="state" widget="statusbar" nolabel="1"/>
                 </header>
                 <sheet>
@@ -31,6 +31,11 @@
                     </group>
                     <field name="description" placeholder="Description" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                 </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="activity_ids" widget="mail_activity"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
             </form>
         </field>
     </record>
@@ -41,10 +46,10 @@
         <field name="arch" type="xml">
             <tree>
                 <field name="partner_id"/>
-                <field name="creditor_id" invisible="1"/>
                 <field name="reference"/>
-                <field name="contract"/>
+                <field name="contract_temp_id"/>
                 <field name="lang"/>
+                <field name="state"/>
             </tree>
         </field>
     </record>
@@ -56,5 +61,11 @@
     </record>
     
     <menuitem id="menu_action_mandate_details_view" action="mandate_details_action"
-                  parent="contacts.menu_contacts" sequence="1"/>
+                  parent="contacts.menu_contacts" sequence="2"/>
+
+    <menuitem id="contacts.res_partner_menu_config"
+        name="Configuration"
+        parent="contacts.menu_contacts"
+        groups="base.group_system"
+        sequence="3"/>
 </odoo>

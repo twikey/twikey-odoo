@@ -4,3 +4,6 @@ from . import res_config_settings
 from . import res_partner
 from . import mandate_details
 from . import account_move
+from . import contract_template
+from . import sale_order
+from . import ir_model

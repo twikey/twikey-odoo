@@ -64,11 +64,14 @@ class ResPartner(models.Model):
                       'zip': values.get('zip') if values.get('zip') else self.zip if self.zip else '',
                       'country': country_id.code if country_id != False else self.country_id.code if self.country_id else ''
                       }
+              print('=============================================')
               if self.mandate_ids:
                   mandate_id = self.mandate_ids[0]
+                  print("===============",mandate_id.reference)
                   data.update({'mndtId': mandate_id.reference})
                   try:
                       response = requests.post(base_url + "/creditor/mandate/update", data=data, headers={'Authorization': authorization_token})
+                      print("response",response)
                       _logger.debug('Updating customer details of mandate %s %s' % (mandate_id, response))
                       _logger.info('Updating customer details of mandate %s %d' % (mandate_id,response.status_code))
                       if response.status_code != 204:
@@ -77,7 +80,8 @@ class ResPartner(models.Model):
                           requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                       _logger.error('Exception raised while updating customer details to Twikey %s' % (e))
                       raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
-        
+              else:
+                  print('=============================================')
             # else:
             #     if self.twikey_inv_ids:
             #         twikey_inv_id = self.twikey_inv_ids[0]
