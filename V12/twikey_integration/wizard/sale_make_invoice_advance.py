@@ -173,7 +173,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                 'Mobile' : invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else ''
                             }
                         try:
-                            _logger.debug('Creating new Invoice %s' % (data))
+                            _logger.info('Creating new Invoice %s' % (data))
                             response = requests.post(base_url+"/creditor/invoice", data=data, headers={'authorization' : authorization_token})
                             _logger.info('Created new invoice %s' % (response.content))
                         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:

@@ -129,7 +129,8 @@ class AccountInvoice(models.Model):
                             if data.get('state') == 'PAID' and invoice_id.state != 'paid':
                                 try:
                                     if invoice_id.state == 'draft':
-                                        invoice_id.action_invoice_open()
+                                        # invoice_id.action_invoice_open()
+                                        invoice_id.action_post()  # As per v13 method changed.
                                     if invoice_id.state == 'open':
                                         inv_ref = invoice_id._get_computed_reference()
                                         journal_id = self.env['account.journal'].search([('type', '=', 'bank')],

@@ -20,7 +20,7 @@
                         <group>
                             <field name="creditor_id" invisible="1"/>
                             <field name="reference" readonly="1"/>
-                            <field name="contract" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
+                            <field name="contract_temp_id" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                             <field name="url" widget="url" attrs="{'invisible': [('state', '!=', 'pending')]}"/>
                         </group>
                         <group>
