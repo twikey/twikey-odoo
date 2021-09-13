@@ -76,34 +76,41 @@ class MandateDetails(models.Model):
                                         partner_id = self.env['res.partner'].create(
                                             {'name': data.get('Mndt').get('Dbtr').get('Nm')})
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', mandateNumber)])
-                                if mandate_id:
-                                    lst = data.get('Mndt').get('SplmtryData')
-                                    lang = False
+                                lst = data.get('Mndt').get('SplmtryData')
+                                field_dict = {}
+                                lang = False
+                                temp_id = False
+                                for ls in lst:
+                                    if ls.get('Key') == 'Language':
+                                        lang = ls.get('Value')
+                                    if ls.get('Key') == 'TemplateId':
+                                        temp_id = ls.get('Value')
+                                lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
+                                contract_temp_id = self.env['contract.template'].search([('template_id', '=', temp_id)],
+                                                                                        limit=1)
+                                if contract_temp_id:
                                     for ls in lst:
-                                        if ls.get('Key') == 'Language':
-                                            lang = ls.get('Value')
-                                    lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
-                                    mandate_id.with_context(update_feed=True).write({'reference': data.get('Mndt').get(
-                                        'MndtId') if data.get('Mndt').get('MndtId') else False,
-                                                                                     'partner_id': partner_id.id if partner_id else False,
-                                                                                     'state': state,
-                                                                                     'iban': data.get('Mndt').get(
-                                                                                         'DbtrAcct') if data.get(
-                                                                                         'Mndt').get(
-                                                                                         'DbtrAcct') else False,
-                                                                                     'bic': data.get('Mndt').get(
-                                                                                         'DbtrAgt').get(
-                                                                                         'FinInstnId').get(
-                                                                                         'BICFI') if data.get(
-                                                                                         'Mndt').get(
-                                                                                         'DbtrAgt') and data.get(
-                                                                                         'Mndt').get('DbtrAgt').get(
-                                                                                         'FinInstnId') and data.get(
-                                                                                         'Mndt').get('DbtrAgt').get(
-                                                                                         'FinInstnId').get(
-                                                                                         'BICFI') else False,
-                                                                                     'lang': lang_id.code if lang_id else False
-                                                                                     })
+                                        if ls.get('Key') in contract_temp_id.attribute_ids.mapped('name'):
+                                            value = ls.get('Value')
+                                            field_name = 'x_' + ls.get('Key') + '_' + str(temp_id)
+                                            field_dict.update({field_name: value})
+                                if mandate_id:
+                                    mandate_vals = {'reference': data.get('Mndt').get('MndtId') if data.get('Mndt').get(
+                                        'MndtId') else False,
+                                                    'partner_id': partner_id.id if partner_id else False,
+                                                    'state': state,
+                                                    'contract_temp_id': contract_temp_id.id,
+                                                    'iban': data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get(
+                                                        'DbtrAcct') else False,
+                                                    'bic': data.get('Mndt').get('DbtrAgt').get('FinInstnId').get(
+                                                        'BICFI') if data.get('Mndt').get('DbtrAgt') and data.get(
+                                                        'Mndt').get('DbtrAgt').get('FinInstnId') and data.get(
+                                                        'Mndt').get(
+                                                        'DbtrAgt').get('FinInstnId').get('BICFI') else False,
+                                                    'lang': lang_id.code if lang_id else False
+                                                    }
+                                    mandate_vals.update(field_dict)
+                                    mandate_id.with_context(update_feed=True).write(mandate_vals)
                                     if partner_id:
                                         address = False
                                         zip = False
@@ -168,6 +175,8 @@ class MandateDetails(models.Model):
                                     mandate_vals = {'partner_id': partner_id.id if partner_id else False,
                                                     'reference': data.get('Mndt').get('MndtId'),
                                                     'state': state,
+                                                    'lang': lang_id.code if lang_id else False,
+                                                    'contract_temp_id': contract_temp_id.id,
                                                     'iban': data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get(
                                                         'DbtrAcct') else False,
                                                     'bic': data.get('Mndt').get('DbtrAgt').get('FinInstnId').get(
@@ -176,6 +185,7 @@ class MandateDetails(models.Model):
                                                         'Mndt').get('DbtrAgt').get('FinInstnId').get(
                                                         'BICFI') else False,
                                                     }
+                                    mandate_vals.update(field_dict)
                                     self.env['mandate.details'].sudo().create(mandate_vals)
 
                                 # Rsn': 'uncollectable|user' -> Suspended
@@ -211,6 +221,24 @@ class MandateDetails(models.Model):
                                 mandateNumber = data.get('Mndt').get('MndtId')
                                 _logger.info('New mandate.. %s' % (mandateNumber))
                                 mandate_id = self.env['mandate.details'].search([('reference', '=', mandateNumber)])
+                                lst = data.get('Mndt').get('SplmtryData')
+                                lang = False
+                                temp_id = False
+                                field_dict = {}
+                                for ls in lst:
+                                    if ls.get('Key') == 'Language':
+                                        lang = ls.get('Value')
+                                    if ls.get('Key') == 'TemplateId':
+                                        temp_id = ls.get('Value')
+                                lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
+                                contract_temp_id = self.env['contract.template'].search([('template_id', '=', temp_id)],
+                                                                                        limit=1)
+                                if contract_temp_id:
+                                    for ls in lst:
+                                        if ls.get('Key') in contract_temp_id.attribute_ids.mapped('name'):
+                                            value = ls.get('Value')
+                                            field_name = 'x_' + ls.get('Key') + '_' + str(temp_id)
+                                            field_dict.update({field_name: value})
                                 if data.get('Mndt') and data.get('Mndt').get('Dbtr') and data.get('Mndt').get(
                                         'Dbtr').get('CtctDtls') and data.get('Mndt').get('Dbtr').get('CtctDtls').get(
                                         'Othr'):
@@ -232,9 +260,12 @@ class MandateDetails(models.Model):
                                         partner_id = self.env['res.partner'].create(
                                             {'name': data.get('Mndt').get('Dbtr').get('Nm')})
                                 if not mandate_id:
-                                    mandate_id = self.env['mandate.details'].sudo().create(
-                                        {'partner_id': partner_id.id if partner_id else False,
-                                         'reference': data.get('Mndt').get('MndtId'), 'state': 'signed'})
+                                    mandate_vals = {'partner_id': partner_id.id if partner_id else False,
+                                                    'reference': data.get('Mndt').get('MndtId'), 'state': 'signed',
+                                                    'contract_temp_id': contract_temp_id.id,
+                                                    'lang': lang_id.code if lang_id else False}
+                                    mandate_vals.update(field_dict)
+                                    mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
                                 if partner_id:
                                     address = False
                                     zip = False
@@ -283,31 +314,20 @@ class MandateDetails(models.Model):
                                 #     creditor_id = self.env['res.partner'].create({'name' : data.get('Mndt').get('Cdtr').get('Nm')})
 
                                 if mandate_id:
-                                    lst = data.get('Mndt').get('SplmtryData')
-                                    lang = False
-                                    for ls in lst:
-                                        if ls.get('Key') == 'Language':
-                                            lang = ls.get('Value')
-                                    lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
-                                    mandate_id.with_context(update_feed=True).write({'state': 'signed',
-                                                                                     'partner_id': partner_id.id if partner_id else False,
-                                                                                     'iban': data.get('Mndt').get(
-                                                                                         'DbtrAcct') if data.get(
-                                                                                         'Mndt').get(
-                                                                                         'DbtrAcct') else False,
-                                                                                     'bic': data.get('Mndt').get(
-                                                                                         'DbtrAgt').get(
-                                                                                         'FinInstnId').get(
-                                                                                         'BICFI') if data.get(
-                                                                                         'Mndt').get(
-                                                                                         'DbtrAgt') and data.get(
-                                                                                         'Mndt').get('DbtrAgt').get(
-                                                                                         'FinInstnId') and data.get(
-                                                                                         'Mndt').get('DbtrAgt').get(
-                                                                                         'FinInstnId').get(
-                                                                                         'BICFI') else False,
-                                                                                     'lang': lang_id.code if lang_id else False,
-                                                                                     })
+                                    mandate_vals = {'state': 'signed',
+                                                    'contract_temp_id': contract_temp_id.id,
+                                                    'partner_id': partner_id.id if partner_id else False,
+                                                    'iban': data.get('Mndt').get('DbtrAcct') if data.get('Mndt').get(
+                                                        'DbtrAcct') else False,
+                                                    'bic': data.get('Mndt').get('DbtrAgt').get('FinInstnId').get(
+                                                        'BICFI') if data.get('Mndt').get('DbtrAgt') and data.get(
+                                                        'Mndt').get('DbtrAgt').get('FinInstnId') and data.get(
+                                                        'Mndt').get('DbtrAgt').get('FinInstnId').get(
+                                                        'BICFI') else False,
+                                                    'lang': lang_id.code if lang_id else False,
+                                                    }
+                                    mandate_vals.update(field_dict)
+                                    mandate_id.with_context(update_feed=True).write(mandate_vals)
             except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
                     requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                 _logger.error('Update Feed Exception %s' % (e))
