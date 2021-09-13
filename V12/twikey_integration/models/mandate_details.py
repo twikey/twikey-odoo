@@ -19,7 +19,7 @@ class MandateDetails(models.Model):
     partner_id = fields.Many2one('res.partner', string="Customer")
     state = fields.Selection([('pending', 'Pending'), ('signed', 'Signed'), ('suspended', 'Suspended'), ('cancelled', 'Cancelled')], track_visibility='onchange', default='pending')
     creditor_id = fields.Many2one('res.partner', string="Creditor-ID")
-    reference = fields.Char(tring="Mandate Reference", required=True)
+    reference = fields.Char(string="Mandate Reference", required=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
     contract_temp_id = fields.Many2one(comodel_name="contract.template", string="Contract Template")
@@ -245,13 +245,12 @@ class MandateDetails(models.Model):
                 except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
                     _logger.error('Mandate Write Exception %s' % (e))
                     raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
-        print("pppppppppppppppppppppppppppppppppppppppppppppppppppppppppp")
         return res
 
     def unlink(self):
         context = self._context
         if not context.get('update_feed'):
-            self.sync_mandate()
+            self.update_feed()
             base_url=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
             authorization_token=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
             if self.state in ['signed', 'cancelled']:
