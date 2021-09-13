@@ -38,35 +38,35 @@ class ResPartner(models.Model):
     def write(self, values):
         res = super(ResPartner, self).write(values)
         if not self._context.get('update_feed'):
-          for self in self:
+          for rec in self:
               authorization_token = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.authorization_token')
               base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
 
               customer_name = ''
-              if self.company_type == 'person':
+              if rec.company_type == 'person':
                   if values.get('name'):
                       customer_name = values.get('name').split(' ')
                   else:
-                      customer_name = self.name.split(' ')
+                      customer_name = rec.name.split(' ')
               country_id = False
               if values.get('country_id'):
                   country_id = self.env['res.country'].browse(values.get('country_id'))
 
               data = {
-                      'email': values.get('email') if values.get('email') else self.email if self.email else '',
-                      'firstname': customer_name[0] if customer_name and self.company_type == 'person' else '',
-                      'lastname': customer_name[1] if customer_name and len(customer_name) > 1 and self.company_type == 'person' else '',
-                      'companyName': values.get('name') if values.get('name') and self.company_type == 'company' else self.name if self.company_type == 'company' else '',
-                      'vatno': values.get('vat') if values.get('vat') and self.company_type == 'company' else self.vat if self.vat and self.company_type == 'company' else '',
-                      'customerNumber': values.get('twikey_reference') if values.get('twikey_reference') else self.twikey_reference if self.twikey_reference else '',
-                      'address': values.get('street') if values.get('street') else self.street if self.street else '',
-                      'city': values.get('city') if values.get('city') else self.city if self.city else '',
-                      'zip': values.get('zip') if values.get('zip') else self.zip if self.zip else '',
-                      'country': country_id.code if country_id != False else self.country_id.code if self.country_id else ''
+                      'email': values.get('email') if values.get('email') else rec.email if rec.email else '',
+                      'firstname': customer_name[0] if customer_name and rec.company_type == 'person' else '',
+                      'lastname': customer_name[1] if customer_name and len(customer_name) > 1 and rec.company_type == 'person' else '',
+                      'companyName': values.get('name') if values.get('name') and rec.company_type == 'company' else rec.name if rec.company_type == 'company' else '',
+                      'vatno': values.get('vat') if values.get('vat') and rec.company_type == 'company' else rec.vat if rec.vat and rec.company_type == 'company' else '',
+                      'customerNumber': values.get('twikey_reference') if values.get('twikey_reference') else rec.twikey_reference if rec.twikey_reference else '',
+                      'address': values.get('street') if values.get('street') else rec.street if rec.street else '',
+                      'city': values.get('city') if values.get('city') else rec.city if rec.city else '',
+                      'zip': values.get('zip') if values.get('zip') else rec.zip if rec.zip else '',
+                      'country': country_id.code if country_id != False else rec.country_id.code if rec.country_id else ''
                       }
               print('=============================================')
-              if self.mandate_ids:
-                  mandate_id = self.mandate_ids[0]
+              if rec.mandate_ids:
+                  mandate_id = rec.mandate_ids[0]
                   print("===============",mandate_id.reference)
                   data.update({'mndtId': mandate_id.reference})
                   try:

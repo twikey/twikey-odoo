@@ -2,11 +2,8 @@
 
 from odoo import api, fields, models,exceptions,_
 import requests
-import json
-from datetime import datetime
 import base64
 import uuid
-import random
 from odoo.exceptions import UserError
 import logging
 
