@@ -38,7 +38,7 @@ class MandateDetails(models.Model):
         if authorization_token:
             try:
                 response = requests.get(base_url + "/creditor/mandate", headers={'Authorization': authorization_token})
-                _logger.debug('Fetching all mandate data from twikey %s' % (response.content))
+                _logger.info('Fetching all mandate data from twikey %s' % (response.content))
                 resp_obj = response.json()
                 if response.status_code == 200:
                     _logger.debug('Response status_code.. %s' % (response))

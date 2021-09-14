@@ -19,31 +19,35 @@ class SaleOrder(models.Model):
             template_id = context.get('template_id')
             self.ensure_one()
             company_id = self.company_id.id
-            journal_id = (self.env['account.invoice'].with_context(company_id=company_id or self.env.user.company_id.id)
-                .default_get(['journal_id'])['journal_id'])
-            if not journal_id:
-                raise UserError(_('Please define an accounting sales journal for this company.'))
-            vinvoice = self.env['account.invoice'].new({'partner_id': self.partner_invoice_id.id, 'type': 'out_invoice'})
-            # Get partner extra fields
-            vinvoice._onchange_partner_id()
-            invoice_vals = vinvoice._convert_to_write(vinvoice._cache)
-            invoice_vals.update({
-                'name': (self.client_order_ref or '')[:2000],
-                'template_id' : template_id.id,
-                'origin': self.name,
-                'type': 'out_invoice',
-                'account_id': self.partner_invoice_id.property_account_receivable_id.id,
-                'partner_shipping_id': self.partner_shipping_id.id,
-                'journal_id': journal_id,
+            journal = self.env['account.move'].with_context(default_type='out_invoice')._get_default_journal()
+            if not journal:
+                raise UserError(_('Please define an accounting sales journal for the company %s (%s).') % (
+                self.company_id.name, self.company_id.id))
+            invoice_vals = {
+                'template_id': template_id.id,
+                'ref': self.client_order_ref or '',
+                'move_type': 'out_invoice',
+                'narration': self.note,
                 'currency_id': self.pricelist_id.currency_id.id,
-                'comment': self.note,
-                'payment_term_id': self.payment_term_id.id,
-                'fiscal_position_id': self.fiscal_position_id.id or self.partner_invoice_id.property_account_position_id.id,
-                'company_id': company_id,
-                'user_id': self.user_id and self.user_id.id,
+                'campaign_id': self.campaign_id.id,
+                'medium_id': self.medium_id.id,
+                'source_id': self.source_id.id,
+                'user_id': self.user_id.id,
+                'invoice_user_id': self.user_id.id,
                 'team_id': self.team_id.id,
+                'partner_id': self.partner_invoice_id.id,
+                'partner_shipping_id': self.partner_shipping_id.id,
+                'fiscal_position_id': (self.fiscal_position_id or self.fiscal_position_id.get_fiscal_position(
+                    self.partner_invoice_id.id)).id,
+                'partner_bank_id': self.company_id.partner_id.bank_ids[:1].id,
+                'journal_id': journal.id,  # company comes from the journal
+                'invoice_origin': self.name,
+                'invoice_payment_term_id': self.payment_term_id.id,
+                'payment_reference': self.reference,
                 'transaction_ids': [(6, 0, self.transaction_ids.ids)],
-            })
+                'invoice_line_ids': [],
+                'company_id': self.company_id.id,
+            }
             return invoice_vals
         else:
             return super(SaleOrder, self)._prepare_invoice()

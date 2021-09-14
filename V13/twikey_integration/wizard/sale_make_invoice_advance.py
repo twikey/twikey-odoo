@@ -236,7 +236,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     invoice_id = self.env['account.move'].search([('id', '=', sale_id.invoice_ids[-1].id)])
                 if invoice_id:
                     invoice_id.date_invoice = fields.Date.context_today(self)
-                    # invoice_id._onchange_payment_term_date_invoice()
+                    invoice_id._onchange_invoice_date()
                     invoice_number =  str(uuid.uuid1())
 
                     url = base_invoice_url + invoice_number
