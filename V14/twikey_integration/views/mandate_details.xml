@@ -59,7 +59,13 @@
         <field name="res_model">mandate.details</field>
         <field name="view_mode">tree,form</field>
     </record>
-    
+
     <menuitem id="menu_action_mandate_details_view" action="mandate_details_action"
-                  parent="contacts.menu_contacts" sequence="1"/>
+                  parent="contacts.menu_contacts" sequence="2"/>
+
+    <menuitem id="contacts.res_partner_menu_config"
+        name="Configuration"
+        parent="contacts.menu_contacts"
+        groups="base.group_system"
+        sequence="3"/>
 </odoo>

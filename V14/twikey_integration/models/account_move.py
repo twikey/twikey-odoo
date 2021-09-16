@@ -62,7 +62,7 @@ class AccountInvoice(models.Model):
                                         customer_name = customer_id.get('companyName')
                                         company_type = 'company'
                                     else:
-                                        customer_name = str(customer_id.get('firstname') + customer_id.get('lastname'))
+                                        customer_name = str(customer_id.get('firstname') + " " + customer_id.get('lastname'))
                                         company_type = 'person'
                                     values = {'name': customer_name,
                                               'company_type': company_type,
@@ -129,29 +129,29 @@ class AccountInvoice(models.Model):
                             if data.get('state') == 'PAID' and invoice_id.state != 'paid':
                                 try:
                                     if invoice_id.state == 'draft':
-                                        invoice_id.action_invoice_open()
+                                        invoice_id.with_context(update_feed=True).action_post()
                                     if invoice_id.state == 'open':
-                                        inv_ref = invoice_id._get_computed_reference()
-                                        journal_id = self.env['account.journal'].search([('type', '=', 'bank')],
-                                                                                        limit=1)
-                                        payment_method = self.env.ref('account.account_payment_method_manual_in')
-                                        journal_payment_methods = journal_id.inbound_payment_method_ids
-                                        payment_id = self.env['account.payment'].create(
-                                            {'amount': invoice_id.amount_total,
-                                             'journal_id': journal_id.id,
-                                             'state': 'draft',
-                                             'payment_type': 'inbound',
-                                             'partner_type': 'customer',
-                                             'payment_method_id': journal_payment_methods.id,
-                                             'partner_id': partner_id.id,
-                                             'payment_date': fields.Date.context_today(self),
-                                             'communication': inv_ref
-                                             })
-                                        payment_id.post()
-                                        credit_aml_id = self.env['account.move.line'].search(
-                                            [('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
-                                        if credit_aml_id:
-                                            invoice_id.assign_outstanding_credit(credit_aml_id.id)
+                                        inv_ref = invoice_id.with_context(update_feed=True)._get_computed_reference()
+                                    journal_id = self.env['account.journal'].search([('type', '=', 'bank')],
+                                                                                    limit=1)
+                                    payment_method = self.env.ref('account.account_payment_method_manual_in')
+                                    journal_payment_methods = journal_id.inbound_payment_method_ids
+                                    payment_id = self.env['account.payment'].with_context(update_feed=True).create(
+                                        {'amount': invoice_id.amount_total,
+                                         'journal_id': journal_id.id,
+                                         'state': 'draft',
+                                         'payment_type': 'inbound',
+                                         'partner_type': 'customer',
+                                         'payment_method_id': journal_payment_methods.id,
+                                         'partner_id': partner_id.id,
+                                         # 'payment_date': fields.Date.context_today(self),
+                                         # 'communication': inv_ref
+                                         })
+                                    payment_id.with_context(update_feed=True).action_post()
+                                    credit_aml_id = self.env['account.move.line'].search(
+                                        [('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
+                                    if credit_aml_id:
+                                        invoice_id.with_context(update_feed=True).js_assign_outstanding_line(credit_aml_id.id)
                                 except (
                                         ValueError, requests.exceptions.ConnectionError,
                                         requests.exceptions.MissingSchema,

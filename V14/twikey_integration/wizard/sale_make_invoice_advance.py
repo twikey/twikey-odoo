@@ -177,13 +177,13 @@ class SaleAdvancePaymentInv(models.TransientModel):
                 for sale_id in sale_orders:
                     invoice_id = self.env['account.move'].search([('id', '=', sale_id.invoice_ids[-1].id)])
                 if invoice_id:
-                    invoice_id.date_invoice = fields.Date.context_today(self)
+                    # invoice_id.date_invoice = fields.Date.context_today(self)
                     invoice_id._onchange_invoice_date()
                     invoice_number =  str(uuid.uuid1())
 
                     url = base_invoice_url + invoice_number
                     invoice_id.with_context(update_feed=True).write({'twikey_url' : url, 'twikey_invoice_id' : invoice_number, 'template_id': self.template_id.id})
-                    pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
+                    pdf = self.env.ref('account.account_invoices')._render_qweb_pdf([invoice_id.id])[0]
                     report_file = base64.b64encode(pdf)
 
                     try:

@@ -60,7 +60,7 @@ class AccountInvoice(models.Model):
                                         customer_name = customer_id.get('companyName')
                                         company_type = 'company'
                                     else:
-                                        customer_name = str(customer_id.get('firstname') + customer_id.get('lastname'))
+                                        customer_name = str(customer_id.get('firstname') + " " + customer_id.get('lastname'))
                                         company_type = 'person'
                                     values = {'name': customer_name,
                                               'company_type': company_type,
