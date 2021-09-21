@@ -1,20 +1,57 @@
 version: '2'
 services:
-  web:
+  odoo12:
     image: odoo:12.0
     depends_on:
-      - db
+      - db12
+    restart: always
     ports:
       - "8069:8069"
     volumes:
-      - odoo-web-data:/var/lib/odoo
-      - ./config:/etc/odoo
+      - odoo-web-data12:/var/lib/odoo
+      - ./config/odoo12.conf:/etc/odoo/odoo.conf
       - ./V12/twikey_integration:/mnt/extra-addons/twikey_integration
-  db:
+  db12:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+  odoo13:
+    image: odoo:13.0
+    depends_on:
+      - db13
+    restart: always
+    ports:
+      - "8070:8069"
+    volumes:
+      - odoo-web-data13:/var/lib/odoo
+      - ./config/odoo13.conf:/etc/odoo/odoo.conf
+      - ./V13/twikey_integration:/mnt/extra-addons/twikey_integration
+  db13:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+  odoo14:
+    image: odoo:14.0
+    depends_on:
+      - db14
+    restart: always
+    ports:
+      - "8071:8069"
+    volumes:
+      - odoo-web-data14:/var/lib/odoo
+      - ./config/odoo14.conf:/etc/odoo/odoo.conf
+      - ./V14/twikey_integration:/mnt/extra-addons/twikey_integration
+  db14:
     image: postgres:alpine
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=odoo
       - POSTGRES_USER=odoo
 volumes:
-  odoo-web-data:
+  odoo-web-data12:
+  odoo-web-data13:
+  odoo-web-data14:
