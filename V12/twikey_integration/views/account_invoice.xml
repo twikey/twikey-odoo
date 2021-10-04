@@ -12,7 +12,7 @@
                     <field name="template_id" attrs="{'invisible': [('is_twikey', '=', False)]}" readonly="1"/>
                </xpath>
                <xpath expr="//button[@name='preview_invoice']" position="after">
-                    <button name="update_invoice_feed" string="Sync" type="object" class="oe_highlight" attrs="{'invisible':['|',('state','=','paid'),('is_twikey', '=', False)]}"/>
+                    <button name="update_invoice_feed" string="Sync" type="object" class="oe_highlight" attrs="{'invisible':[('is_twikey', '=', False)]}"/>
                </xpath>
            </field>
        </record>

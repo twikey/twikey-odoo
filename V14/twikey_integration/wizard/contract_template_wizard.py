@@ -8,6 +8,8 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+language_dict = {'en_US':'en', 'fr_FR':'fr', 'nl_NL':'nl', 'de_DE':'de', 'pt_PT':'pt', 'es_ES':'es', 'it_IT':'it'}
+
 class ContractTemplateWizard(models.Model):
 
     _name = 'contract.template.wizard'
@@ -19,13 +21,15 @@ class ContractTemplateWizard(models.Model):
     
     def action_confirm(self):
         context = self._context
-        partner_id = self.env['res.partner'].browse(context.get('active_id'))
 
+        partner_id = self.env['res.partner'].browse(context.get('active_id'))
+        language = partner_id.lang
         base_url=self.env['ir.config_parameter'].sudo().get_param(
                     'twikey_integration.base_url')
         authorization_token=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.authorization_token')
         data = {'ct' : self.template_id.template_id,
+            'l': language_dict.get(language),
             'sendInvite' : True,
             'customerNumber' : partner_id.id,
             'mandateNumber': partner_id.id if self.template_id.mandateNumberRequired == False else '',

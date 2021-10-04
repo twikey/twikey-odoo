@@ -9,6 +9,7 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+language_dict = {'en_US':'en', 'fr_FR':'fr', 'nl_NL':'nl', 'de_DE':'de', 'pt_PT':'pt', 'es_ES':'es', 'it_IT':'it'}
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -70,7 +71,8 @@ class ResPartner(models.Model):
                     'address': values.get('street') if values.get('street') else rec.street if rec.street else '',
                     'city': values.get('city') if values.get('city') else rec.city if rec.city else '',
                     'zip': values.get('zip') if values.get('zip') else rec.zip if rec.zip else '',
-                    'country': country_id.code if country_id != False else rec.country_id.code if rec.country_id else ''
+                    'country': country_id.code if country_id != False else rec.country_id.code if rec.country_id else '',
+                    'l': language_dict.get(rec.lang),
                 }
                 print('=============================================')
                 if rec.mandate_ids:

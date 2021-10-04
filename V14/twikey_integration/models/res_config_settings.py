@@ -63,8 +63,7 @@ class ResConfigSettings(models.TransientModel):
                 'twikey_integration.api_key'),
             module_twikey=self.env['ir.config_parameter'].sudo().get_param(
                 'twikey_integration.module_twikey'),
-            test=self.env['ir.config_parameter'].sudo().get_param(
-                'twikey_integration.base_url') != 'https://api.twikey.com',
+            test=self.env['ir.config_parameter'].sudo().get_param('twikey_integration.test'),
         )
         return res
 
@@ -84,6 +83,7 @@ class ResConfigSettings(models.TransientModel):
         param.set_param('twikey_integration.api_key', api_key)
         param.set_param('twikey_integration.base_url', base_url)
         param.set_param('twikey_integration.module_twikey', module_twikey)
+        param.set_param('twikey_integration.test', testmode)
         # param.set_param('twikey_integration.authorization_token', authorization_token)
 
     @api.model
