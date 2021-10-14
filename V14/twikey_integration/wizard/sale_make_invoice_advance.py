@@ -189,8 +189,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     try:
                         partner_name = invoice_id.partner_id.name.split(' ')
                         data = """{
-                                "id" : "%(id)s",
-                                "number" : "%(number)s",
+                                "id" : "%(number)s",
+                                "number" : "%(id)s",
                                 "title" : "INV_%(id)s",
                                 "ct" : %(Template)s,
                                 "amount" : %(Amount)s,
@@ -209,7 +209,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                  "country" : "%(Country)s",
                                  "mobile" : "%(Mobile)s"
                                 }
-                        }""" % {'id' : invoice_number,
+                        }""" % {'id' : invoice_id.id,
                                 'number' : invoice_number,
                                 'Template' : self.template_id.template_id,
                                 'Amount' : invoice_id.amount_total,

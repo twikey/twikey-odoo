@@ -130,11 +130,19 @@ class SaleAdvancePaymentInv(models.TransientModel):
                     pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
                     report_file = base64.b64encode(pdf)
 
+                    sequence = invoice_id.journal_id.sequence_id
+                    sequence_number = invoice_id.journal_id.sequence_number_next
+                    if not sequence:
+                        raise UserError(_('Please define a sequence on your journal.'))
+
+                    # Consume a new number.
+                    # invoice_sequence = sequence.with_context(ir_sequence_date=invoice_id.date).next_by_id()
+
                     try:
                         partner_name = invoice_id.partner_id.name.split(' ')
                         data = """{
-                                "id" : "%(id)s",
-                                "number" : "%(number)s",
+                                "id" : "%(number)s",
+                                "number" : "%(id)s",
                                 "title" : "INV_%(id)s",
                                 "ct" : %(Template)s,
                                 "amount" : %(Amount)s,
@@ -153,8 +161,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
                                  "country" : "%(Country)s",
                                  "mobile" : "%(Mobile)s"
                                 }
-                        }""" % {'id' : invoice_number,
-                                'number' : invoice_id.id,
+                        }""" % {'id' : sequence_number,
+                                'number' : invoice_number,
                                 'Template' : self.template_id.template_id,
                                 'Amount' : invoice_id.amount_total,
                                 'InvoiceDate' : fields.Date.context_today(self),
