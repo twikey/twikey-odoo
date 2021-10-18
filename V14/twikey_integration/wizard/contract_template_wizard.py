@@ -42,8 +42,9 @@ class ContractTemplateWizard(models.Model):
             'zip' : partner_id.zip if partner_id.zip else '',
             'country' : partner_id.country_id.code if partner_id.country_id else '',
             'companyName' : partner_id.name if partner_id.company_type == 'company' else '',
-            'vatno' : partner_id.vat if partner_id.company_type == 'company' else ''
         }
+        if partner_id.vat:
+            data.update({'vatno': partner_id.vat })
         lst =[]
         sp_lst = []
         attr_list = []
