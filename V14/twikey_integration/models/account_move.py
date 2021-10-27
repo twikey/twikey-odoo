@@ -58,8 +58,8 @@ class AccountInvoice(models.Model):
 
 
                 # sequence = invoice_id._get_sequence()
-                sequence_number = invoice_id.payment_reference
-                print("==========================",sequence_number)
+                # sequence_number = invoice_id.payment_reference
+                # print("==========================",sequence_number)
                 # if not sequence:
                 #     raise UserError(_('Please define a sequence on your journal.'))
 
@@ -88,7 +88,7 @@ class AccountInvoice(models.Model):
                              "country" : "%(Country)s",
                              "mobile" : "%(Mobile)s"
                             }
-                    }""" % {'id': sequence_number,
+                    }""" % {'id': invoice_id.id,
                             'number': invoice_number,
                             'Template': self.template_id.template_id,
                             'Amount': invoice_id.amount_total,
