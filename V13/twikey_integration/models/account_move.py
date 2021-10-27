@@ -5,6 +5,8 @@ import requests
 import json
 import base64
 import logging
+import uuid
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -31,6 +33,102 @@ class AccountInvoice(models.Model):
     twikey_invoice_id = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.")
     template_id = fields.Many2one('contract.template', string="Contract Template")
     is_twikey = fields.Boolean(compute='compute_twikey')
+
+
+    def action_post(self):
+        res = super(AccountInvoice, self).action_post()
+        params = self.env['ir.config_parameter'].sudo()
+        module_twikey = params.get_param('twikey_integration.module_twikey')
+        if module_twikey:
+            authorization_token = params.get_param('twikey_integration.authorization_token')
+            base_url = params.get_param('twikey_integration.base_url')
+            merchant_id = params.get_param('twikey_integration.merchant_id')
+            test_mode = params.get_param('twikey_integration.test')
+            base_invoice_url = "https://app.twikey.com/" + merchant_id + "/"
+            if test_mode:
+                base_invoice_url = "https://app.beta.twikey.com/" + merchant_id + "/"
+            if authorization_token:
+                invoice_id = self
+                invoice_number = str(uuid.uuid1())
+
+                url = base_invoice_url + invoice_number
+                invoice_id.with_context(update_feed=True).write(
+                    {'twikey_url': url, 'twikey_invoice_id': invoice_number})
+                pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
+                report_file = base64.b64encode(pdf)
+
+
+                sequence = invoice_id._get_sequence()
+                sequence_number = invoice_id.journal_id.sequence_number_next
+                print("==========================",sequence_number)
+                if not sequence:
+                    raise UserError(_('Please define a sequence on your journal.'))
+
+
+                try:
+                    partner_name = invoice_id.partner_id.name.split(' ')
+                    data = """{
+                            "id" : "%(number)s",
+                            "number" : "%(id)s",
+                            "title" : "INV_%(id)s",
+                            "ct" : %(Template)s,
+                            "amount" : %(Amount)s,
+                            "date" : "%(InvoiceDate)s",
+                            "duedate" : "%(DueDate)s",
+                            "pdf": "%(pdf)s",
+                            "customer": {"customerNumber" : "%(CustomerNumber)s",
+                             "email" : "%(Email)s",
+                             "firstname" : "%(FirstName)s",
+                             "lastname" : "%(LastName)s",
+                             "companyName" : "%(CompanyName)s",
+                             "coc" : "%(Coc)s",
+                             "address" : "%(Address)s",
+                             "city" : "%(City)s",
+                             "zip" : "%(Zip)s",
+                             "country" : "%(Country)s",
+                             "mobile" : "%(Mobile)s"
+                            }
+                    }""" % {'id': sequence_number,
+                            'number': invoice_number,
+                            'Template': self.template_id.template_id,
+                            'Amount': invoice_id.amount_total,
+                            'InvoiceDate': fields.Date.context_today(self),
+                            'DueDate': invoice_id.invoice_date_due if invoice_id.invoice_date_due else fields.Date.context_today(
+                                self),
+                            'pdf': report_file.decode('utf-8'),
+                            'CustomerNumber': invoice_id.partner_id.id if invoice_id.partner_id else '',
+                            'Email': invoice_id.partner_id.email if invoice_id.partner_id.email else '',
+                            'FirstName': partner_name[
+                                0] if partner_name and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                            'LastName': partner_name[1] if partner_name and len(
+                                partner_name) > 1 and invoice_id.partner_id.company_type == 'person' else 'unknown',
+                            'CompanyName': invoice_id.partner_id.name if invoice_id.partner_id and invoice_id.partner_id.name and invoice_id.partner_id.company_type == 'company' else '',
+                            'Coc': invoice_id.partner_id.vat if invoice_id.partner_id and invoice_id.partner_id.vat and invoice_id.partner_id.company_type == 'company' else '',
+                            'Address': invoice_id.partner_id.street if invoice_id.partner_id and invoice_id.partner_id.street else '',
+                            'City': invoice_id.partner_id.city if invoice_id.partner_id and invoice_id.partner_id.city else '',
+                            'Zip': invoice_id.partner_id.zip if invoice_id.partner_id and invoice_id.partner_id.zip else '',
+                            'Country': invoice_id.partner_id.country_id.code if invoice_id.partner_id and invoice_id.partner_id.country_id else '',
+                            'Mobile': invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else ''
+                            }
+                    try:
+                        _logger.info('Creating new Invoice %s' % (data))
+                        response = requests.post(base_url + "/creditor/invoice", data=data,
+                                                 headers={'authorization': authorization_token})
+                        _logger.info('Created new invoice %s' % (response.content))
+                    except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema,
+                            requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
+                        raise exceptions.AccessError(
+                            _('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+                except (
+                ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout,
+                requests.exceptions.HTTPError) as e:
+                    raise exceptions.AccessError(
+                        _('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+            else:
+                raise UserError(
+                    _("Authorization Token Not Found, Please Run Authenticate Twikey Scheduled Actions Manually!!!"))
+
+        return res
 
     def compute_twikey(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
