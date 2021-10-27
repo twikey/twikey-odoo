@@ -11,8 +11,8 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 InvoiceStatus = {
-    'BOOKED': 'draft',
-    'PENDING': 'draft',
+    'BOOKED': 'posted',
+    'PENDING': 'posted',
     'PAID': 'posted',
     'EXPIRED': 'cancel',
     'ARCHIVED': 'cancel',
@@ -76,6 +76,7 @@ class AccountInvoice(models.Model):
                             "date" : "%(InvoiceDate)s",
                             "duedate" : "%(DueDate)s",
                             "pdf": "%(pdf)s",
+                            "remittance": "%(Remittance)s",
                             "customer": {"customerNumber" : "%(CustomerNumber)s",
                              "email" : "%(Email)s",
                              "firstname" : "%(FirstName)s",
@@ -108,7 +109,8 @@ class AccountInvoice(models.Model):
                             'City': invoice_id.partner_id.city if invoice_id.partner_id and invoice_id.partner_id.city else '',
                             'Zip': invoice_id.partner_id.zip if invoice_id.partner_id and invoice_id.partner_id.zip else '',
                             'Country': invoice_id.partner_id.country_id.code if invoice_id.partner_id and invoice_id.partner_id.country_id else '',
-                            'Mobile': invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else ''
+                            'Mobile': invoice_id.partner_id.mobile if invoice_id.partner_id.mobile else invoice_id.partner_id.phone if invoice_id.partner_id.phone else '',
+                            'Remittance': invoice_id.invoice_payment_ref,
                             }
                     try:
                         _logger.info('Creating new Invoice %s' % (data))
