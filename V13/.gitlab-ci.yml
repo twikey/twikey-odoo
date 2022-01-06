@@ -1,0 +1,16 @@
+V13:
+  stage: package
+  image: alpine
+  tags: [docker]
+  before_script:
+    - apk add --update zip
+  script:
+    - echo V13
+    - cd V13
+    - sed -i "s/1.0/1.0-$CI_COMMIT_SHORT_SHA/g" twikey_integration/__manifest__.py
+    - cd twikey_integration
+    - zip -qmr9 ../../twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip .
+  artifacts:
+    paths:
+      - twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip
+    expire_in: 2 days

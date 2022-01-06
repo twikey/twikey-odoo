@@ -1,0 +1,37 @@
+include:
+  - local: /V12/.gitlab-ci.yml
+  - local: /V13/.gitlab-ci.yml
+  - local: /V14/.gitlab-ci.yml
+
+stages:
+  - package
+  - deploy
+
+Deploy:
+  stage: deploy
+  tags: [aws]
+  rules:
+    - if: '$CI_COMMIT_TAG != null'
+  dependencies:
+    - V12
+    - V13
+    - V14
+  script:
+    - aws s3 cp twikey-odoo-V12-1.0-${CI_COMMIT_SHORT_SHA}.zip  s3://twikey-download/twikey-odoo-V12-1.0-${CI_COMMIT_SHORT_SHA}.zip --acl public-read
+    - aws s3 cp twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip  s3://twikey-download/twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip --acl public-read
+    - aws s3 cp twikey-odoo-V14-1.0-${CI_COMMIT_SHORT_SHA}.zip  s3://twikey-download/twikey-odoo-V14-1.0-${CI_COMMIT_SHORT_SHA}.zip --acl public-read
+    - echo https://twikey-download.s3.amazonaws.com/twikey-odoo-V12-1.0-${CI_COMMIT_SHORT_SHA}.zip > v12.txt
+    - echo https://twikey-download.s3.amazonaws.com/twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip > v13.txt
+    - echo https://twikey-download.s3.amazonaws.com/twikey-odoo-V14-1.0-${CI_COMMIT_SHORT_SHA}.zip > v14.txt
+  release:
+    name: Release Odoo $CI_COMMIT_TAG
+    tag_name: $CI_COMMIT_TAG
+    description: 'Created @ $CI_JOB_STARTED_AT'
+    assets:
+      links:
+        - name: twikey-odoo-V12-1.0-${CI_COMMIT_SHORT_SHA}.zip
+          url: https://twikey-download.s3.amazonaws.com/twikey-odoo-V12-1.0-${CI_COMMIT_SHORT_SHA}.zip
+        - name: twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip
+          url: https://twikey-download.s3.amazonaws.com/twikey-odoo-V13-1.0-${CI_COMMIT_SHORT_SHA}.zip
+        - name: twikey-odoo-V14-1.0-${CI_COMMIT_SHORT_SHA}.zip
+          url: https://twikey-download.s3.amazonaws.com/twikey-odoo-V14-1.0-${CI_COMMIT_SHORT_SHA}.zip
