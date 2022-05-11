@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="product_product_twikey_invoice" model="product.product">
+            <field name="name">Invoice Product</field>
+            <field name="categ_id" ref="product.product_category_all"/>
+            <field name="type">consu</field>
+            <field name="uom_id" ref="uom.product_uom_unit"/>
+            <field name="uom_po_id" ref="uom.product_uom_unit"/>
+            <field name="default_code">Inv-0001</field>
+        </record>
+    </data>
+</odoo>
