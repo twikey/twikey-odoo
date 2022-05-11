@@ -31,17 +31,17 @@ class ResConfigSettings(models.TransientModel):
     authorization_token = fields.Char(string="Authorization Token", help="Get from Twikey Authentication Scheduler and use for other APIs.", readonly=True)
 
     def authenticate(self, api_key=False):
-        twikey_client = self.env['ir.config_parameter'].get_twikey_client()
+        twikey_client = self.env['ir.config_parameter'].get_twikey_client(force=True)
         if not api_key:
             api_key = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.api_key')
         if api_key:
             base_url = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.base_url')
-            _logger.debug('Authenticating to Twikey on %s with %s',base_url, api_key)
+            _logger.info('Authenticating to Twikey on %s with %s...',base_url, api_key[0:10])
             try:
                 twikey_client.refreshTokenIfRequired()
             except (ValueError, requests.exceptions.RequestException) as e:
                 _logger.error('Exception raised during Authentication %s' % (e))
-                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+                raise exceptions.AccessError(_('The connection to Twikey failed. Please check your connection or try after sometime.'))
         else:
             raise UserError('Please Add Twikey Api Key from Settings.')
 
@@ -82,10 +82,14 @@ class ResConfigSettings(models.TransientModel):
     def test_connection(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
         if module_twikey:
-            twikey_client = self.env['ir.config_parameter'].get_twikey_client()
-            twikey_client.refreshTokenIfRequired()
-        return {'warning': _('Connection succeeded')}
-        
+            twikey_client = self.env['ir.config_parameter'].get_twikey_client(force=True)
+            try:
+                twikey_client.refreshTokenIfRequired()
+                return {'warning': _('Connection succeeded')}
+            except (ValueError, requests.exceptions.RequestException) as e:
+                _logger.error('Exception raised during test %s' % (e))
+                raise exceptions.AccessError(_('The connection to Twikey failed. Please check your connection or try after sometime.'))
+
     def sync_contract_template(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
         if module_twikey:

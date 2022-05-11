@@ -72,7 +72,7 @@ class TwikeyClient(object):
             if not self.api_base:
                 raise requests.URLRequired("No base url defined - %s" % self.api_base)
 
-            self.logger.debug("Authenticating with %s" % self.api_base)
+            self.logger.debug("Authenticating with %s using %s..." % (self.api_base,self.api_key[0:10]))
             response = requests.post(
                 self.instance_url(),
                 data=payload,
