@@ -32,8 +32,8 @@ TwikeyInvoiceStatus = {
 class AccountInvoice(models.Model):
     _inherit = 'account.invoice'
 
-    twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice")
-    twikey_invoice_id = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.")
+    twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice",readonly=True)
+    twikey_invoice_id = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.",readonly=True)
     template_id = fields.Many2one('twikey.contract.template', string="Contract Template")
     is_twikey = fields.Boolean(compute='compute_twikey')
 
@@ -66,7 +66,7 @@ class AccountInvoice(models.Model):
             today = fields.Date.context_today(self).isoformat()
             data = {
                 'id': invoice_uuid,
-                'number': sequence_number,
+                'number': invoice_id.number,
                 "title": invoice_id.number,
                 'ct': self.template_id.template_id,
                 'amount': invoice_id.amount_total,
@@ -74,6 +74,7 @@ class AccountInvoice(models.Model):
                 'duedate': invoice_id.date_due.isoformat() if invoice_id.date_due else today,
                 "pdf": report_file.decode('utf-8'),
                 "remittance": invoice_id.reference,
+                "ref": sequence_number,
                 'locale': customer.lang if customer else 'en',
                 "customer": {
                     'locale': customer.lang if customer else 'en',
