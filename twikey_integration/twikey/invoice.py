@@ -16,8 +16,7 @@ class Invoice(object):
         response = requests.post(url=url, json=data, headers=headers)
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
-            error = json_response
-            raise Exception("Error creating : %s" % error)
+            raise self.client.raise_error("Create invoice", response)
         self.logger.debug("Added invoice : %s" % json_response["url"])
         return json_response
 
@@ -25,10 +24,11 @@ class Invoice(object):
         url = self.client.instance_url("/invoice?include=customer&include=meta&include=lastpayment")
 
         self.client.refreshTokenIfRequired()
-        response = requests.get(url=url, headers=self.client.headers())
+        initheaders = self.client.headers()
+        response = requests.get(url=url, headers=initheaders)
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
-            raise Exception("Error feed : %s - %s"% (response.headers["ApiErrorCode"], response.headers["ApiError"]))
+            raise self.client.raise_error("Feed invoice", response)
         feed_response = response.json()
         while len(feed_response["Invoices"]) > 0:
             self.logger.debug("Feed handling : %d" % (len(feed_response["Invoices"])))
@@ -37,8 +37,7 @@ class Invoice(object):
                 invoiceFeed.invoice(invoice)
             response = requests.get(url=url, headers=self.client.headers())
             if "ApiErrorCode" in response.headers:
-                error = response.json()
-                raise Exception("Error feed : %s" % error)
+                raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
 
     def geturl(self, invoice_id):

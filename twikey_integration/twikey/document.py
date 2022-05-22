@@ -17,8 +17,7 @@ class Document(object):
         response = requests.post(url=url, data=data, headers=self.client.headers())
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
-            error = json_response
-            raise Exception("Error invite : %s" % error)
+            raise self.client.raise_error("Invite", response)
         self.logger.debug("Added new mandate : %s" % json_response.mndtId)
         return json_response
 
@@ -27,10 +26,9 @@ class Document(object):
         data = data or {}
         self.client.refreshTokenIfRequired()
         response = requests.post(url=url, data=data, headers=self.client.headers())
-        self.logger.debug("Updated mandate : %s status=%d" % (data.mndtId,response.status_code))
+        self.logger.debug("Updated mandate : %s response=%s" % (data,response))
         if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error invite : %s" % error)
+            raise self.client.raise_error("Update", response)
 
     def cancel(self, mandate_number, reason):
         url = self.client.instance_url("/mandate?mndtId=" + mandate_number + '&rsn=' + reason)
@@ -38,8 +36,7 @@ class Document(object):
         response = requests.delete(url=url, headers=self.client.headers())
         self.logger.debug("Updated mandate : %s status=%d" % (mandate_number,response.status_code))
         if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error invite : %s" % error)
+            raise self.client.raise_error("Cancel", response)
 
     def feed(self, documentFeed):
         url = self.client.instance_url("/mandate")
@@ -48,8 +45,7 @@ class Document(object):
         response = requests.get(url=url, headers=self.client.headers())
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error feed : %s" % error)
+            raise self.client.raise_error("Feed", response)
         feed_response = response.json()
         while len(feed_response["Messages"]) > 0:
             self.logger.debug("Feed handling : %d" % (len(feed_response["Messages"])))
@@ -68,8 +64,7 @@ class Document(object):
                     documentFeed.newDocument(msg["Mndt"])
             response = requests.get(url=url, headers=self.client.headers())
             if "ApiErrorCode" in response.headers:
-                error = response.json()
-                raise Exception("Error invite : %s - %s" % (error["code"], error["message"]))
+                raise self.client.raise_error("Feed", response)
             feed_response = response.json()
 
 

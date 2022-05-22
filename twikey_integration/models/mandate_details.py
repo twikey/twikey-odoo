@@ -82,92 +82,115 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
     def __init__(self, env):
         self.env = env
 
-    def newDocument(self, doc):
-
-        mandate_number = doc.get('MndtId')
-
-        contract_temp_id = False
+    def splmtrAsDict(self,doc):
         field_dict = {}
-        lang_id = False
-        if 'Splmtrydoc' in doc:
-            lst = doc.get('Splmtrydoc')
+        if 'SplmtryData' in doc:
+            lst = doc.get('SplmtryData')
             for ls in lst:
                 field_dict[ls["Key"]] = ls["Value"]
+        else:
+            _logger.debug("No kv in doc" % doc)
+        return field_dict
 
-            if 'Language' in field_dict:
-                lang = field_dict['Language']
-                lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
+    def newDocument(self, doc):
 
-            if 'TemplateId' in field_dict:
-                temp_id = field_dict['TemplateId']
-                contract_temp_id = self.env['twikey.contract.template'].search([('template_id', '=', temp_id)],limit=1)
-                if contract_temp_id:
-                    for ls in lst:
-                        if ls.get('Key') in contract_temp_id.attribute_ids.mapped('name'):
-                            value = ls.get('Value')
-                            field_name = 'x_' + ls.get('Key') + '_' + str(temp_id)
-                            field_dict.update({field_name: value})
-
+        partner_id = False
         debtor = doc.get('Dbtr')
         iban = doc.get('DbtrAcct')
         bic = doc.get('DbtrAgt').get('FinInstnId').get('BICFI')
-        new_mandate_number = doc.get('MndtId')
+        mandate_number = doc.get('MndtId')
+
+        template_id = False
+        lang_id = False
+
+        field_dict = self.splmtrAsDict(doc)
+        if 'Language' in field_dict:
+            lang = field_dict['Language']
+            lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
+
+        if 'TemplateId' in field_dict:
+            temp_id = field_dict['TemplateId']
+            template_id = self.env['twikey.contract.template'].search([('template_id', '=', temp_id)],limit=1)
+
+        address = False
+        zip = False
+        city = False
+        country_id = False
+        email = False
+        if debtor and 'PstlAdr' in debtor:
+            address_line = debtor.get('PstlAdr')
+            address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
+            zip = address_line.get('PstCd') if address_line.get('PstCd') else False
+            city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
+            country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
 
         # Find by customernumber
-        customer_number = ""
-        partner_id = False
-        contact_details = debtor.get('CtctDtls')
-        if contact_details and contact_details.get('Othr'):
-            customer_number = contact_details.get('Othr')
-            partner_id = self.env['res.partner'].search([('twikey_reference', '=', customer_number)])
+        if 'CtctDtls' in debtor:
+            contact_details = debtor.get('CtctDtls')
+            if "Othr" in contact_details:
+                customer_number = contact_details.get('Othr')
+                try:
+                    lookup_id = int(customer_number)
+                    partner_id = self.env['res.partner'].browse(lookup_id)
+                except:
+                    _logger.info('Customer not found by %s skipping mandate.' % customer_number)
+                    return
+            if "EmailAdr" in contact_details:
+                email = contact_details.get('EmailAdr')
+                partner_id = self.env['res.partner'].search([('email', '=', email)])
 
-        # Find by name if not found
-        if not partner_id:
-            if debtor.get('Nm'):
-                partner_id = self.env['res.partner'].search([('name', '=', debtor.get('Nm'))])
+        # Find by name if not found create
+        if not partner_id and 'Nm' in debtor:
+            partner_id = self.env['res.partner'].search([('name', '=', debtor.get('Nm'))])
+            # Last step, just create
             if not partner_id:
                 partner_id = self.env['res.partner'].create({'name' : debtor.get('Nm')})
 
-        mandate_id = self.env['mandate.details'].search([('reference', '=', mandate_number)])
-        if not mandate_id:
-            mandate_vals = {'partner_id': partner_id.id if partner_id else False,
-                            'reference': mandate_number,
-                            'state': 'signed',
-                            'contract_temp_id': contract_temp_id.id if contract_temp_id else False,
-                            'lang': lang_id.code if lang_id else False}
-            mandate_vals.update(field_dict)
-            mandate_id = self.env['mandate.details'].sudo().create(mandate_vals)
         if partner_id:
-            address = False
-            zip = False
-            city = False
-            country_id = False
-            if debtor and debtor.get('PstlAdr'):
-                address_line = debtor.get('PstlAdr')
-                address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
-                zip = address_line.get('PstCd') if address_line.get('PstCd') else False
-                city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
-                country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
             partner_id.with_context(update_feed=True).write({'street' : address,
-                                                             'name' : debtor.get('Nm') if 'Nm' in debtor else False,
                                                              'zip' : zip,
-                                                             'twikey_reference': customer_number,
                                                              'city' : city,
                                                              'country_id' : country_id.id if country_id else False,
-                                                             'lang': lang_id.code if lang_id else False,
-                                                             'email' : contact_details.get('EmailAdr') if 'EmailAdr' in contact_details else False})
+                                                             'email' : email
+                                                             })
 
+        # Update actual mandate
+        mandate_id = self.env['mandate.details'].search([('reference', '=', mandate_number)])
         if mandate_id:
-            mandate_vals = {'state': 'signed',
-                            'partner_id': partner_id.id if partner_id else False,
+            mandate_vals = {'partner_id': partner_id.id if partner_id else False,
+                            'state': 'signed',
                             'lang': lang_id.code if lang_id else False,
-                            'contract_temp_id': contract_temp_id.id if contract_temp_id else False,
+                            'contract_temp_id': template_id.id if template_id else False,
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
             mandate_vals.update(field_dict)
             mandate_id.with_context(update_feed=True).write(mandate_vals)
-        _logger.info('New mandate.. %s' % mandate_number)
+            _logger.info('New (updated) mandate.. %s' % mandate_number)
+        else:
+            mandate_vals = {'partner_id': partner_id.id if partner_id else False,
+                            'state': 'signed',
+                            'lang': lang_id.code if lang_id else False,
+                            'contract_temp_id': template_id.id if template_id else False,
+                            'reference': mandate_number,
+                            'iban': iban if iban else False,
+                            'bic': bic if bic else False,
+                            }
+            mandate_vals.update(field_dict)
+            self.env['mandate.details'].sudo().create(mandate_vals)
+            _logger.info('New mandate.. %s' % mandate_number)
+
+        # everything is updated partner/mandate see if any attributes need updating
+        if template_id:
+            # We found the template, but there might be attributes
+            for key in field_dict:
+                if key in template_id.attribute_ids.mapped('name'):
+                    value = field_dict[key]
+                    field_name = 'x_' + key + '_' + str(temp_id)
+                    _logger.debug("Update attribute %s = %s" % (field_name,value))
+                    mandate_vals.update({field_name: value})
+                else:
+                    _logger.debug("Could not find attribute %s in template %s" % (key,temp_id))
 
     def updatedDocument(self, mandate_number, doc, reason):
 
@@ -177,12 +200,44 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
         bic = doc.get('DbtrAgt').get('FinInstnId').get('BICFI')
         new_mandate_number = doc.get('MndtId')
 
+        template_id = False
+        lang_id = False
+
+        field_dict = self.splmtrAsDict(doc)
+        if 'Language' in field_dict:
+            lang = field_dict['Language']
+            lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
+
+        if 'TemplateId' in field_dict:
+            temp_id = field_dict['TemplateId']
+            template_id = self.env['twikey.contract.template'].search([('template_id', '=', temp_id)],limit=1)
+
+        address = False
+        zip = False
+        city = False
+        country_id = False
+        email = False
+        if debtor and 'PstlAdr' in debtor:
+            address_line = debtor.get('PstlAdr')
+            address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
+            zip = address_line.get('PstCd') if address_line.get('PstCd') else False
+            city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
+            country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
+
         # Find by customernumber
-        customer_number = ""
-        contact_details = debtor.get('CtctDtls')
-        if contact_details and contact_details.get('Othr'):
-            customer_number = contact_details.get('Othr')
-            partner_id = self.env['res.partner'].search([('twikey_reference', '=', customer_number)])
+        if 'CtctDtls' in debtor:
+            contact_details = debtor.get('CtctDtls')
+            if "Othr" in contact_details:
+                customer_number = contact_details.get('Othr')
+                try:
+                    lookup_id = int(customer_number)
+                    partner_id = self.env['res.partner'].browse(lookup_id)
+                except:
+                    _logger.info('Customer not found by %s' % customer_number)
+                    return
+            if "EmailAdr" in contact_details:
+                email = contact_details.get('EmailAdr')
+                partner_id = self.env['res.partner'].search([('email', '=', email)])
 
         # Find by name if not found
         if not partner_id:
@@ -191,79 +246,46 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
             if not partner_id:
                 partner_id = self.env['res.partner'].create({'name' : debtor.get('Nm')})
 
+        if partner_id:
+            partner_id.with_context(update_feed=True).write({'street' : address,
+                                                             'zip' : zip,
+                                                             'city' : city,
+                                                             'country_id' : country_id.id if country_id else False,
+                                                             'email' : email
+                                                             })
+
         mandate_id = self.env['mandate.details'].search([('reference', '=', mandate_number)])
-
-        contract_temp_id = False
-        field_dict = {}
-        lang_id = False
-        if 'Splmtrydoc' in doc:
-            lst = doc.get('Splmtrydoc')
-            for ls in lst:
-                field_dict[ls["Key"]] = ls["Value"]
-
-            if 'Language' in field_dict:
-                lang = field_dict['Language']
-                lang_id = self.env['res.lang'].search([('iso_code', '=', lang)])
-
-            if 'TemplateId' in field_dict:
-                temp_id = field_dict['TemplateId']
-                contract_temp_id = self.env['twikey.contract.template'].search([('template_id', '=', temp_id)],limit=1)
-                if contract_temp_id:
-                    for ls in lst:
-                        if ls.get('Key') in contract_temp_id.attribute_ids.mapped('name'):
-                            value = ls.get('Value')
-                            field_name = 'x_' + ls.get('Key') + '_' + str(temp_id)
-                            field_dict.update({field_name: value})
-
+        new_state = 'suspended' if reason["Rsn"] and reason["Rsn"] == 'uncollectable|user' else 'signed'
         if mandate_id:
-            mandate_vals = {'reference': new_mandate_number,
-                            'partner_id': partner_id.id if partner_id else False,
-                            'state': 'suspended' if reason["Rsn"] and reason["Rsn"] == 'uncollectable|user' else 'signed',
-                            'contract_temp_id': contract_temp_id.id if contract_temp_id else False,
+            mandate_vals = {'partner_id': partner_id.id if partner_id else False,
+                            'state': new_state,
+                            'lang': lang_id.code if lang_id else False,
+                            'contract_temp_id': template_id.id if template_id else False,
+                            'reference': new_mandate_number,
                             'iban': iban if iban else False,
-                            'bic': bic if bic else False,
-                            'lang': lang_id.code if lang_id else False
+                            'bic': bic if bic else False
                             }
             mandate_vals.update(field_dict)
             mandate_id.with_context(update_feed=True).write(mandate_vals)
-            if partner_id:
-                address = False
-                zip = False
-                city = False
-                country_id = False
-                if debtor and debtor.get('PstlAdr'):
-                    address_line = debtor.get('PstlAdr')
-                    address = address_line.get('AdrLine') if address_line.get('AdrLine') else False
-                    zip = address_line.get('PstCd') if address_line.get('PstCd') else False
-                    city = address_line.get('TwnNm') if address_line.get('TwnNm') else False
-                    country_id = self.env['res.country'].search([('code', '=', address_line.get('Ctry'))])
-
-                partner_id.with_context(update_feed=True).write({'street' : address,
-                                                                 'name' : debtor.get('Nm'),
-                                                                 'zip' : zip,
-                                                                 'twikey_reference': customer_number,
-                                                                 'city' : city,
-                                                                 'country_id' : country_id.id if country_id else False,
-                                                                 'lang': lang_id.code if lang_id else False,
-                                                                 'email' : contact_details.get('EmailAdr') if contact_details and contact_details.get('EmailAdr') else False})
+            _logger.info("Update %s b/c %s" % (mandate_number, reason["Rsn"]))
         else:
             mandate_vals = {'partner_id': partner_id.id if partner_id else False,
-                            'reference': new_mandate_number,
-                            'state': 'suspended' if reason["Rsn"] and reason["Rsn"] == 'uncollectable|user' else 'signed',
+                            'state': new_state,
                             'lang': lang_id.code if lang_id else False,
-                            'contract_temp_id': contract_temp_id.id if contract_temp_id else False,
+                            'contract_temp_id': template_id.id if template_id else False,
+                            'reference': new_mandate_number,
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
             mandate_vals.update(field_dict)
             self.env['mandate.details'].sudo().create(mandate_vals)
-        _logger.info("Update %s b/c %s" % (mandate_number, reason["Rsn"]))
+            _logger.info("Update (with create of) %s b/c %s" % (mandate_number, reason["Rsn"]))
 
     def cancelDocument(self, mandateNumber, rsn):
         _logger.info('Response CxlRsn.. %s - %s' % (mandateNumber, rsn["Rsn"]))
         mandate_id = self.env['mandate.details'].search([('reference', '=', mandateNumber)])
         if mandate_id:
-            mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : rsn["Rsn"]})
+            mandate_id.with_context(update_feed=True).write({'state' : 'cancelled', 'description' : 'Cancelled with reason : '+rsn["Rsn"]})
         else:
             self.env['mandate.details'].sudo().create({
                 'reference' : mandateNumber,

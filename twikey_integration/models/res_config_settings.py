@@ -82,9 +82,8 @@ class ResConfigSettings(models.TransientModel):
     def test_connection(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
         if module_twikey:
-            twikey_client = self.env['ir.config_parameter'].get_twikey_client(force=True)
             try:
-                twikey_client.refreshTokenIfRequired()
+                twikey_client = self.env['ir.config_parameter'].get_twikey_client(force=True)
                 return {'warning': _('Connection succeeded')}
             except (ValueError, requests.exceptions.RequestException) as e:
                 _logger.error('Exception raised during test %s' % (e))

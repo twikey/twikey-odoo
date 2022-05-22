@@ -10,12 +10,9 @@ from .. import twikey
 
 _logger = logging.getLogger(__name__)
 
-language_dict = {'en_US':'en', 'fr_FR':'fr', 'nl_NL':'nl', 'de_DE':'de', 'pt_PT':'pt', 'es_ES':'es', 'it_IT':'it'}
-
 class ResPartner(models.Model):
     _inherit = 'res.partner'
-    
-    twikey_reference = fields.Char(string="Twikey Reference", copy = False, help="Twikey Customer Number will be save in this field.")
+
     mandate_ids = fields.One2many('mandate.details', 'partner_id', string="Mandates")
     twikey_inv_ids = fields.One2many('account.invoice', 'partner_id', readonly=True, copy=False,compute='_compute_invoice_ids')
 
@@ -44,34 +41,32 @@ class ResPartner(models.Model):
             return res
         twikey_client = self.env['ir.config_parameter'].get_twikey_client()
         for rec in self:
-            customer_name = ''
-            if rec.company_type == 'person':
-                if values.get('name'):
-                    customer_name = values.get('name').split(' ')
-                else:
-                    customer_name = rec.name.split(' ')
             country_id = False
             if values.get('country_id'):
                 country_id = self.env['res.country'].browse(values.get('country_id'))
 
             data = {
                 'email': values.get('email') if values.get('email') else rec.email if rec.email else '',
-                'firstname': customer_name[0] if customer_name and rec.company_type == 'person' else '',
-                'lastname': customer_name[1] if customer_name and len(
-                    customer_name) > 1 and rec.company_type == 'person' else '',
-                'companyName': values.get('name') if values.get(
-                    'name') and rec.company_type == 'company' else rec.name if rec.company_type == 'company' else '',
-                'vatno': values.get('vat') if values.get(
-                    'vat') and rec.company_type == 'company' else rec.vat if rec.vat and rec.company_type == 'company' else '',
-                'customerNumber': values.get('twikey_reference') if values.get(
-                    'twikey_reference') else rec.twikey_reference if rec.twikey_reference else '',
+                'customerNumber': rec.id,
                 'address': values.get('street') if values.get('street') else rec.street if rec.street else '',
                 'city': values.get('city') if values.get('city') else rec.city if rec.city else '',
                 'zip': values.get('zip') if values.get('zip') else rec.zip if rec.zip else '',
                 'country': country_id.code if country_id != False else rec.country_id.code if rec.country_id else '',
-                'l': language_dict.get(rec.lang),
+                'l': values.get('lang') if values.get('lang') else rec.lang,
             }
-            if rec.mandate_ids:
+
+            if rec.company_type == 'company' and values.get('name'):
+                data['companyName'] = values.get('name') if values.get('name') else ''
+                data['vatno'] = values.get('vat') if values.get('vat') else ''
+            elif values.get('name'): # 'person'
+                customer_name = values.get('name').split(' ')
+                if customer_name and len(customer_name) > 1:
+                    data['firstname'] = customer_name[0]
+                    data['lastname'] = ' '.join(customer_name[1:])
+                else:
+                    data['firstname'] = values.get('name')
+
+        if rec.mandate_ids:
                 mandate_id = rec.mandate_ids[0]
                 data.update({'mndtId': mandate_id.reference})
                 try:

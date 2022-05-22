@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 from odoo import api, fields, models, exceptions, _
 import requests
 from odoo.exceptions import UserError
@@ -85,7 +84,6 @@ class ContractTemplateWizard(models.Model):
                 raise UserError(_('%s') % (resp_obj.get('message')))
             mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
             mandate_id.with_context(update_feed=True).write(get_fields[0])
-            partner_id.with_context(update_feed=True).write({'twikey_reference': str(partner_id.id)})
             view = self.env.ref('twikey_integration.success_message_wizard')
             context = dict(self._context or {})
             context['message'] = "Mandate Created Successfully."

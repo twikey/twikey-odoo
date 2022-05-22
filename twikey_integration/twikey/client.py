@@ -79,12 +79,17 @@ class TwikeyClient(object):
                 headers={"User-Agent": self.user_agent},
             )
             if "ApiErrorCode" in response.headers:
-                # print response.headers
                 raise requests.exceptions.HTTPError("Error authenticating : %s - %s"% (response.headers["ApiErrorCode"], response.headers["ApiError"]))
 
-            self.api_token = response.headers["Authorization"]
-            self.merchant_id = response.headers['X-MERCHANT-ID']
-            self.lastLogin = datetime.datetime.now()
+            if "X-Rate-Limit-Retry-After-Seconds" in response.headers:
+                raise requests.exceptions.HTTPError("Too many login's, please try again after %s sec." % (response.headers["X-Rate-Limit-Retry-After-Seconds"]))
+
+            if "Authorization" in response.headers:
+                self.api_token = response.headers["Authorization"]
+                self.merchant_id = response.headers['X-MERCHANT-ID']
+                self.lastLogin = datetime.datetime.now()
+            else:
+                raise requests.exceptions.HTTPError("Invalid response" , response)
         else:
             self.logger.debug("Reusing token %s valid till %s" % (self.api_token,self.lastLogin))
 
@@ -96,12 +101,31 @@ class TwikeyClient(object):
             "User-Agent": self.user_agent,
         }
 
+    def raise_error(self, context, response):
+        error_json = response.json()
+        self.logger.debug("Error in '%s' response %s - %s" % (context, response.headers["ApiError"], response.headers["ApiError"]))
+        if error_json:
+            return TwikeyError(context, error_json['code'], error_json['message'])
+        else:
+            return TwikeyError(context, response.headers["ApiError"], response.headers["ApiError"])
+
     def logout(self):
         self.logger.info("Logging out of Twikey")
         response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent})
         if "ApiErrorCode" in response.headers:
             # print response.headers
-            raise Exception("Error logging out : %s - %s"% (response.headers["ApiErrorCode"], response.headers["ApiError"]))
+            raise TwikeyError("Logout", response.headers["ApiErrorCode"], response.headers["ApiError"])
 
         self.api_token = None
         self.lastLogin = None
+
+class TwikeyError(Exception):
+    """ Twikey error. """
+    def __init__(self, ctx, error_code, error, *args, **kwargs): # real signature unknown
+        super().__init__(args)
+        self.ctx = ctx
+        self.error_code = error_code
+        self.error = error
+        pass
+    def __str__(self):
+        return 'Twikey error in %s code=%s msg=%s' % (self.ctx,self.error_code,self.error)
