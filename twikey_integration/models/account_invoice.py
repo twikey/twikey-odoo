@@ -57,8 +57,28 @@ class AccountInvoice(models.Model):
 
         try:
             customer = invoice_id.partner_id
-            partner_name = customer.name.split(' ')
             today = fields.Date.context_today(self).isoformat()
+            invoiceCustomer = {
+                'locale': customer.lang if customer else 'en',
+                'customerNumber': customer.id if customer else '',
+                'email': customer.email if customer.email else '',
+                'address': customer.street if customer and customer.street else '',
+                'city': customer.city if customer and customer.city else '',
+                'zip': customer.zip if customer and customer.zip else '',
+                'country': customer.country_id.code if customer and customer.country_id else '',
+                'mobile': customer.mobile if customer.mobile else customer.phone if customer.phone else '',
+            }
+            if customer.company_type == 'company' and customer.name:
+                invoiceCustomer.companyName = customer.name
+                invoiceCustomer.coc = customer.vat
+            elif customer.name: # 'person'
+                customer_name = customer.name.split(' ')
+                if customer_name and len(customer_name) > 1:
+                    invoiceCustomer.firstname = customer_name[0]
+                    invoiceCustomer.lastname = ' '.join(customer_name[1:])
+                else:
+                    invoiceCustomer.firstname = customer.name
+
             data = {
                 'id': invoice_uuid,
                 'number': invoice_id.number,
@@ -71,20 +91,7 @@ class AccountInvoice(models.Model):
                 "remittance": invoice_id.reference,
                 "ref": invoice_id.id,
                 'locale': customer.lang if customer else 'en',
-                "customer": {
-                    'locale': customer.lang if customer else 'en',
-                    'customerNumber': customer.id if customer else '',
-                    'email': customer.email if customer.email else '',
-                    'firstname': partner_name[0] if partner_name and customer.company_type == 'person' else 'unknown',
-                    'lastname': partner_name[1] if partner_name and len(partner_name) > 1 and customer.company_type == 'person' else 'unknown',
-                    'companyName': customer.name if customer and customer.name and customer.company_type == 'company' else '',
-                    'coc': customer.vat if customer and customer.vat and customer.company_type == 'company' else '',
-                    'address': customer.street if customer and customer.street else '',
-                    'city': customer.city if customer and customer.city else '',
-                    'zip': customer.zip if customer and customer.zip else '',
-                    'country': customer.country_id.code if customer and customer.country_id else '',
-                    'mobile': customer.mobile if customer.mobile else customer.phone if customer.phone else '',
-                }
+                "customer": invoiceCustomer
             }
             _logger.debug('Creating new Invoice %s' % (data))
             response = twikey_client.invoice.create(data)

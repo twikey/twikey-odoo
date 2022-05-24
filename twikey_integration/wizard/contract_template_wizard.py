@@ -20,26 +20,32 @@ class ContractTemplateWizard(models.Model):
     
     def action_confirm(self):
         context = self._context
-        partner_id = self.env['res.partner'].browse(context.get('active_id'))
-        language = partner_id.lang
-        data = {
+        customer = self.env['res.partner'].browse(context.get('active_id'))
+        language = customer.lang
+        contractData = {
             'ct': self.template_id.template_id,
             'l': language_dict.get(language),
             'sendInvite': True,
-            'customerNumber': partner_id.id,
-            'mandateNumber': partner_id.id if self.template_id.mandateNumberRequired == False else '',
-            'firstname': partner_id.name.split(' ')[0] if partner_id.name and partner_id.company_type == 'person' else '',
-            'lastname': partner_id.name.split(' ')[1] if partner_id.name and len(partner_id.name.split(' ')) > 1 and partner_id.company_type == 'person' else '',
-            'email': partner_id.email if partner_id.email else '',
-            'mobile': partner_id.mobile if partner_id.mobile else partner_id.phone if partner_id.phone else '',
-            'address': partner_id.street if partner_id.street else '',
-            'city': partner_id.city if partner_id.city else '',
-            'zip': partner_id.zip if partner_id.zip else '',
-            'country': partner_id.country_id.code if partner_id.country_id else '',
-            'companyName': partner_id.name if partner_id.company_type == 'company' else '',
+            'customerNumber': customer.id,
+            'mandateNumber': customer.id if self.template_id.mandateNumberRequired == False else '',
+            'email': customer.email if customer.email else '',
+            'mobile': customer.mobile if customer.mobile else '',
+            'address': customer.street if customer.street else '',
+            'city': customer.city if customer.city else '',
+            'zip': customer.zip if customer.zip else '',
+            'country': customer.country_id.code if customer.country_id else '',
         }
-        if partner_id.vat:
-            data.update({'vatno': partner_id.vat })
+        if customer.company_type == 'company' and customer.name:
+            contractData.companyName = customer.name
+            contractData.coc = customer.vat
+        elif customer.name: # 'person'
+            customer_name = customer.name.split(' ')
+            if customer_name and len(customer_name) > 1:
+                contractData.firstname = customer_name[0]
+                contractData.lastname = ' '.join(customer_name[1:])
+            else:
+                contractData.firstname = customer.name
+
         lst =[]
         sp_lst = []
         attr_list = []
@@ -68,21 +74,27 @@ class ContractTemplateWizard(models.Model):
                 if len(key_split) > 0:
                     new_keys.append(key_split[1])
             final_dict = dict(zip(new_keys, list(get_fields[0].values())))
-            data.update(final_dict)
+            contractData.update(final_dict)
         try:
-            _logger.debug('New mandate creation data: {}'.format(data))
+            _logger.debug('New mandate creation data: {}'.format(contractData))
             twikey_client = self.env['ir.config_parameter'].get_twikey_client()
             twikey_client.refreshTokenIfRequired()
             response = requests.post(
                 twikey_client.api_base + "/creditor/invite",
-                data=data,
+                data=contractData,
                 headers=twikey_client.headers()
             )
             _logger.info('Creating new mandate with response: %s' % (response.content))
             resp_obj = response.json()
             if response.status_code != 200:
                 raise UserError(_('%s') % (resp_obj.get('message')))
-            mandate_id = self.env['mandate.details'].sudo().create({'contract_temp_id' : get_template_id.id,'lang' : partner_id.lang, 'partner_id' : partner_id.id, 'reference' : resp_obj.get('mndtId'), 'url' : resp_obj.get('url')})
+            mandate_id = self.env['mandate.details'].sudo().create({
+                'contract_temp_id' : get_template_id.id,
+                'lang' : customer.lang,
+                'partner_id' : customer.id,
+                'reference' : resp_obj.get('mndtId'),
+                'url' : resp_obj.get('url')
+            })
             mandate_id.with_context(update_feed=True).write(get_fields[0])
             view = self.env.ref('twikey_integration.success_message_wizard')
             context = dict(self._context or {})
