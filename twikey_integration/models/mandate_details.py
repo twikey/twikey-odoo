@@ -51,6 +51,10 @@ class MandateDetails(models.Model):
                     data['bic'] = values.get('bic')
                 if 'lang' in values:
                     data['l'] = values.get('lang')
+                if 'email' in values:
+                    data['email'] = values.get('email')
+                if 'mobile' in values:
+                    data['mobile'] = values.get('mobile')
 
                 try:
                     if data != {}:
@@ -234,16 +238,16 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                     lookup_id = int(customer_number)
                     partner_id = self.env['res.partner'].browse(lookup_id)
                 except:
-                    _logger.info('Customer not found by %s' % customer_number)
+                    _logger.info('Customer not found by %s skipping mandate.' % customer_number)
                     return
             if "EmailAdr" in contact_details:
                 email = contact_details.get('EmailAdr')
                 partner_id = self.env['res.partner'].search([('email', '=', email)])
 
-        # Find by name if not found
-        if not partner_id:
-            if debtor.get('Nm'):
-                partner_id = self.env['res.partner'].search([('name', '=', debtor.get('Nm'))])
+        # Find by name if not found create
+        if not partner_id and 'Nm' in debtor:
+            partner_id = self.env['res.partner'].search([('name', '=', debtor.get('Nm'))])
+            # Last step, just create
             if not partner_id:
                 partner_id = self.env['res.partner'].create({'name' : debtor.get('Nm')})
 
@@ -265,7 +269,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                             'contract_temp_id': template_id.id if template_id else False,
                             'reference': new_mandate_number,
                             'iban': iban if iban else False,
-                            'bic': bic if bic else False
+                            'bic': bic if bic else False,
                             }
             mandate_vals.update(field_dict)
             mandate_id.with_context(update_feed=True).write(mandate_vals)
@@ -282,6 +286,18 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
             mandate_vals.update(field_dict)
             self.env['mandate.details'].sudo().create(mandate_vals)
             _logger.info("Update (with create of) %s b/c %s" % (mandate_number, reason["Rsn"]))
+
+        # everything is updated partner/mandate see if any attributes need updating
+        if template_id:
+            # We found the template, but there might be attributes
+            for key in field_dict:
+                if key in template_id.attribute_ids.mapped('name'):
+                    value = field_dict[key]
+                    field_name = 'x_' + key + '_' + str(temp_id)
+                    _logger.debug("Update attribute %s = %s" % (field_name,value))
+                    mandate_vals.update({field_name: value})
+                else:
+                    _logger.debug("Could not find attribute %s in template %s" % (key,temp_id))
 
     def cancelDocument(self, mandateNumber, rsn):
         _logger.info('Response CxlRsn.. %s - %s' % (mandateNumber, rsn["Rsn"]))
