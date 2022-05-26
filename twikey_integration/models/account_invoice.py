@@ -176,6 +176,8 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                             else:
                                 payment_reference = 'twikey'
 
+                        invoice_id.message_post(body='Twikey payment via '+payment_reference)
+
                         payment_id = self.env['account.payment'].with_context(update_feed=True).create(
                             {
                                 'amount': invoice_id.amount_total,
