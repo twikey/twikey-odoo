@@ -46,7 +46,6 @@ class ResPartner(models.Model):
                 country_id = self.env['res.country'].browse(values.get('country_id'))
 
             data = {
-                'email': values.get('email') if values.get('email') else rec.email if rec.email else '',
                 'customerNumber': rec.id,
                 'address': values.get('street') if values.get('street') else rec.street if rec.street else '',
                 'city': values.get('city') if values.get('city') else rec.city if rec.city else '',
@@ -54,7 +53,8 @@ class ResPartner(models.Model):
                 'country': country_id.code if country_id != False else rec.country_id.code if rec.country_id else '',
                 'l': values.get('lang') if values.get('lang') else rec.lang,
             }
-
+            if values.get('email') or rec.email:
+                data["email"] = values.get('email') if values.get('email') else rec.email if rec.email else ''
             if rec.company_type == 'company' and values.get('name'):
                 data['companyName'] = values.get('name') if values.get('name') else ''
                 data['vatno'] = values.get('vat') if values.get('vat') else ''

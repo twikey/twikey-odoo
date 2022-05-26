@@ -25,26 +25,27 @@ class ContractTemplateWizard(models.Model):
         contractData = {
             'ct': self.template_id.template_id,
             'l': language_dict.get(language),
-            'sendInvite': True,
             'customerNumber': customer.id,
             'mandateNumber': customer.id if self.template_id.mandateNumberRequired == False else '',
-            'email': customer.email if customer.email else '',
             'mobile': customer.mobile if customer.mobile else '',
             'address': customer.street if customer.street else '',
             'city': customer.city if customer.city else '',
             'zip': customer.zip if customer.zip else '',
             'country': customer.country_id.code if customer.country_id else '',
         }
+        if customer.email:
+            contractData["email"] = customer.email
+            contractData["sendInvite"] = True
         if customer.company_type == 'company' and customer.name:
-            contractData.companyName = customer.name
-            contractData.coc = customer.vat
+            contractData["companyName"] = customer.name
+            contractData["coc"] = customer.vat
         elif customer.name: # 'person'
             customer_name = customer.name.split(' ')
             if customer_name and len(customer_name) > 1:
-                contractData.firstname = customer_name[0]
-                contractData.lastname = ' '.join(customer_name[1:])
+                contractData["firstname"] = customer_name[0]
+                contractData["lastname"] = ' '.join(customer_name[1:])
             else:
-                contractData.firstname = customer.name
+                contractData["firstname"] = customer.name
 
         lst =[]
         sp_lst = []

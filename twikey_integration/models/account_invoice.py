@@ -16,7 +16,7 @@ InvoiceStatus = {
     'BOOKED': 'open',
     'PENDING': 'in_payment',
     'PAID': 'paid',
-    'EXPIRED': 'cancel',
+    'EXPIRED': 'open',
     'ARCHIVED': 'cancel'
 }
 
@@ -61,23 +61,24 @@ class AccountInvoice(models.Model):
             invoiceCustomer = {
                 'locale': customer.lang if customer else 'en',
                 'customerNumber': customer.id if customer else '',
-                'email': customer.email if customer.email else '',
                 'address': customer.street if customer and customer.street else '',
                 'city': customer.city if customer and customer.city else '',
                 'zip': customer.zip if customer and customer.zip else '',
                 'country': customer.country_id.code if customer and customer.country_id else '',
-                'mobile': customer.mobile if customer.mobile else customer.phone if customer.phone else '',
+                'mobile': customer.mobile if customer.mobile else '',
             }
+            if customer.email:
+                invoiceCustomer["email"] = customer.email
             if customer.company_type == 'company' and customer.name:
-                invoiceCustomer.companyName = customer.name
-                invoiceCustomer.coc = customer.vat
+                invoiceCustomer["companyName"] = customer.name
+                invoiceCustomer["coc"] = customer.vat
             elif customer.name: # 'person'
                 customer_name = customer.name.split(' ')
                 if customer_name and len(customer_name) > 1:
-                    invoiceCustomer.firstname = customer_name[0]
-                    invoiceCustomer.lastname = ' '.join(customer_name[1:])
+                    invoiceCustomer["firstname"] = customer_name[0]
+                    invoiceCustomer["lastname"] = ' '.join(customer_name[1:])
                 else:
-                    invoiceCustomer.firstname = customer.name
+                    invoiceCustomer["firstname"] = customer.name
 
             data = {
                 'id': invoice_uuid,

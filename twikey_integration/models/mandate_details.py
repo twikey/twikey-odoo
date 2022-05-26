@@ -147,6 +147,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                 partner_id = self.env['res.partner'].create({'name' : debtor.get('Nm')})
 
         if partner_id:
+            _logger.info('Customer #%s update with address and email.' % partner_id)
             partner_id.with_context(update_feed=True).write({'street' : address,
                                                              'zip' : zip,
                                                              'city' : city,
@@ -247,6 +248,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                 partner_id = self.env['res.partner'].create({'name' : debtor.get('Nm')})
 
         if partner_id:
+            _logger.info('Customer #%s update with address and email.' % partner_id)
             partner_id.with_context(update_feed=True).write({'street' : address,
                                                              'zip' : zip,
                                                              'city' : city,
