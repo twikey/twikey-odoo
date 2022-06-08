@@ -60,7 +60,7 @@ class AccountInvoice(models.Model):
             today = fields.Date.context_today(self).isoformat()
             invoiceCustomer = {
                 'locale': customer.lang if customer else 'en',
-                'customerNumber': customer.id if customer else '',
+                'customerNumber': str(customer.id) if customer else '',
                 'address': customer.street if customer and customer.street else '',
                 'city': customer.city if customer and customer.city else '',
                 'zip': customer.zip if customer and customer.zip else '',
