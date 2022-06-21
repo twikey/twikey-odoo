@@ -156,9 +156,6 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                         if invoice_id.state == 'open':
                             inv_ref = invoice_id.with_context(update_feed=True)._get_computed_reference()
 
-                        journal_id = self.env['account.journal'].search([('type', '=', 'bank')], limit=1)
-                        journal_payment_methods = journal_id.inbound_payment_method_ids
-
                         payment_reference = "unknown"
                         if 'lastpayment' in _invoice:
                             payment = _invoice['lastpayment'][0] # first one is the last one happened
@@ -166,35 +163,40 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                             if twikey_payment_method == 'paylink':
                                 payment_reference = 'paylink #%d' % payment['link']
                             elif twikey_payment_method == 'sdd':
-                                payment_reference = 'sdd pmtinf=%s e2e=%s' % (payment['pmtinf'],payment['e2e'])
+                                payment_reference = 'Sepa Direct Debit pmtinf=%s e2e=%s' % (payment['pmtinf'],payment['e2e'])
                             elif twikey_payment_method == 'rcc':
-                                payment_reference = 'rcc pmtinf=%s e2e=%s' % (payment['pmtinf'],payment['e2e'])
+                                payment_reference = 'Recurring Credit Card pmtinf=%s e2e=%s' % (payment['pmtinf'],payment['e2e'])
                             elif twikey_payment_method == 'transfer':
-                                payment_reference = 'transfer msg=%s' % (payment['msg'])
+                                payment_reference = 'Regular transfer msg=%s' % (payment['msg'])
                             elif twikey_payment_method == 'manual':
-                                payment_reference = 'manual msg=%s' % (payment['msg'])
+                                payment_reference = 'Manually set as paid msg=%s' % (payment['msg'])
                             else:
-                                payment_reference = 'twikey'
+                                payment_reference = 'Other'
 
                         invoice_id.message_post(body='Twikey payment via '+payment_reference)
 
-                        payment_id = self.env['account.payment'].with_context(update_feed=True).create(
-                            {
-                                'amount': invoice_id.amount_total,
-                                'journal_id': journal_id.id,
-                                'state': 'draft',
-                                'payment_type': 'inbound',
-                                'partner_type': 'customer',
-                                'payment_method_id': journal_payment_methods.id,
-                                'partner_id': invoice_id.partner_id.id,
-                                'payment_date': datetime.date.today(),
-                                'communication': _invoice.get("remittance"),
-                                'payment_reference': payment_reference
-                            })
-                        payment_id.with_context(update_feed=True).post()
-                        credit_aml_id = self.env['account.move.line'].search([('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
-                        if credit_aml_id:
-                            invoice_id.with_context(update_feed=True).assign_outstanding_credit(credit_aml_id.id)
+                        ## Commented since reconsiation files downloaded from Twikey will handle this much more properly than the below code.
+                        ## This is done completely differently in V12+
+                        ##
+                        # journal_id = self.env['account.journal'].search([('type', '=', 'bank')], limit=1)
+                        # journal_payment_methods = journal_id.inbound_payment_method_ids
+                        # payment_id = self.env['account.payment'].with_context(update_feed=True).create(
+                        #     {
+                        #         'amount': invoice_id.amount_total,
+                        #         'journal_id': journal_id.id,
+                        #         'state': 'draft',
+                        #         'payment_type': 'inbound',
+                        #         'partner_type': 'customer',
+                        #         'payment_method_id': journal_payment_methods.id,
+                        #         'partner_id': invoice_id.partner_id.id,
+                        #         'payment_date': datetime.date.today(),
+                        #         'communication': _invoice.get("remittance"),
+                        #         'payment_reference': payment_reference
+                        #     })
+                        # payment_id.with_context(update_feed=True).post()
+                        # credit_aml_id = self.env['account.move.line'].search([('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
+                        # if credit_aml_id:
+                        #     invoice_id.with_context(update_feed=True).assign_outstanding_credit(credit_aml_id.id)
                     except (ValueError, requests.exceptions.RequestException) as e:
                         _logger.error('Error marking invoice as paid in odoo %s' % (e))
                         raise exceptions.AccessError(_('Something went wrong.'))
