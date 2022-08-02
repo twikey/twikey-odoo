@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+       <record id="account_move_form_twikey" model="ir.ui.view">
+           <field name="name">account.move.view.twikey.form.inherit</field>
+           <field name="model">account.move</field>
+           <field name="inherit_id" ref="account.view_move_form"/>
+           <field name="arch" type="xml">
+               <xpath expr="//field[@name='ref']" position="after">
+                    <field name="is_twikey" invisible="0"/>
+                    <field name="twikey_url" widget="url" attrs="{'invisible': [('is_twikey', '=', False)]}"/>
+                    <field name="twikey_invoice_id" attrs="{'invisible': [('is_twikey', '=', False)]}"/>
+                    <field name="template_id" attrs="{'invisible': [('is_twikey', '=', False)]}"/>
+               </xpath>
+               <xpath expr="//button[@name='preview_invoice']" position="after">
+                    <button name="update_invoice_feed" string="Sync" type="object" class="oe_highlight" attrs="{'invisible':[('is_twikey', '=', False)]}"/>
+               </xpath>
+           </field>
+       </record>
+</odoo>

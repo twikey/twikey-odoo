@@ -6,8 +6,8 @@
     'category': 'Accounting',
     'summary': 'Twikey Integration',
     'version': '1.0',
-    'author': "Twikey N.v.",
-    'website': "https://www.twikey.com/",
+    'author': "Twikey N.V.",
+    'website': "https://www.twikey.com/partner/odoo.html",
     'description': """ """,
     'depends': ['sale_management', 'account', 'product', 'contacts', 'mail'],
     'data': [
@@ -27,7 +27,7 @@
         'report/report_account_invoice.xml',
     ],
     'installable': True,
-    'images': ['static/description/logo.png'],
+    'images': ['static/description/icon.png'],
     'auto_install': False,
     'license': 'OEEL-1',
 }
