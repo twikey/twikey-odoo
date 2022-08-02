@@ -20,7 +20,6 @@
     <record id="mandate_cancel_reason_action" model="ir.actions.act_window">
         <field name="name">Mandate Cancel Reason</field>
         <field name="res_model">mandate.cancel.reason</field>
-        <field name="view_type">form</field>
         <field name="target">new</field>
         <field name="view_id" ref="mandate_cancel_reason_view_twikey_form"/>
         <field name="view_mode">form</field>

@@ -25,7 +25,7 @@
     
     <record id="twikey_update_invoice_feed" model="ir.cron">
         <field name="name">Twikey: Update Invoice Feed</field>
-        <field name="model_id" ref="model_account_invoice"/>
+        <field name="model_id" ref="model_account_move"/>
         <field name="state">code</field>
         <field name="code">model.update_invoice_feed()</field>
         <field name="interval_number">6</field>

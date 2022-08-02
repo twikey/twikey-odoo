@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import api, fields, models, exceptions,_
+from odoo import api, fields, models, exceptions, _
 from odoo.exceptions import UserError
 import requests
 import logging
@@ -18,7 +18,7 @@ class MandateDetails(models.Model):
     _rec_name = 'partner_id'
 
     partner_id = fields.Many2one('res.partner', string="Customer")
-    state = fields.Selection([('pending', 'Pending'), ('signed', 'Signed'), ('suspended', 'Suspended'), ('cancelled', 'Cancelled')], track_visibility='onchange', default='pending')
+    state = fields.Selection([('pending', 'Pending'), ('signed', 'Signed'), ('suspended', 'Suspended'), ('cancelled', 'Cancelled')], default='pending')
     creditor_id = fields.Many2one('res.partner', string="Creditor-ID")
     reference = fields.Char(string="Mandate Reference", required=True)
     iban = fields.Char(string="IBAN")
@@ -37,7 +37,6 @@ class MandateDetails(models.Model):
         except (ValueError, requests.exceptions.RequestException) as e:
             _logger.error('Error while updating mandates from Twikey: %s' % e)
 
-    @api.multi
     def write(self, values):
         res = super(MandateDetails, self).write(values)
         if not self._context.get('update_feed'):
@@ -169,7 +168,6 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
-            mandate_vals.update(field_dict)
             mandate_id.with_context(update_feed=True).write(mandate_vals)
             _logger.info('New (updated) mandate.. %s' % mandate_number)
         else:
@@ -181,15 +179,15 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
-            mandate_vals.update(field_dict)
             self.env['mandate.details'].sudo().create(mandate_vals)
             _logger.info('New mandate.. %s' % mandate_number)
 
         # everything is updated partner/mandate see if any attributes need updating
         if template_id:
+            attributes = template_id.attribute_ids.mapped('name')
             # We found the template, but there might be attributes
             for key in field_dict:
-                if key in template_id.attribute_ids.mapped('name'):
+                if key in attributes:
                     value = field_dict[key]
                     field_name = 'x_' + key + '_' + str(temp_id)
                     _logger.debug("Update attribute %s = %s" % (field_name,value))
@@ -271,7 +269,6 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
-            mandate_vals.update(field_dict)
             mandate_id.with_context(update_feed=True).write(mandate_vals)
             _logger.info("Update %s b/c %s" % (mandate_number, reason["Rsn"]))
         else:
@@ -283,15 +280,15 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                             'iban': iban if iban else False,
                             'bic': bic if bic else False,
                             }
-            mandate_vals.update(field_dict)
             self.env['mandate.details'].sudo().create(mandate_vals)
             _logger.info("Update (with create of) %s b/c %s" % (mandate_number, reason["Rsn"]))
 
         # everything is updated partner/mandate see if any attributes need updating
         if template_id:
+            attributes = template_id.attribute_ids.mapped('name')
             # We found the template, but there might be attributes
             for key in field_dict:
-                if key in template_id.attribute_ids.mapped('name'):
+                if key in attributes:
                     value = field_dict[key]
                     field_name = 'x_' + key + '_' + str(temp_id)
                     _logger.debug("Update attribute %s = %s" % (field_name,value))

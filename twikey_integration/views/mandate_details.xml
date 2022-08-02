@@ -56,10 +56,9 @@
     <record id="mandate_details_action" model="ir.actions.act_window">
         <field name="name">Mandate</field>
         <field name="res_model">mandate.details</field>
-        <field name="view_type">form</field>
         <field name="view_mode">tree,form</field>
     </record>
-    
+
     <menuitem id="menu_action_mandate_details_view" action="mandate_details_action"
                   parent="contacts.menu_contacts" sequence="2"/>
 

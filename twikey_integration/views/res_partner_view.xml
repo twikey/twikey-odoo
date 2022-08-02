@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="res_partner_view_twikey_form_inherit" model="ir.ui.view">
+   <record id="res_partner_view_twikey_form_inherit" model="ir.ui.view">
        <field name="name">res.partner.view.twikey.form.inherit</field>
        <field name="model">res.partner</field>
        <field name="inherit_id" ref="base.view_partner_form"/>
        <field name="arch" type="xml">
            <xpath expr="//form//sheet" position="before">
                <header>
-                   <button name="action_invite_customer"  string="New Twikey" type="object" class="oe_highlight"/>
+                   <button name="action_invite_customer" string="New Twikey" type="object" class="oe_highlight"/>
                </header>
            </xpath>
            <xpath expr="//notebook" position="inside">
@@ -16,7 +16,7 @@
                 </page>
            </xpath>
        </field>
-    </record>
+   </record>
     <record id="res_partner_account_view_twikey_form_inherit" model="ir.ui.view">
         <field name="name">res.partner.account.view.twikey.form.inherit</field>
         <field name="model">res.partner</field>

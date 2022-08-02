@@ -19,7 +19,6 @@
     <record id="contract_template_wizard_action" model="ir.actions.act_window">
         <field name="name">Select Contract Template</field>
         <field name="res_model">contract.template.wizard</field>
-        <field name="view_type">form</field>
         <field name="target">new</field>
         <field name="view_id" ref="contract_template_wizard_view_twikey_form"/>
         <field name="view_mode">form</field>

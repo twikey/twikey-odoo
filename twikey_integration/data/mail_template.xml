@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 <odoo>
     <data noupdate="0">
-		<record id="email_template_edi_invoice" model="mail.template">
-		    <field name="name">Invoice: Send by email (Twikey)</field>
-		    <field name="body_html" type="html">
+        <record id="account.email_template_edi_invoice" model="mail.template">
+            <field name="name">Invoice: Send by email</field>
+            <field name="body_html" type="html">
 <div style="margin: 0px; padding: 0px;">
     <p style="margin: 0px; padding: 0px; font-size: 13px;">
         Dear
