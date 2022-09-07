@@ -7,7 +7,7 @@
        <field name="arch" type="xml">
            <xpath expr="//form//sheet" position="before">
                <header>
-                   <button name="action_invite_customer"  string="New Twikey" type="object" class="oe_highlight"/>
+                   <button name="action_invite_customer" string="Create mandate invite" type="object" class="oe_highlight"/>
                </header>
            </xpath>
            <xpath expr="//notebook" position="inside">

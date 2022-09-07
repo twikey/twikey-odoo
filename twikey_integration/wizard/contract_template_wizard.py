@@ -21,11 +21,14 @@ class ContractTemplateWizard(models.Model):
     def action_confirm(self):
         context = self._context
         customer = self.env['res.partner'].browse(context.get('active_id'))
+        id = customer.id
+        if customer.parent_id:
+            id = customer.parent_id.id
         language = customer.lang
         contractData = {
             'ct': self.template_id.template_id,
             'l': language_dict.get(language),
-            'customerNumber': customer.id,
+            'customerNumber': id,
             'mandateNumber': customer.id if self.template_id.mandateNumberRequired == False else '',
             'mobile': customer.mobile if customer.mobile else '',
             'address': customer.street if customer.street else '',
@@ -92,7 +95,7 @@ class ContractTemplateWizard(models.Model):
             mandate_id = self.env['mandate.details'].sudo().create({
                 'contract_temp_id' : get_template_id.id,
                 'lang' : customer.lang,
-                'partner_id' : customer.id,
+                'partner_id' : id,
                 'reference' : resp_obj.get('mndtId'),
                 'url' : resp_obj.get('url')
             })
