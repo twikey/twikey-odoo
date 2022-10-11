@@ -128,6 +128,8 @@ class AccountInvoice(models.Model):
         self.update_invoice_feed()
         return res
 
+## Note this class merely serves the purpose of adding a note to a paid invoice awaiting coda files from the bank
+## which will use the matching logic of Odoo
 class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
 
     def __init__(self, env):
@@ -171,28 +173,6 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
 
                         invoice_id.message_post(body='Twikey payment via '+payment_reference)
 
-                        ## Commented since reconsiation files downloaded from Twikey will handle this much more properly than the below code.
-                        ## This is done completely differently in V12+
-                        ##
-                        # journal_id = self.env['account.journal'].search([('type', '=', 'bank')], limit=1)
-                        # journal_payment_methods = journal_id.inbound_payment_method_ids
-                        # payment_id = self.env['account.payment'].with_context(update_feed=True).create(
-                        #     {
-                        #         'amount': invoice_id.amount_total,
-                        #         'journal_id': journal_id.id,
-                        #         'state': 'draft',
-                        #         'payment_type': 'inbound',
-                        #         'partner_type': 'customer',
-                        #         'payment_method_id': journal_payment_methods.id,
-                        #         'partner_id': invoice_id.partner_id.id,
-                        #         'payment_date': datetime.date.today(),
-                        #         'communication': _invoice.get("remittance"),
-                        #         'payment_reference': payment_reference
-                        #     })
-                        # payment_id.with_context(update_feed=True).post()
-                        # credit_aml_id = self.env['account.move.line'].search([('payment_id', '=', payment_id.id), ('credit', '!=', 0)])
-                        # if credit_aml_id:
-                        #     invoice_id.with_context(update_feed=True).assign_outstanding_credit(credit_aml_id.id)
                     except (ValueError, requests.exceptions.RequestException) as e:
                         _logger.error('Error marking invoice as paid in odoo %s' % (e))
                         raise exceptions.AccessError(_('Something went wrong.'))
