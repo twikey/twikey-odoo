@@ -1,5 +1,5 @@
 from odoo import api, fields, models, exceptions,_
-from collections import Mapping
+from collections.abc import Mapping
 import logging
 
 _logger = logging.getLogger(__name__)

@@ -48,8 +48,9 @@ class AccountInvoice(models.Model):
 
         url = twikey_client.invoice.geturl(invoice_uuid)
         invoice_id.with_context(update_feed=True).write({'twikey_url': url, 'twikey_invoice_id': invoice_uuid})
-        pdf = self.env.ref('account.account_invoices')._render_qweb_pdf([invoice_id.id])[0]
-        report_file = base64.b64encode(pdf)
+        # pdf = self.env.ref('account.account_invoices')._render_qweb_pdf([invoice_id.id])[0]
+        #pdf = self.env('ir.actions.report')._render_qweb_pdf('account.account_invoices', res_ids=[invoice_id.id])[0]
+        #report_file = base64.b64encode(pdf)
         try:
             customer = invoice_id.partner_id
             today = fields.Date.context_today(self).isoformat()
@@ -86,7 +87,7 @@ class AccountInvoice(models.Model):
                 'amount': invoice_id.amount_total,
                 'date': today,
                 'duedate': invoice_id.invoice_date_due.isoformat() if invoice_id.invoice_date_due else today,
-                "pdf": report_file.decode('utf-8'),
+                # "pdf": report_file.decode('utf-8'),
                 "remittance": invoice_id.payment_reference,
                 "ref": invoice_id.id,
                 'locale': customer.lang if customer else 'en',
