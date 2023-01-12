@@ -1,37 +1,37 @@
 <odoo>
     <record id="twikey_authenticate" model="ir.cron">
         <field name="name">Authenticate Twikey</field>
-        <field name="model_id" ref="model_res_config_settings"/>
+        <field name="model_id" ref="model_res_config_settings" />
         <field name="state">code</field>
-        <field name="code">model.authenticate()</field>
+        <field name="code">model.twikey_authenticate()</field>
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
         <field name="numbercall">-1</field>
-        <field name="active" eval="True"/>
-        <field name="doall" eval="False"/>
+        <field name="active" eval="True" />
+        <field name="doall" eval="False" />
     </record>
-    
+
     <record id="twikey_update_feed" model="ir.cron">
         <field name="name">Twikey: Update Feed</field>
-        <field name="model_id" ref="model_mandate_details"/>
+        <field name="model_id" ref="model_twikey_mandate_details" />
         <field name="state">code</field>
         <field name="code">model.update_feed()</field>
         <field name="interval_number">6</field>
         <field name="interval_type">hours</field>
         <field name="numbercall">-1</field>
-        <field name="active" eval="True"/>
-        <field name="doall" eval="False"/>
+        <field name="active" eval="True" />
+        <field name="doall" eval="False" />
     </record>
-    
+
     <record id="twikey_update_invoice_feed" model="ir.cron">
         <field name="name">Twikey: Update Invoice Feed</field>
-        <field name="model_id" ref="model_account_move"/>
+        <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
         <field name="code">model.update_invoice_feed()</field>
         <field name="interval_number">6</field>
         <field name="interval_type">hours</field>
         <field name="numbercall">-1</field>
-        <field name="active" eval="True"/>
-        <field name="doall" eval="False"/>
+        <field name="active" eval="True" />
+        <field name="doall" eval="False" />
     </record>
 </odoo>

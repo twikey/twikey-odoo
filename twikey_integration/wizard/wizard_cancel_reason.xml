@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <record id="mandate_cancel_reason_view_twikey_form" model="ir.ui.view">
         <field name="name">mandate.cancel.reason.view.twikey.form</field>
@@ -6,22 +6,27 @@
         <field name="arch" type="xml">
             <form>
                 <group>
-                   <field name="mandate_id" invisible="1"/>
-                   <field name="name"/>
+                   <field name="mandate_id" invisible="1" />
+                   <field name="name" />
                 </group>
                 <footer>
-                    <button string='Confirm' name="action_cancel_confirm" type="object" class="btn-primary"/>
-                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    <button
+                        string='Confirm'
+                        name="action_cancel_confirm"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
                 </footer>
             </form>
         </field>
     </record>
-    
+
     <record id="mandate_cancel_reason_action" model="ir.actions.act_window">
         <field name="name">Mandate Cancel Reason</field>
         <field name="res_model">mandate.cancel.reason</field>
         <field name="target">new</field>
-        <field name="view_id" ref="mandate_cancel_reason_view_twikey_form"/>
+        <field name="view_id" ref="mandate_cancel_reason_view_twikey_form" />
         <field name="view_mode">form</field>
     </record>
 </odoo>

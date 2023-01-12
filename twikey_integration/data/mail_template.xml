@@ -1,9 +1,8 @@
 <?xml version="1.0" ?>
-<odoo>
-    <data noupdate="0">
-        <record id="account.email_template_edi_invoice" model="mail.template">
-            <field name="name">Invoice: Send by email</field>
-            <field name="body_html" type="html">
+<odoo noupdate="0">
+    <record id="account.email_template_edi_invoice" model="mail.template">
+        <field name="name">Invoice: Send by email</field>
+        <field name="body_html" type="html">
 <div style="margin: 0px; padding: 0px;">
     <p style="margin: 0px; padding: 0px; font-size: 13px;">
         Dear
@@ -31,16 +30,14 @@
         % endif
         <br /><br />
         Do not hesitate to contact us if you have any questions.
-        <br/>
+        <br />
         % if object.twikey_url:
-	        <a href="${object.twikey_url}"
-	            style="color: blue;" target="_blank">
-	            Click to Open Twikey Invoice
-	        </a>
+        <a href="${object.twikey_url}" style="color: blue;" target="_blank">
+            Click to Open Twikey Invoice
+        </a>
         % endif
     </p>
 </div>
-		            </field>
-		        </record>
-	</data>
+        </field>
+    </record>
 </odoo>

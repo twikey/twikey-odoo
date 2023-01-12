@@ -1,10 +1,11 @@
-import requests
 import logging
+
+import requests
 
 __all__ = ["Document", "DocumentFeed"]
 
-class Document(object):
 
+class Document(object):
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -26,15 +27,15 @@ class Document(object):
         data = data or {}
         self.client.refreshTokenIfRequired()
         response = requests.post(url=url, data=data, headers=self.client.headers())
-        self.logger.debug("Updated mandate : %s response=%s" % (data,response))
+        self.logger.debug("Updated mandate : {} response={}".format(data, response))
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Update", response)
 
     def cancel(self, mandate_number, reason):
-        url = self.client.instance_url("/mandate?mndtId=" + mandate_number + '&rsn=' + reason)
+        url = self.client.instance_url("/mandate?mndtId=" + mandate_number + "&rsn=" + reason)
         self.client.refreshTokenIfRequired()
         response = requests.delete(url=url, headers=self.client.headers())
-        self.logger.debug("Updated mandate : %s status=%d" % (mandate_number,response.status_code))
+        self.logger.debug("Updated mandate : %s status=%d" % (mandate_number, response.status_code))
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Cancel", response)
 
