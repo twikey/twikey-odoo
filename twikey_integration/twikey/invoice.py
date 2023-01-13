@@ -1,5 +1,7 @@
-import requests
 import logging
+
+import requests
+
 
 class Invoice(object):
     def __init__(self, client) -> None:
@@ -12,7 +14,7 @@ class Invoice(object):
         data = data or {}
         self.client.refreshTokenIfRequired()
         headers = self.client.headers("application/json")
-        headers['X-PARTNER'] = "Odoo"
+        headers["X-PARTNER"] = "Odoo"
         response = requests.post(url=url, json=data, headers=headers)
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
@@ -26,7 +28,7 @@ class Invoice(object):
         self.client.refreshTokenIfRequired()
         initheaders = self.client.headers()
         response = requests.get(url=url, headers=initheaders)
-        response.raise_for_status()
+        # response.raise_for_status()
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Feed invoice", response)
         feed_response = response.json()
@@ -41,7 +43,12 @@ class Invoice(object):
             feed_response = response.json()
 
     def geturl(self, invoice_id):
-        return "%s/%s/%s" % (self.client.api_base.replace('api','app'), self.client.merchant_id, invoice_id)
+        return "{}/{}/{}".format(
+            self.client.api_base.replace("api", "app"),
+            self.client.merchant_id,
+            invoice_id,
+        )
+
 
 class InvoiceFeed:
     def invoice(self, invoice):

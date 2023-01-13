@@ -26,8 +26,6 @@ class Webhook(object):
     @staticmethod
     def verify_signature(payload, sig_header, api_key=None):
         expected_sign = (
-            HMAC(key=api_key.encode(), msg=payload.encode(), digestmod=sha256)
-            .hexdigest()
-            .upper()
+            HMAC(key=api_key.encode(), msg=payload.encode(), digestmod=sha256).hexdigest().upper()
         )
         return compare_digest(sig_header, expected_sign)

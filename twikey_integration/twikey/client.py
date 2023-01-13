@@ -1,16 +1,16 @@
 import binascii
+import datetime
 import hmac
+import logging
 import struct
 import time
-import datetime
 
 import requests
 
 from .document import Document
-from .transaction import Transaction
-from .paylink import Paylink
 from .invoice import Invoice
-import logging
+from .paylink import Paylink
+from .transaction import Transaction
 
 
 class TwikeyClient(object):
@@ -44,10 +44,9 @@ class TwikeyClient(object):
         self.logger = logging.getLogger(__name__)
 
     def instance_url(self, url=""):
-        return "%s/%s%s" % (self.api_base, "creditor", url)
+        return "{}{}".format(self.api_base, url)
 
     def get_totp(self, vendorPrefix, secret):
-        """Return the Time-Based One-Time Password for the current time, and the provided secret (base32 encoded)"""
         secret = bytearray(vendorPrefix) + binascii.unhexlify(secret)
         counter = struct.pack(">Q", int(time.time()) // 30)
 
@@ -56,13 +55,13 @@ class TwikeyClient(object):
         hash = hmac.new(secret, counter, hashlib.sha256).digest()
         offset = ord(hash[19]) & 0xF
 
-        return (
-            struct.unpack(">I", hash[offset : offset + 4])[0] & 0x7FFFFFFF
-        ) % 100000000
+        return (struct.unpack(">I", hash[offset : offset + 4])[0] & 0x7FFFFFFF) % 100000000
 
     def refreshTokenIfRequired(self):
         if self.lastLogin:
-            self.logger.debug("Last authenticated with %s with %s" % (self.lastLogin,self.api_token))
+            self.logger.debug(
+                "Last authenticated with {} with {}".format(self.lastLogin, self.api_token)
+            )
         now = datetime.datetime.now()
         if self.lastLogin is None or (now - self.lastLogin).seconds > 23 * 3600:
             payload = {"apiToken": self.api_key}
@@ -72,26 +71,36 @@ class TwikeyClient(object):
             if not self.api_base:
                 raise requests.URLRequired("No base url defined - %s" % self.api_base)
 
-            self.logger.debug("Authenticating with %s using %s..." % (self.api_base,self.api_key[0:10]))
+            self.logger.debug(
+                "Authenticating with {} using {}...".format(self.api_base, self.api_key[0:10])
+            )
             response = requests.post(
                 self.instance_url(),
                 data=payload,
                 headers={"User-Agent": self.user_agent},
             )
             if "ApiErrorCode" in response.headers:
-                raise requests.exceptions.HTTPError("Error authenticating : %s - %s"% (response.headers["ApiErrorCode"], response.headers["ApiError"]))
+                raise requests.exceptions.HTTPError(
+                    "Error authenticating : %s - %s"
+                    % (response.headers["ApiErrorCode"], response.headers["ApiError"])
+                )
 
             if "X-Rate-Limit-Retry-After-Seconds" in response.headers:
-                raise requests.exceptions.HTTPError("Too many login's, please try again after %s sec." % (response.headers["X-Rate-Limit-Retry-After-Seconds"]))
+                raise requests.exceptions.HTTPError(
+                    "Too many login's, please try again after %s sec."
+                    % (response.headers["X-Rate-Limit-Retry-After-Seconds"])
+                )
 
             if "Authorization" in response.headers:
                 self.api_token = response.headers["Authorization"]
-                self.merchant_id = response.headers['X-MERCHANT-ID']
+                self.merchant_id = response.headers["X-MERCHANT-ID"]
                 self.lastLogin = datetime.datetime.now()
             else:
-                raise requests.exceptions.HTTPError("Invalid response" , response)
+                raise requests.exceptions.HTTPError("Invalid response", response)
         else:
-            self.logger.debug("Reusing token %s valid till %s" % (self.api_token,self.lastLogin))
+            self.logger.debug(
+                "Reusing token {} valid till {}".format(self.api_token, self.lastLogin)
+            )
 
     def headers(self, contentType="application/x-www-form-urlencoded"):
         return {
@@ -103,9 +112,12 @@ class TwikeyClient(object):
 
     def raise_error(self, context, response):
         error_json = response.json()
-        self.logger.debug("Error in '%s' response %s - %s" % (context, response.headers["ApiError"], response.headers["ApiError"]))
+        self.logger.debug(
+            "Error in '%s' response %s - %s"
+            % (context, response.headers["ApiError"], response.headers["ApiError"])
+        )
         if error_json:
-            return TwikeyError(context, error_json['code'], error_json['message'])
+            return TwikeyError(context, error_json["code"], error_json["message"])
         else:
             return TwikeyError(context, response.headers["ApiError"], response.headers["ApiError"])
 
@@ -114,18 +126,22 @@ class TwikeyClient(object):
         response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent})
         if "ApiErrorCode" in response.headers:
             # print response.headers
-            raise TwikeyError("Logout", response.headers["ApiErrorCode"], response.headers["ApiError"])
+            raise TwikeyError(
+                "Logout", response.headers["ApiErrorCode"], response.headers["ApiError"]
+            )
 
         self.api_token = None
         self.lastLogin = None
 
+
 class TwikeyError(Exception):
     """ Twikey error. """
-    def __init__(self, ctx, error_code, error, *args, **kwargs): # real signature unknown
+
+    def __init__(self, ctx, error_code, error, *args, **kwargs):  # real signature unknown
         super().__init__(args)
         self.ctx = ctx
         self.error_code = error_code
         self.error = error
-        pass
+
     def __str__(self):
-        return 'Twikey error in %s code=%s msg=%s' % (self.ctx,self.error_code,self.error)
+        return "Twikey error in {} code={} msg={}".format(self.ctx, self.error_code, self.error)
