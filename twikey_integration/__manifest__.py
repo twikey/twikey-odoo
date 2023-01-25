@@ -39,5 +39,5 @@
     "installable": True,
     "images": ["static/description/icon.png"],
     "auto_install": False,
-    "license": "AGPL-3",
+    "license": "OPL-1",
 }
