@@ -4,8 +4,8 @@
     "name": "Twikey Integration",
     "category": "Accounting",
     "summary": "Twikey Integration",
-    "version": "14.0.1.0.0",
-    "author": "Twikey N.V., DynApps NV",
+    "version": "15.0.1.0.0",
+    "author": "Twikey N.V., Dynapps NV",
     "website": "https://www.dynapps.be",
     "depends": [
         "account",

@@ -1,3 +1,5 @@
+import json
+
 import requests
 
 
@@ -6,15 +8,17 @@ class Transaction(object):
         super().__init__()
         self.client = client
 
-    def create(self, data):
+    def create(self, data):  # pylint: disable=W8106
         url = self.client.instance_url("/transaction")
         data = data or {}
         self.client.refreshTokenIfRequired()
         response = requests.post(url=url, data=data, headers=self.client.headers())
         response.raise_for_status()
-        if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error sending transaction : %s" % error)
+        response_text = json.loads(response.text)
+        if "code" in response_text:
+            if "err" in response_text["code"]:
+                error = response.json()
+                raise Exception("Error sending transaction : %s" % error)
         return response.json()["Entries"][0]
 
     def feed(self, transactionFeed):
@@ -23,17 +27,21 @@ class Transaction(object):
         self.client.refreshTokenIfRequired()
         response = requests.get(url=url, headers=self.client.headers())
         response.raise_for_status()
-        if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error feed : %s" % error)
+        response_text = json.loads(response.text)
+        if "code" in response_text:
+            if "err" in response_text["code"]:
+                error = response.json()
+                raise Exception("Error feed : %s" % error)
         feed_response = response.json()
         while len(feed_response["Entries"]) > 0:
             for msg in feed_response["Entries"]:
                 transactionFeed.transaction(msg)
             response = requests.get(url=url, headers=self.client.headers())
-            if "ApiErrorCode" in response.headers:
-                error = response.json()
-                raise Exception("Error creating : %s" % error)
+            response_text = json.loads(response.text)
+            if "code" in response_text:
+                if "err" in response_text["code"]:
+                    error = response.json()
+                    raise Exception("Error creating : %s" % error)
             feed_response = response.json()
 
 

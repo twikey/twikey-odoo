@@ -17,6 +17,6 @@ class IrConfigParameter(models.Model):
             if not api_key or not base_url:
                 self.env.user.notify_warning(message=_("Twikey not configured!"))
                 return False
-            return twikey.client.TwikeyClient(api_key, base_url, "twikey-odoo-14/v0.1.0")
+            return twikey.client.TwikeyClient(api_key, base_url, "twikey-odoo-15/v0.1.0")
         else:
             raise exceptions.UserError(_("No company set!"))

@@ -1,11 +1,15 @@
 import binascii
 import datetime
 import hmac
+import json
 import logging
 import struct
 import time
 
 import requests
+
+from odoo import _
+from odoo.exceptions import ValidationError
 
 from .document import Document
 from .invoice import Invoice
@@ -52,7 +56,7 @@ class TwikeyClient(object):
 
         import hashlib
 
-        hash = hmac.new(secret, counter, hashlib.sha256).digest()
+        hash = hmac.new(secret, counter, hashlib.sha256).digest()  # pylint: disable=W0622
         offset = ord(hash[19]) & 0xF
 
         return (struct.unpack(">I", hash[offset : offset + 4])[0] & 0x7FFFFFFF) % 100000000
@@ -79,16 +83,16 @@ class TwikeyClient(object):
                 data=payload,
                 headers={"User-Agent": self.user_agent},
             )
-            if "ApiErrorCode" in response.headers:
-                raise requests.exceptions.HTTPError(
-                    "Error authenticating : %s - %s"
-                    % (response.headers["ApiErrorCode"], response.headers["ApiError"])
+            response_text = json.loads(response.text)
+            if "message" in response_text:
+                raise ValidationError(
+                    _("Error authenticating") + " : %s" % (response_text["message"])
                 )
 
             if "X-Rate-Limit-Retry-After-Seconds" in response.headers:
-                raise requests.exceptions.HTTPError(
-                    "Too many login's, please try again after %s sec."
-                    % (response.headers["X-Rate-Limit-Retry-After-Seconds"])
+                raise ValidationError(
+                    _("Too many login's, please try again after")
+                    + " %s sec." % (response.headers["X-Rate-Limit-Retry-After-Seconds"])
                 )
 
             if "Authorization" in response.headers:
@@ -96,7 +100,7 @@ class TwikeyClient(object):
                 self.merchant_id = response.headers["X-MERCHANT-ID"]
                 self.lastLogin = datetime.datetime.now()
             else:
-                raise requests.exceptions.HTTPError("Invalid response", response)
+                raise ValidationError(_("Invalid response: ") + str(response))
         else:
             self.logger.debug(
                 "Reusing token {} valid till {}".format(self.api_token, self.lastLogin)
@@ -112,30 +116,27 @@ class TwikeyClient(object):
 
     def raise_error(self, context, response):
         error_json = response.json()
-        self.logger.debug(
-            "Error in '%s' response %s - %s"
-            % (context, response.headers["ApiError"], response.headers["ApiError"])
-        )
+        response_text = json.loads(response.text)
+        self.logger.debug("Error in '%s' response %s " % (context, response_text["message"]))
         if error_json:
             return TwikeyError(context, error_json["code"], error_json["message"])
         else:
-            return TwikeyError(context, response.headers["ApiError"], response.headers["ApiError"])
+            return TwikeyError(context, response_text["message"], response.url)
 
     def logout(self):
         self.logger.info("Logging out of Twikey")
         response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent})
-        if "ApiErrorCode" in response.headers:
-            # print response.headers
-            raise TwikeyError(
-                "Logout", response.headers["ApiErrorCode"], response.headers["ApiError"]
-            )
+        response_text = json.loads(response.text)
+        if "code" in response_text:
+            if "err" in response_text["code"]:
+                raise TwikeyError("Logout", response_text["message"], response.url)
 
         self.api_token = None
         self.lastLogin = None
 
 
 class TwikeyError(Exception):
-    """ Twikey error. """
+    """Twikey error."""
 
     def __init__(self, ctx, error_code, error, *args, **kwargs):  # real signature unknown
         super().__init__(args)
@@ -144,4 +145,4 @@ class TwikeyError(Exception):
         self.error = error
 
     def __str__(self):
-        return "Twikey error in {} code={} msg={}".format(self.ctx, self.error_code, self.error)
+        return "Twikey error in {}, code={}, msg={}".format(self.ctx, self.error_code, self.error)

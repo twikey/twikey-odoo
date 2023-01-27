@@ -54,13 +54,9 @@ class TwikeyMandateDetails(models.Model):
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(
                 company=self.env.company
             )
-            if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env))
-
-        except UserError as ue:
-            raise UserError(_("Error while updating mandates from Twikey") + ": %s" % ue)
+            twikey_client.document.feed(OdooDocumentFeed(self.env))
         except (ValueError, requests.exceptions.RequestException) as e:
-            raise UserError(_("Error while updating mandates from Twikey") + ": %s" % e)
+            raise UserError from e
 
     def write(self, values):
         self.ensure_one()
@@ -88,14 +84,8 @@ class TwikeyMandateDetails(models.Model):
                     try:
                         if data != {}:
                             twikey_client.document.update(data)
-                    except (ValueError, requests.exceptions.RequestException):
-                        raise exceptions.AccessError(
-                            _(
-                                "The url that this service requested returned an error. "
-                                "Please check your connection or try after sometime."
-                            )
-                        )
-
+                    except (ValueError, requests.exceptions.RequestException) as e:
+                        raise exceptions.AccessError from e
         return res
 
     def unlink(self):
@@ -111,9 +101,7 @@ class TwikeyMandateDetails(models.Model):
                     twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(
                         company=self.env.company
                     )
-                    if twikey_client:
-                        twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
-
+                    twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
                     return super(TwikeyMandateDetails, mandate).unlink()
                 else:
                     return super(TwikeyMandateDetails, mandate).unlink()
@@ -192,10 +180,9 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
             contact_details = debtor.get("CtctDtls")
             if "Othr" in contact_details:
                 customer_number = contact_details.get("Othr")
-                try:
-                    lookup_id = int(customer_number)
-                    partner_id = self.env["res.partner"].browse(lookup_id)
-                except UserError:
+                lookup_id = int(customer_number)
+                partner_id = self.env["res.partner"].browse(lookup_id)
+                if not partner_id:
                     raise UserError(
                         _("Customer not found by %s skipping mandate.") % customer_number
                     )
@@ -245,7 +232,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
             self.env["twikey.mandate.details"].sudo().create(mandate_vals)
 
         if template_id:
-            attributes = template_id.attribute_ids.mapped("name")
+            attributes = template_id.twikey_attribute_ids.mapped("name")
             for key in field_dict:
                 if key in attributes:
                     value = field_dict[key]

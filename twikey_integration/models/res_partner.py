@@ -1,6 +1,6 @@
 import requests
 
-from odoo import _, exceptions, fields, models
+from odoo import exceptions, fields, models
 
 
 class ResPartner(models.Model):
@@ -81,12 +81,7 @@ class ResPartner(models.Model):
                     data.update({"mndtId": mandate_id.reference})
                     try:
                         twikey_client.document.update(data)
-                    except (ValueError, requests.exceptions.RequestException):
-                        raise exceptions.AccessError(
-                            _(
-                                "The url that this service requested returned an error."
-                                " Please check your connection or try after sometime."
-                            )
-                        )
+                    except (ValueError, requests.exceptions.RequestException) as e:
+                        raise exceptions.AccessError from e
 
         return res

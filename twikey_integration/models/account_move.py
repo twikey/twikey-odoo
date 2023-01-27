@@ -4,7 +4,7 @@ import uuid
 
 import requests
 
-from odoo import _, exceptions, fields, models
+from odoo import SUPERUSER_ID, _, exceptions, fields, models
 from odoo.exceptions import UserError
 
 from .. import twikey
@@ -45,6 +45,11 @@ class AccountInvoice(models.Model):
     def action_post(self):
         res = super(AccountInvoice, self).action_post()
 
+        # sometimes action_post gets called without an invoice record, in this case we don't try to
+        # send anything to Twikey
+        if not self:
+            return res
+
         twikey_client = (
             self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
         )
@@ -56,7 +61,11 @@ class AccountInvoice(models.Model):
             invoice_id.with_context(update_feed=True).write(
                 {"twikey_url": url, "twikey_invoice_identifier": invoice_uuid}
             )
-            pdf = self.env.ref("account.account_invoices")._render_qweb_pdf([invoice_id.id])[0]
+            pdf = (
+                self.env.ref("account.account_invoices")
+                .with_user(SUPERUSER_ID)
+                ._render_qweb_pdf([invoice_id.id])[0]
+            )
             report_file = base64.b64encode(pdf)
             try:
                 customer = invoice_id.partner_id
@@ -105,19 +114,8 @@ class AccountInvoice(models.Model):
 
                 twikey_client.invoice.create(data)
 
-            except (ValueError, requests.exceptions.RequestException):
-                raise exceptions.AccessError(
-                    _(
-                        "The url that this service requested returned an error. "
-                        "Please check your connection or try after sometime. "
-                    )
-                )
-            except twikey.client.TwikeyError as e:
-                raise UserError(
-                    _("An error occurred calling twikey")
-                    + ": {} ({})".format(e.error, e.error_code)
-                )
-
+            except (ValueError, requests.exceptions.RequestException) as e:
+                raise exceptions.AccessError from e
         return res
 
     def update_invoice_feed(self):
@@ -127,10 +125,8 @@ class AccountInvoice(models.Model):
             )
             if twikey_client:
                 twikey_client.invoice.feed(OdooInvoiceFeed(self.env))
-        except UserError as ue:
-            raise UserError(_("Error while updating invoice from Twikey") + ": %s" % ue)
         except (ValueError, requests.exceptions.RequestException) as e:
-            raise UserError(_("Error while updating invoices from Twikey") + ": %s" % e)
+            raise UserError from e
 
     def write(self, values):
         res = super(AccountInvoice, self).write(values)
@@ -146,20 +142,35 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
         self.env = env
 
     def process_states(self, invoice_id, twikey_invoice, new_state):
+        _logger.info("Processing state for invoice: " + str(twikey_invoice))
         invoice_id.twikey_invoice_state = new_state
         if new_state == "PAID" and twikey_invoice["amount"] == invoice_id.amount_total:
             journals = self.env["account.journal"].search([("use_with_twikey", "=", True)])
 
             if len(journals) == 1:
-                payment_method_twikey = journals.inbound_payment_method_ids.filtered(
-                    lambda x: x.name == "Twikey"
+                payment_method_line_twikey = journals.inbound_payment_method_line_ids.filtered(
+                    lambda x: x.name == "Twikey" and x.payment_method_id.name == "manual"
                 )
-                if not payment_method_twikey:
-                    payment_method_twikey = self.env["account.payment.method"].create(
+
+                if not payment_method_line_twikey:
+                    payment_method_manual = self.env["account.payment.method"].search(
+                        [("name", "=", "Manual"), ("payment_type", "=", "inbound")]
+                    )
+                    if not payment_method_manual:
+                        _logger.info("Creating an account payment method")
+                        payment_method_manual = self.env["account.payment.method"].create(
+                            {
+                                "name": "Manual",
+                                "payment_type": "inbound",
+                                "code": "manual",
+                            }
+                        )
+
+                    _logger.info("Creating an account payment method line")
+                    payment_method_line_twikey = self.env["account.payment.method.line"].create(
                         {
+                            "payment_method_id": payment_method_manual[0].id,
                             "name": "Twikey",
-                            "payment_type": "inbound",
-                            "code": "manual",
                         }
                     )
 
@@ -172,8 +183,10 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                     "customerNumber"
                 ):
                     customer = self.env["res.partner"].browse(
-                        twikey_invoice.get("customer").get("customerNumber")
+                        [int(twikey_invoice.get("customer").get("customerNumber"))]
                     )
+
+                _logger.info("Found customer: " + str(customer.name) + " and iban: " + str(iban))
 
                 customer_bank_id = False
                 if customer and iban:
@@ -190,19 +203,25 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                         {
                             "journal_id": journals.id,
                             "payment_date": twikey_invoice["paydate"],
-                            "payment_method_id": payment_method_twikey[0].id,
+                            "payment_method_line_id": payment_method_line_twikey[
+                                0
+                            ].payment_method_id.id,
                             "partner_bank_id": customer_bank_id.id if customer_bank_id else False,
                         }
                     )
                 )
+
+                _logger.info("Creating payment")
                 payment.action_create_payments()
 
             elif len(journals) > 1:
                 raise UserError(_("It's not allowed to use Twikey in multiple journals!"))
             else:
-                raise UserError(
-                    _("Error while searching for a journal with 'use with Twikey' enabled!")
+                error_message = _(
+                    "Error while searching for a journal with 'use with Twikey' enabled!"
                 )
+                invoice_id.message_post(error_message)
+                raise UserError(error_message)
 
     def invoice(self, _invoice):
         odoo_invoice_id = _invoice.get("ref")
@@ -213,7 +232,7 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
             lookup_id = int(odoo_invoice_id)
             _logger.debug("Got update for %d", lookup_id)
             invoice_id = self.env["account.move"].browse(lookup_id)
-            if invoice_id:
+            if invoice_id.exists():
                 self.process_states(invoice_id, _invoice, new_state)
 
                 if invoice_id.payment_state == "paid":
@@ -245,7 +264,7 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
 
                     except (ValueError, requests.exceptions.RequestException) as e:
                         _logger.error("Error marking invoice as paid in odoo %s" % (e))
-                        raise exceptions.AccessError(_("Something went wrong."))
+                        raise exceptions.AccessError from e
                     else:
                         _logger.info(
                             "Unknown invoice update of {} - {}".format(

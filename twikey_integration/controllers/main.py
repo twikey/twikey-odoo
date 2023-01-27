@@ -14,7 +14,7 @@ _logger = logging.getLogger(__name__)
 class TwikeyController(http.Controller):
     @http.route("/twikey", type="http", auth="public", csrf=False)
     def twikey_return(self, **post):
-        """ Twikey"""
+        """Twikey"""
         if post.get("msg") == "dummytest":
             _logger.info("Twikey Webhook test successfull!")
         payload = url_unquote(request.httprequest.query_string)
