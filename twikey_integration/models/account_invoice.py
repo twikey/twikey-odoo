@@ -44,66 +44,72 @@ class AccountInvoice(models.Model):
         module_twikey = params.get_param('twikey_integration.module_twikey')
         if not module_twikey:
             return res
+        if not self.id:
+            return res
 
         twikey_client = params.get_twikey_client()
-        merchant_id = params.get_param('twikey_integration.merchant_id')
+
         invoice_id = self
         invoice_uuid = str(uuid.uuid1())
 
-        url = twikey_client.invoice.geturl(invoice_uuid)
-        invoice_id.with_context(update_feed=True).write({'twikey_url': url, 'twikey_invoice_id': invoice_uuid})
-        pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
-        report_file = base64.b64encode(pdf)
+        # already saved in twikey, so just update
+        if not invoice_id.twikey_invoice_id:
+            url = twikey_client.invoice.geturl(invoice_uuid)
+            invoice_id.with_context(update_feed=True).write({'twikey_url': url, 'twikey_invoice_id': invoice_uuid})
+            pdf = self.env.ref('account.account_invoices').render_qweb_pdf([invoice_id.id])[0]
+            report_file = base64.b64encode(pdf)
 
-        try:
-            customer = invoice_id.partner_id
-            id = customer.id
-            if customer.parent_id:
-                id = customer.parent_id.id
-            today = fields.Date.context_today(self).isoformat()
-            invoiceCustomer = {
-                'locale': customer.lang if customer else 'en',
-                'customerNumber': id,
-                'address': customer.street if customer and customer.street else '',
-                'city': customer.city if customer and customer.city else '',
-                'zip': customer.zip if customer and customer.zip else '',
-                'country': customer.country_id.code if customer and customer.country_id else '',
-                'mobile': customer.mobile if customer.mobile else '',
-            }
-            if customer.email:
-                invoiceCustomer["email"] = customer.email
-            if customer.company_type == 'company' and customer.name:
-                invoiceCustomer["companyName"] = customer.name
-                invoiceCustomer["coc"] = customer.vat
-            elif customer.name: # 'person'
-                customer_name = customer.name.split(' ')
-                if customer_name and len(customer_name) > 1:
-                    invoiceCustomer["firstname"] = customer_name[0]
-                    invoiceCustomer["lastname"] = ' '.join(customer_name[1:])
-                else:
-                    invoiceCustomer["firstname"] = customer.name
+            try:
+                customer = invoice_id.partner_id
+                id = customer.id
+                if customer.parent_id:
+                    id = customer.parent_id.id
+                today = fields.Date.context_today(self).isoformat()
+                invoiceCustomer = {
+                    'locale': customer.lang if customer else 'en',
+                    'customerNumber': id,
+                    'address': customer.street if customer and customer.street else '',
+                    'city': customer.city if customer and customer.city else '',
+                    'zip': customer.zip if customer and customer.zip else '',
+                    'country': customer.country_id.code if customer and customer.country_id else '',
+                    'mobile': customer.mobile if customer.mobile else '',
+                }
+                if customer.email:
+                    invoiceCustomer["email"] = customer.email
+                if customer.company_type == 'company' and customer.name:
+                    invoiceCustomer["companyName"] = customer.name
+                    invoiceCustomer["coc"] = customer.vat
+                elif customer.name: # 'person'
+                    customer_name = customer.name.split(' ')
+                    if customer_name and len(customer_name) > 1:
+                        invoiceCustomer["firstname"] = customer_name[0]
+                        invoiceCustomer["lastname"] = ' '.join(customer_name[1:])
+                    else:
+                        invoiceCustomer["firstname"] = customer.name
 
-            data = {
-                'id': invoice_uuid,
-                'number': invoice_id.number,
-                "title": invoice_id.number,
-                'ct': self.template_id.template_id,
-                'amount': invoice_id.amount_total,
-                'date': today,
-                'duedate': invoice_id.date_due.isoformat() if invoice_id.date_due else today,
-                "pdf": report_file.decode('utf-8'),
-                "remittance": invoice_id.reference,
-                "ref": invoice_id.id,
-                'locale': customer.lang if customer else 'en',
-                "customer": invoiceCustomer
-            }
-            _logger.debug('Creating new Invoice %s' % (data))
-            response = twikey_client.invoice.create(data)
-            _logger.info('Created new invoice %s' % response)
-        except (ValueError, requests.exceptions.RequestException) as e:
-            raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
-        except twikey.client.TwikeyError as e:
-            raise UserError(('An error occurred calling twikey: %s (%s)' % (e.error,e.error_code)))
+                data = {
+                    'id': invoice_uuid,
+                    'number': invoice_id.number,
+                    "title": invoice_id.number,
+                    'ct': self.template_id.template_id,
+                    'amount': invoice_id.amount_total,
+                    'date': today,
+                    'duedate': invoice_id.date_due.isoformat() if invoice_id.date_due else today,
+                    "pdf": report_file.decode('utf-8'),
+                    "remittance": invoice_id.reference,
+                    "ref": invoice_id.id,
+                    'locale': customer.lang if customer else 'en',
+                    "customer": invoiceCustomer
+                }
+                _logger.debug('Creating new Invoice %s' % (data))
+                response = twikey_client.invoice.create(data)
+                _logger.info('Created new invoice %s' % response)
+            except (ValueError, requests.exceptions.RequestException) as e:
+                raise exceptions.AccessError(_('The url that this service requested returned an error. Please check your connection or try after sometime.'))
+            except twikey.client.TwikeyError as e:
+                raise UserError(('An error occurred calling twikey: %s (%s)' % (e.error,e.error_code)))
+        else:
+            _logger.warning("Already in Twikey, ignoring update")
 
     def compute_twikey(self):
         module_twikey = self.env['ir.config_parameter'].sudo().get_param('twikey_integration.module_twikey')
@@ -121,12 +127,28 @@ class AccountInvoice(models.Model):
         except (ValueError, requests.exceptions.RequestException) as e:
             _logger.error('Error while updating invoices from Twikey: %s' % e)
 
+    def update_twikey_state(self, state):
+        try:
+            _logger.warning("Update of %s to %s" % (self, state))
+            twikey_client = self.env['ir.config_parameter'].get_twikey_client()
+            twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
+        except UserError as ue:
+            _logger.error('Error while updating invoice from Twikey: %s' % ue)
+        except (ValueError, requests.exceptions.RequestException) as e:
+            _logger.error('Error while updating invoices from Twikey: %s' % e)
+
     @api.multi
     def write(self, values):
         res = super(AccountInvoice, self).write(values)
         if 'update_feed' in self._context:
             return res
-        self.update_invoice_feed()
+
+        if values.get('state'):
+            if values.get('state') == 'paid':
+                self.update_twikey_state("paid")
+            elif values.get('state') == 'cancel':
+                self.update_twikey_state("archived")
+
         return res
 
     @api.multi

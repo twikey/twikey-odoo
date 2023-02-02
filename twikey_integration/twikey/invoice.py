@@ -20,6 +20,19 @@ class Invoice(object):
         self.logger.debug("Added invoice : %s" % json_response["url"])
         return json_response
 
+    def update(self, id, data):
+        url = self.client.instance_url("/invoice/"+id)
+        data = data or {}
+        self.client.refreshTokenIfRequired()
+        headers = self.client.headers("application/json")
+        response = requests.put(url=url, json=data, headers=headers)
+        json_response = response.json()
+        if "ApiErrorCode" in response.headers:
+            error = json_response
+            raise Exception("Error updating : %s" % error)
+        self.logger.debug("Updated invoice : %s" % json_response["url"])
+        return json_response
+
     def feed(self, invoiceFeed):
         url = self.client.instance_url("/invoice?include=customer&include=meta&include=lastpayment")
 
