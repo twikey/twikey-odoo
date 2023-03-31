@@ -21,6 +21,7 @@ class TwikeyController(http.Controller):
         received_sign = request.httprequest.headers.get("X-Signature")
         api_key = request.env.ref("base.main_company").twikey_api_key
         if not Webhook.verify_signature(payload, received_sign, api_key):
+            _logger.warning("Twikey: failed signature verification %s", pprint.pformat(post))
             return Response(status=403)
         _logger.info("Twikey: entering form_feedback with post data %s", pprint.pformat(post))
 
