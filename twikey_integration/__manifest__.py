@@ -5,11 +5,10 @@
     "category": "Accounting",
     "summary": "Twikey Integration",
     "version": "14.0.1.0.0",
-    "author": "Twikey N.V., DynApps NV",
-    "website": "https://www.dynapps.be",
+    "author": "Twikey N.V.",
+    "website": "https://www.twikey.com",
     "depends": [
         "account",
-        "account_accountant",
         "account_check_printing",
         "contacts",
         "mail",
@@ -17,7 +16,6 @@
         "sale",
         "sale_management",
         "stock",
-        "web_notify",
     ],
     "data": [
         "data/schedulers.xml",
