@@ -1,10 +1,12 @@
 import requests
+import logging
 
 from odoo import _, exceptions, fields, models
 from odoo.exceptions import UserError
 
 from .. import twikey
 
+_logger = logging.getLogger(__name__)
 
 def _lang_get(self):
     return self.env["res.lang"].get_installed()
@@ -58,7 +60,7 @@ class TwikeyMandateDetails(models.Model):
                 twikey_client.document.feed(OdooDocumentFeed(self.env))
 
         except UserError as ue:
-            raise UserError(_("Error while updating mandates from Twikey") + ": %s" % ue)
+            raise UserError(_("UserError while updating mandates from Twikey") + ": %s" % ue)
         except (ValueError, requests.exceptions.RequestException) as e:
             raise UserError(_("Error while updating mandates from Twikey") + ": %s" % e)
 
@@ -190,34 +192,34 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
 
         if "CtctDtls" in debtor:
             contact_details = debtor.get("CtctDtls")
+            email = contact_details.get("EmailAdr")
             if "Othr" in contact_details:
                 customer_number = contact_details.get("Othr")
                 try:
                     lookup_id = int(customer_number)
+                    _logger.debug("Got lookup_id %s" % lookup_id)
                     partner_id = self.env["res.partner"].browse(lookup_id)
                 except UserError:
-                    raise UserError(
-                        _("Customer not found by %s skipping mandate.") % customer_number
-                    )
+                    _logger.error("Customer not found by id=%s skipping mandate." % customer_number)
+            else:
+                _logger.warning("Got no customerNumber in Twikey, trying with email" % contact_details)
+
             if "EmailAdr" in contact_details:
-                email = contact_details.get("EmailAdr")
                 partner_id = self.env["res.partner"].search([("email", "=", email)])
+                if len(partner_id) != 1:
+                    _logger.error("Incorrect number of customers found by %s skipping mandate. "
+                                  "Please ensure the customerNumber is set. "
+                                  "Found: %s" % (email,partner_id))
 
         partner_id = self.prepare_partner(
             partner_id, debtor, address, zip_code, city, country_id, email
         )
 
         if updatedDoc:
-            new_state = (
-                "suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed"
-            )
-            mandate_id = self.env["twikey.mandate.details"].search(
-                [("reference", "=", mandate_number)]
-            )
+            new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
         else:
-            mandate_id = self.env["twikey.mandate.details"].search(
-                [("reference", "=", doc.get("MndtId"))]
-            )
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
 
         if mandate_id:
             mandate_vals = {
