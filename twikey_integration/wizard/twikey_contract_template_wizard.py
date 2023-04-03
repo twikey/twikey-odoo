@@ -25,20 +25,15 @@ class TwikeyContractTemplateWizard(models.Model):
 
     name = fields.Char()
     template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
-    attribute_ids = fields.One2many(related="template_id.attribute_ids", readonly=False)
+    twikey_attribute_ids = fields.One2many(related="template_id.twikey_attribute_ids", readonly=False)
     partner_id = fields.Many2one(comodel_name="res.partner")
 
-    def prepare_contract_date(self):
-        customer = self.partner_id
-        current_id = customer.id
-        if customer.parent_id:
-            current_id = customer.parent_id.id
-        language = customer.lang
+    def prepare_contract_date(self, template_id, current_id, customer):
         contract_data = {
-            "ct": self.template_id.template_id_twikey,
-            "l": language_dict.get(language),
+            "ct": template_id.template_id_twikey,
+            "l": language_dict.get(customer.lang),
             "customerNumber": current_id,
-            "mandateNumber": customer.id if not self.template_id.mandate_number_required else "",
+            "mandateNumber": customer.id if not template_id.mandate_number_required else "",
             "mobile": customer.mobile if customer.mobile else "",
             "address": customer.street if customer.street else "",
             "city": customer.city if customer.city else "",
@@ -66,11 +61,14 @@ class TwikeyContractTemplateWizard(models.Model):
         if twikey_client:
             customer = self.partner_id
             current_id = customer.id
-            contract_data = self.prepare_contract_date()
+            if customer.parent_id:
+                current_id = customer.parent_id.id
+
+            contract_data = self.prepare_contract_date(self.template_id, current_id, customer)
 
             sp_lst = [
                 "x_" + attr.name + "_" + str(self.template_id.template_id_twikey)
-                for attr in self.template_id.attribute_ids
+                for attr in self.template_id.twikey_attribute_ids
             ]
 
             lst = []
@@ -131,6 +129,13 @@ class TwikeyContractTemplateWizard(models.Model):
                 view = self.env.ref("twikey_integration.success_message_wizard")
                 context = dict(self._context or {})
                 context["message"] = "Mandate Created Successfully."
+                self.succes_message(view, context)
+
+            except (ValueError, requests.exceptions.RequestException) as e:
+                _logger.error("Exception raised while creating a new Mandate %s" % (e))
+                raise exceptions.AccessError from e
+
+    def succes_message(self, view, context):
                 return {
                     "name": "Success",
                     "type": "ir.actions.act_window",
@@ -142,11 +147,3 @@ class TwikeyContractTemplateWizard(models.Model):
                     "target": "new",
                     "context": context,
                 }
-            except (ValueError, requests.exceptions.RequestException) as e:
-                _logger.error("Exception raised while creating a new Mandate %s" % (e))
-                raise exceptions.AccessError(
-                    _(
-                        "The url that this service requested returned an error. "
-                        "Please check your connection or try after sometime."
-                    )
-                )

@@ -1,14 +1,14 @@
 version: '2'
 services:
   app:
-    image: odoo:14.0
+    image: odoo:15.0
     depends_on:
       - db
     restart: always
     ports:
       - "8069:8069"
     volumes:
-      - odoo-web-data14:/var/lib/odoo
+      - odoo-web-data15:/var/lib/odoo
       - ./odoo.conf:/etc/odoo/odoo.conf
       - ./twikey_integration:/mnt/extra-addons/twikey_integration
   db:
@@ -18,4 +18,4 @@ services:
       - POSTGRES_PASSWORD=odoo
       - POSTGRES_USER=odoo
 volumes:
-  odoo-web-data14:
+  odoo-web-data15:

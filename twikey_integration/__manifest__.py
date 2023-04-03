@@ -4,7 +4,7 @@
     "name": "Twikey Integration",
     "category": "Accounting",
     "summary": "Twikey Integration",
-    "version": "14.0.1.0.0",
+    "version": "15.0.1.0.0",
     "author": "Twikey N.V.",
     "website": "https://www.twikey.com",
     "depends": [

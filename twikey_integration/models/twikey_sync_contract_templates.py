@@ -18,7 +18,7 @@ Field_Type = {
 
 
 class SyncContractTemplates(models.AbstractModel):
-    _name = "sync.contract.templates"
+    _name = "twikey.sync.contract.templates"
 
     def fetch_contract_templates(self):
         twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
@@ -35,13 +35,8 @@ class SyncContractTemplates(models.AbstractModel):
                         _("Error on syncing contract templates.") + "\n" + response.text
                     )
 
-            except (ValueError, requests.exceptions.RequestException):
-                raise exceptions.AccessError(
-                    _(
-                        "The url that this service requested returned an error. "
-                        "Please check your connection or try after sometime."
-                    )
-                )
+            except (ValueError, requests.exceptions.RequestException) as e:
+                raise exceptions.AccessError from e
 
     def search_create_template(self, ct, response):
         name = response.get("name")
@@ -197,11 +192,11 @@ class SyncContractTemplates(models.AbstractModel):
                 "name": attr.get("name"),
                 "type": Field_Type[attr.get("type")],
             }
-            if template_id.attribute_ids:
-                if attr.get("name") not in template_id.attribute_ids.mapped("name"):
-                    template_id.write({"attribute_ids": [(0, 0, attr_vals)]})
+            if template_id.twikey_attribute_ids:
+                if attr.get("name") not in template_id.twikey_attribute_ids.mapped("name"):
+                    template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
             else:
-                template_id.write({"attribute_ids": [(0, 0, attr_vals)]})
+                template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
 
         return fields_list, mandate_field_list
 

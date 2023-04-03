@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://cdn.twikey.net/img/v2/partners/odoo-twikey.png" width="128" height="128"/>
 </p>
-<h1 align="center">Twikey integration for Odoo 14</h1>
+<h1 align="center">Twikey integration for Odoo 15</h1>
 
 ## How to configure
 

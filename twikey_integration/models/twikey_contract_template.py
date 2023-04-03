@@ -24,9 +24,10 @@ class TwikeyContractTemplate(models.Model):
             ("PAYROLL", "PAYROLL"),
         ],
     )
-    attribute_ids = fields.One2many(
+    twikey_attribute_ids = fields.One2many(
         "twikey.contract.template.attribute", "contract_template_id", string="Attributes"
     )
+    display_name = fields.Char(help="Can be used e.g. in checkout of the webshop", translate=True)
 
 
 class ContractTemplateAttribute(models.Model):
@@ -35,7 +36,7 @@ class ContractTemplateAttribute(models.Model):
 
     name = fields.Char(string="Contract Template Attribute")
     contract_template_id = fields.Many2one(
-        "twikey.contract.template", string="Contract Template", required=True
+        "twikey.contract.template", string="Contract Template", required=True, ondelete="cascade"
     )
     type = fields.Selection(
         [

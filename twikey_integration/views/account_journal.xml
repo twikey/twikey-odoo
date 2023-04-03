@@ -5,11 +5,8 @@
        <field name="model">account.journal</field>
        <field name="inherit_id" ref="account.view_account_journal_form" />
        <field name="arch" type="xml">
-           <xpath
-                expr="//form//page[@name='journal_entries']//field[@name='inbound_payment_method_ids']"
-                position="after"
-            >
-               <field name="use_with_twikey" />
+           <xpath expr="//form//page[@name='bank_account']//field[@name='code']" position="after">
+               <field name="use_with_twikey" string="Use with Twikey" />
            </xpath>
        </field>
    </record>

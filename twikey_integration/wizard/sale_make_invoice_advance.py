@@ -12,7 +12,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
         context.update({"twikey_template_id": self.twikey_template_id})
         sale_orders = self.env["sale.order"].browse(self._context.get("active_ids", []))
         if self.advance_payment_method == "delivered":
-            sale_orders.with_context(context)._create_invoices()
+            sale_orders.with_context(**context)._create_invoices()
         else:
             super(SaleAdvancePaymentInv, self).create_invoices()
         for sale_id in sale_orders:
