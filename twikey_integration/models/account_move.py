@@ -15,7 +15,7 @@ InvoiceStatus = {
     "BOOKED": "posted",
     "PENDING": "posted",
     "PAID": "posted",
-    "EXPIRED": "cancel",
+    "EXPIRED": "posted",
     "ARCHIVED": "cancel",
 }
 
@@ -117,11 +117,14 @@ class AccountInvoice(models.Model):
                     _("An error occurred calling twikey")
                     + ": {} ({})".format(e.error, e.error_code)
                 )
+        else:
+            _logger.info("Not sending to Twikey %s" %  self)
 
         return res
 
     def update_invoice_feed(self):
         try:
+            _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(
                 company=self.env.company
             )
@@ -132,12 +135,27 @@ class AccountInvoice(models.Model):
         except (ValueError, requests.exceptions.RequestException) as e:
             raise UserError(_("Error while updating invoices from Twikey") + ": %s" % e)
 
+    def update_twikey_state(self, state):
+        try:
+            _logger.debug("Updating Twikey of %s to %s" % (self, state))
+            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
+        except UserError as ue:
+            _logger.error('Error while updating invoice in Twikey: %s' % ue)
+        except (ValueError, requests.exceptions.RequestException) as e:
+            _logger.error('Error while updating invoices in Twikey: %s' % e)
+
     def write(self, values):
         res = super(AccountInvoice, self).write(values)
         if "update_feed" in self._context:
             return res
 
-        self.update_invoice_feed()
+        if self.twikey_invoice_identifier and values.get('state'):
+            if values.get('state') == 'paid':
+                self.update_twikey_state("paid")
+            elif values.get('state') == 'cancel':
+                self.update_twikey_state("archived")
+
         return res
 
 
@@ -211,7 +229,7 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
 
         try:
             lookup_id = int(odoo_invoice_id)
-            _logger.debug("Got update for %d", lookup_id)
+            _logger.debug("Got update for invoice=%d", lookup_id)
             invoice_id = self.env["account.move"].browse(lookup_id)
             if invoice_id:
                 self.process_states(invoice_id, _invoice, new_state)

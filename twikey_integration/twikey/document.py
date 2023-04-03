@@ -49,7 +49,7 @@ class Document(object):
             raise self.client.raise_error("Feed", response)
         feed_response = response.json()
         while len(feed_response["Messages"]) > 0:
-            self.logger.debug("Feed handling : %d" % (len(feed_response["Messages"])))
+            self.logger.debug("Feed handling : %d from %s" % (len(feed_response["Messages"]), response.headers['X-LAST']))
             for msg in feed_response["Messages"]:
                 if "AmdmntRsn" in msg:
                     mndt_id_ = msg["OrgnlMndtId"]
