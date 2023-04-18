@@ -10,6 +10,7 @@ import requests
 
 from odoo import _
 from odoo.exceptions import ValidationError
+from odoo.http import request
 
 from .document import Document
 from .invoice import Invoice
@@ -73,6 +74,7 @@ class TwikeyClient(object):
                 payload["otp"] = self.get_totp(self.vendorPrefix, self.private_key)
 
             if not self.api_base:
+                request.env["res.partner"].send_twikey_error()
                 raise requests.URLRequired("No base url defined - %s" % self.api_base)
 
             self.logger.debug(
@@ -82,14 +84,20 @@ class TwikeyClient(object):
                 self.instance_url(),
                 data=payload,
                 headers={"User-Agent": self.user_agent},
+                timeout=15,
             )
+            error_json = response.json()
             response_text = json.loads(response.text)
-            if "message" in response_text:
-                raise ValidationError(
-                    _("Error authenticating") + " : %s" % (response_text["message"])
-                )
+            if "code" in response_text:
+                if "err" in response_text["code"]:
+                    request.env["res.partner"].send_twikey_error()
+                    raise ValidationError(
+                        _("Error authenticating : ")
+                        + "%s - %s" % (error_json["status"], response_text["message"])
+                    )
 
             if "X-Rate-Limit-Retry-After-Seconds" in response.headers:
+                request.env["res.partner"].send_twikey_error()
                 raise ValidationError(
                     _("Too many login's, please try again after")
                     + " %s sec." % (response.headers["X-Rate-Limit-Retry-After-Seconds"])
@@ -100,7 +108,8 @@ class TwikeyClient(object):
                 self.merchant_id = response.headers["X-MERCHANT-ID"]
                 self.lastLogin = datetime.datetime.now()
             else:
-                raise ValidationError(_("Invalid response: ") + str(response))
+                request.env["res.partner"].send_twikey_error()
+                raise ValidationError(_("Invalid response") + str(response))
         else:
             self.logger.debug(
                 "Reusing token {} valid till {}".format(self.api_token, self.lastLogin)
@@ -116,16 +125,19 @@ class TwikeyClient(object):
 
     def raise_error(self, context, response):
         error_json = response.json()
-        response_text = json.loads(response.text)
-        self.logger.debug("Error in '%s' response %s " % (context, response_text["message"]))
+        self.logger.debug("Error in '%s' response %s " % (context, error_json["message"]))
         if error_json:
             return TwikeyError(context, error_json["code"], error_json["message"])
         else:
-            return TwikeyError(context, response_text["message"], response.url)
+            return TwikeyError(context, error_json["message"], response.url)
 
     def logout(self):
         self.logger.info("Logging out of Twikey")
-        response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent})
+        response = requests.get(
+            self.instance_url(),
+            headers={"User-Agent": self.user_agent},
+            timeout=15,
+        )
         response_text = json.loads(response.text)
         if "code" in response_text:
             if "err" in response_text["code"]:

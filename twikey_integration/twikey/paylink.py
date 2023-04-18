@@ -12,7 +12,12 @@ class Paylink(object):
         url = self.client.instance_url("/payment/link")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(url=url, data=data, headers=self.client.headers())
+        response = requests.post(
+            url=url,
+            data=data,
+            headers=self.client.headers(),
+            timeout=15,
+        )
         response_text = json.loads(response.text)
         if "code" in response_text:
             if "err" in response_text["code"]:
@@ -24,7 +29,11 @@ class Paylink(object):
         url = self.client.instance_url("/payment/link/feed")
 
         self.client.refreshTokenIfRequired()
-        response = requests.get(url=url, headers=self.client.headers())
+        response = requests.get(
+            url=url,
+            headers=self.client.headers(),
+            timeout=15,
+        )
         response.raise_for_status()
         response_text = json.loads(response.text)
         if "code" in response_text:
@@ -35,7 +44,11 @@ class Paylink(object):
         while len(feed_response["Links"]) > 0:
             for msg in feed_response["Links"]:
                 paylinkFeed.paylink(msg)
-            response = requests.get(url=url, headers=self.client.headers())
+            response = requests.get(
+                url=url,
+                headers=self.client.headers(),
+                timeout=15,
+            )
             response_text = json.loads(response.text)
             if "code" in response_text:
                 if "err" in response_text["code"]:

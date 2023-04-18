@@ -33,7 +33,7 @@
                                 <div>
                                 <button
                                     name="twikey_sync_contract_template"
-                                    string="Sync Contract Template"
+                                    string="Sync Contract Templates"
                                     type="object"
                                     class="oe_link"
                                     icon="fa-arrow-right"

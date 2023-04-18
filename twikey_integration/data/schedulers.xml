@@ -4,6 +4,10 @@
         <field name="model_id" ref="model_res_config_settings" />
         <field name="state">code</field>
         <field name="code">model.twikey_authenticate()</field>
+        <field
+            name="nextcall"
+            eval="(DateTime.now().replace(hour=5, minute=0, second=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"
+        />
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
         <field name="numbercall">-1</field>

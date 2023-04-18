@@ -1,9 +1,13 @@
+import logging
+
 import requests
 
 from odoo import _, exceptions, fields, models
 from odoo.exceptions import UserError
 
 from .. import twikey
+
+_logger = logging.getLogger(__name__)
 
 
 def _lang_get(self):
@@ -38,6 +42,11 @@ class TwikeyMandateDetails(models.Model):
     lang = fields.Selection(_lang_get, string="Language")
     url = fields.Char(string="URL")
 
+    country_id = fields.Many2one("res.country")
+    city = fields.Char()
+    zip = fields.Integer()
+    address = fields.Char()
+
     def action_cancel_reason(self):
         self.ensure_one()
         wizard = self.env["mandate.cancel.reason"].create(
@@ -51,6 +60,7 @@ class TwikeyMandateDetails(models.Model):
 
     def update_feed(self):
         try:
+            _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(
                 company=self.env.company
             )
@@ -178,17 +188,28 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
 
         if "CtctDtls" in debtor:
             contact_details = debtor.get("CtctDtls")
+            email = contact_details.get("EmailAdr")
             if "Othr" in contact_details:
                 customer_number = contact_details.get("Othr")
-                lookup_id = int(customer_number)
-                partner_id = self.env["res.partner"].browse(lookup_id)
-                if not partner_id:
-                    raise UserError(
-                        _("Customer not found by %s skipping mandate.") % customer_number
-                    )
+                try:
+                    lookup_id = int(customer_number)
+                    _logger.debug("Got lookup_id %s" % lookup_id)
+                    partner_id = self.env["res.partner"].browse(lookup_id)
+                except UserError:
+                    _logger.error("Customer not found by id=%s skipping mandate." % customer_number)
+            else:
+                _logger.warning(
+                    "Got no customerNumber in Twikey, trying with email" % contact_details
+                )
+
             if "EmailAdr" in contact_details:
-                email = contact_details.get("EmailAdr")
-                partner_id = self.env["res.partner"].search([("email", "=", email)])
+                partner_id = self.env["res.partner"].search([("email", "ilike", email)])
+                if len(partner_id) != 1:
+                    _logger.error(
+                        "Incorrect number of customers found by %s skipping mandate. "
+                        "Please ensure the customerNumber is set. "
+                        "Found: %s" % (email, partner_id)
+                    )
 
         partner_id = self.prepare_partner(
             partner_id, debtor, address, zip_code, city, country_id, email

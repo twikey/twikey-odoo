@@ -16,7 +16,12 @@ class Document(object):
         url = self.client.instance_url("/invite")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(url=url, data=data, headers=self.client.headers())
+        response = requests.post(
+            url=url,
+            data=data,
+            headers=self.client.headers(),
+            timeout=15,
+        )
         json_response = response.json()
         response_text = json.loads(response.text)
         if "code" in response_text:
@@ -29,7 +34,12 @@ class Document(object):
         url = self.client.instance_url("/mandate/update")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(url=url, data=data, headers=self.client.headers())
+        response = requests.post(
+            url=url,
+            data=data,
+            headers=self.client.headers(),
+            timeout=15,
+        )
         self.logger.debug("Updated mandate : {} response={}".format(data, response))
         if response.text:
             response_text = json.loads(response.text)
@@ -40,7 +50,11 @@ class Document(object):
     def cancel(self, mandate_number, reason):
         url = self.client.instance_url("/mandate?mndtId=" + mandate_number + "&rsn=" + reason)
         self.client.refreshTokenIfRequired()
-        response = requests.delete(url=url, headers=self.client.headers())
+        response = requests.delete(
+            url=url,
+            headers=self.client.headers(),
+            timeout=15,
+        )
         self.logger.debug("Updated mandate : %s status=%d" % (mandate_number, response.status_code))
         response_text = json.loads(response.text or {})
         if "code" in response_text:
@@ -51,15 +65,24 @@ class Document(object):
         url = self.client.instance_url("/mandate")
 
         self.client.refreshTokenIfRequired()
-        response = requests.get(url=url, headers=self.client.headers())
+        headers = self.client.headers()
+        headers.update({"X-TYPES": "CORE,B2B,CREDITCARD"})
+        response = requests.get(
+            url=url,
+            headers=headers,
+            timeout=15,
+        )
         response.raise_for_status()
         response_text = json.loads(response.text)
         if "code" in response_text:
-            if "err" in response_text["code"]:
+            if "err" in response_text["code"] and response_text["code"] != "err_debtor_not_found":
                 raise self.client.raise_error("Feed", response)
         feed_response = response.json()
         while len(feed_response["Messages"]) > 0:
-            self.logger.debug("Feed handling : %d" % (len(feed_response["Messages"])))
+            self.logger.debug(
+                "Feed handling : %d from %s"
+                % (len(feed_response["Messages"]), response.headers["X-LAST"])
+            )
             for msg in feed_response["Messages"]:
                 if "AmdmntRsn" in msg:
                     mndt_id_ = msg["OrgnlMndtId"]
@@ -73,12 +96,33 @@ class Document(object):
                 else:
                     self.logger.debug("Feed create : %s" % (msg["Mndt"]))
                     documentFeed.newDocument(msg["Mndt"])
-            response = requests.get(url=url, headers=self.client.headers())
+            response = requests.get(
+                url=url,
+                headers=headers,
+                timeout=15,
+            )
             response_text = json.loads(response.text)
             if "code" in response_text:
                 if "err" in response_text["code"]:
                     raise self.client.raise_error("Feed", response)
             feed_response = response.json()
+
+    def update_customer(self, customer_id, data):
+        url = self.client.instance_url("/customer/" + str(customer_id))
+
+        self.client.refreshTokenIfRequired()
+        response = requests.patch(
+            url=url,
+            params=data,
+            headers=self.client.headers(),
+            timeout=15,
+        )
+
+        if response.text:
+            response_text = json.loads(response.text or {})
+            if "code" in response_text:
+                if "err" in response_text["code"]:
+                    raise self.client.raise_error("Cancel", response)
 
 
 class DocumentFeed:

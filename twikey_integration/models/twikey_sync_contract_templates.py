@@ -26,7 +26,9 @@ class SyncContractTemplates(models.AbstractModel):
             twikey_client.refreshTokenIfRequired()
             try:
                 response = requests.get(
-                    twikey_client.api_base + "/template", headers=twikey_client.headers()
+                    twikey_client.api_base + "/template",
+                    headers=twikey_client.headers(),
+                    timeout=15,
                 )
                 if response.status_code == 200:
                     return response.json()
@@ -141,7 +143,6 @@ class SyncContractTemplates(models.AbstractModel):
                     field.name,
                     template_id.id,
                 )
-
         arch_base += _("</field>" "</data>")
         self.env["ir.ui.view"].sudo().create(
             {
@@ -160,43 +161,50 @@ class SyncContractTemplates(models.AbstractModel):
         fields_list = []
         mandate_field_list = []
         for attr in response.get("Attributes"):
-            select_list = []
-            field_type = attr.get("type")
-            if field_type == "select" and attr.get("Options"):
-                select_list = [
-                    (str(selection), str(selection)) for selection in attr.get("Options")
-                ]
+            if not template_id.type == "CREDITCARD" and attr.get("name") not in [
+                "_cust",
+                "_psptoken",
+                "_expiry",
+                "_last",
+                "_cctype",
+            ]:
+                select_list = []
+                field_type = attr.get("type")
+                if field_type == "select" and attr.get("Options"):
+                    select_list = [
+                        (str(selection), str(selection)) for selection in attr.get("Options")
+                    ]
 
-            attribute_name = "x_" + attr.get("name") + "_" + str(ct)
+                attribute_name = "x_" + attr.get("name") + "_" + str(ct)
 
-            model_id = self.env["ir.model"].search(
-                [("model", "=", "twikey.contract.template.wizard")]
-            )
-            ir_fields = self.create_search_fields(
-                attribute_name, model_id, field_type, select_list, attr
-            )
-            if ir_fields is not None:
-                fields_list.append(ir_fields)
+                model_id = self.env["ir.model"].search(
+                    [("model", "=", "twikey.contract.template.wizard")]
+                )
+                ir_fields = self.create_search_fields(
+                    attribute_name, model_id, field_type, select_list, attr
+                )
+                if ir_fields is not None:
+                    fields_list.append(ir_fields)
 
-            mandate_model_id = self.env["ir.model"].search(
-                [("model", "=", "twikey.mandate.details")]
-            )
-            ir_fields = self.create_search_fields(
-                attribute_name, mandate_model_id, field_type, select_list, attr
-            )
-            if ir_fields is not None:
-                mandate_field_list.append(ir_fields)
+                mandate_model_id = self.env["ir.model"].search(
+                    [("model", "=", "twikey.mandate.details")]
+                )
+                ir_fields = self.create_search_fields(
+                    attribute_name, mandate_model_id, field_type, select_list, attr
+                )
+                if ir_fields is not None:
+                    mandate_field_list.append(ir_fields)
 
-            attr_vals = {
-                "contract_template_id": template_id.template_id_twikey,
-                "name": attr.get("name"),
-                "type": Field_Type[attr.get("type")],
-            }
-            if template_id.twikey_attribute_ids:
-                if attr.get("name") not in template_id.twikey_attribute_ids.mapped("name"):
+                attr_vals = {
+                    "contract_template_id": template_id.template_id_twikey,
+                    "name": attr.get("name"),
+                    "type": Field_Type[attr.get("type")],
+                }
+                if template_id.twikey_attribute_ids:
+                    if attr.get("name") not in template_id.twikey_attribute_ids.mapped("name"):
+                        template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
+                else:
                     template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
-            else:
-                template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
 
         return fields_list, mandate_field_list
 

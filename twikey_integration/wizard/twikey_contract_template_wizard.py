@@ -110,6 +110,7 @@ class TwikeyContractTemplateWizard(models.Model):
                     twikey_client.api_base + "/invite",
                     data=contract_data,
                     headers=twikey_client.headers(),
+                    timeout=15,
                 )
                 _logger.info("Creating new mandate with response: %s" % (response.content))
                 resp_obj = response.json()
@@ -127,14 +128,18 @@ class TwikeyContractTemplateWizard(models.Model):
                             "partner_id": current_id,
                             "reference": resp_obj.get("mndtId"),
                             "url": resp_obj.get("url"),
+                            "zip": customer.zip if customer.zip else False,
+                            "address": customer.street if customer.street else False,
+                            "city": customer.city if customer.city else False,
+                            "country_id": customer.country_id.id if customer.country_id else False,
                         }
                     )
                 )
                 mandate_id.with_context(update_feed=True).write(get_fields[0])
                 view = self.env.ref("twikey_integration.success_message_wizard")
                 context = dict(self._context or {})
-                context["message"] = "Mandate Created Successfully."
-                self.succes_message(view, context)
+                context["message"] = "Mandate Invitation Created Successfully."
+                return self.succes_message(view, context)
 
             except (ValueError, requests.exceptions.RequestException) as e:
                 _logger.error("Exception raised while creating a new Mandate %s" % (e))

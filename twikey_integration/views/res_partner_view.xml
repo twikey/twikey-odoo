@@ -12,8 +12,12 @@
                         string="Create mandate invite"
                         type="object"
                         class="oe_highlight"
+                        attrs="{'invisible': [('show_create_mandate_invite_button', '=', False)]}"
                     />
                </header>
+           </xpath>
+           <xpath expr="//form//field[@name='name']" position="after">
+               <field name="show_create_mandate_invite_button" invisible="1" />
            </xpath>
            <xpath expr="//notebook" position="inside">
                 <page name="mandate" string="Mandates">

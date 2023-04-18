@@ -6,7 +6,9 @@
            <field name="inherit_id" ref="sale.view_sale_advance_payment_inv" />
            <field name="arch" type="xml">
                <xpath expr="//field[@name='advance_payment_method']" position="after">
-                    <field name="twikey_template_id" />
+                   <field name="do_not_send_to_twikey" />
+                   <field name="no_auto_collect_invoice" />
+                   <field name="twikey_template_id" />
                </xpath>
            </field>
        </record>

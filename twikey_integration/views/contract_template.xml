@@ -57,7 +57,7 @@
         <field name="name">contract.template.view.twikey.tree</field>
         <field name="model">twikey.contract.template</field>
         <field name="arch" type="xml">
-            <tree>
+            <tree js_class="twikey_contract_template">
                 <field name="name" />
                 <field name="display_name" />
                 <field name="template_id_twikey" />
@@ -67,7 +67,7 @@
     </record>
 
     <record id="contract_template_action" model="ir.actions.act_window">
-        <field name="name">Contract Template</field>
+        <field name="name">Contract Templates</field>
         <field name="res_model">twikey.contract.template</field>
         <field name="view_mode">tree,form</field>
     </record>
