@@ -1,12 +1,17 @@
-version: '2'
+version: "2"
 services:
   app:
     image: odoo:16
     depends_on:
       - db
     restart: always
+    tty: true
     ports:
       - "8069:8069"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
     volumes:
       - odoo-web-data16:/var/lib/odoo
       - ./odoo.conf:/etc/odoo/odoo.conf
