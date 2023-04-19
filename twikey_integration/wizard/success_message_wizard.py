@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
-from odoo import api, fields, models, _
+from odoo import fields, models
 
 
-class success_message_wizard(models.TransientModel):
+class SuccessMessageWizard(models.TransientModel):
     _name = "success.message.wizard"
     _description = "Message wizard to display warnings, alert ,success messages"
 
