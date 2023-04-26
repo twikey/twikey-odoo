@@ -7,8 +7,8 @@
            <field name="arch" type="xml">
                <xpath expr="//field[@name='advance_payment_method']" position="after">
                    <field name="do_not_send_to_twikey" />
-                   <field name="no_auto_collect_invoice" />
-                   <field name="twikey_template_id" />
+                   <field name="no_auto_collect_invoice" attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
+                   <field name="twikey_template_id" attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
                </xpath>
            </field>
        </record>

@@ -26,16 +26,4 @@
            </xpath>
        </field>
    </record>
-    <record id="view_partner_property_form" model="ir.ui.view">
-        <field name="name">res.partner.account.view.twikey.form.inherit</field>
-        <field name="model">res.partner</field>
-        <field name="inherit_id" ref="account.view_partner_property_form" />
-        <field name="arch" type="xml">
-            <xpath expr="//notebook/page[@name='accounting']" position="inside">
-                <group string="Twikey Invoices">
-                    <field nolabel="1" name="twikey_inv_ids" />
-                </group>
-            </xpath>
-        </field>
-    </record>
 </odoo>

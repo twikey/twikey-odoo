@@ -22,5 +22,7 @@ services:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=odoo
       - POSTGRES_USER=odoo
+    ports:
+      - 6432:5432
 volumes:
   odoo-web-data16:

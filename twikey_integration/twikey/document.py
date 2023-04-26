@@ -14,23 +14,29 @@ class Document(object):
         url = self.client.instance_url("/invite")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(url=url, data=data, headers=self.client.headers())
+        response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Invite", response)
-        self.logger.debug("Added new mandate : %s" % json_response.mndtId)
+        self.logger.debug("Added new mandate : %s" % json_response["mndtId"])
+        return json_response
+
+    def sign(self, data):  # pylint: disable=W8106
+        url = self.client.instance_url("/sign")
+        data = data or {}
+        self.client.refreshTokenIfRequired()
+        response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
+        json_response = response.json()
+        if "ApiErrorCode" in response.headers:
+            raise self.client.raise_error("Sign", response)
+        self.logger.debug("Added new mandate : %s" % json_response["MndtId"])
         return json_response
 
     def update(self, data):
         url = self.client.instance_url("/mandate/update")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(
-            url=url,
-            data=data,
-            headers=self.client.headers(),
-            timeout=15,
-        )
+        response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
         self.logger.debug("Updated mandate : {} response={}".format(data, response))
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Update", response)
@@ -38,11 +44,7 @@ class Document(object):
     def cancel(self, mandate_number, reason):
         url = self.client.instance_url("/mandate?mndtId=" + mandate_number + "&rsn=" + reason)
         self.client.refreshTokenIfRequired()
-        response = requests.delete(
-            url=url,
-            headers=self.client.headers(),
-            timeout=15,
-        )
+        response = requests.delete(url=url, headers=self.client.headers(), timeout=15)
         self.logger.debug("Updated mandate : %s status=%d" % (mandate_number, response.status_code))
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Cancel", response)
@@ -53,11 +55,7 @@ class Document(object):
         self.client.refreshTokenIfRequired()
         headers = self.client.headers()
         headers.update({"X-TYPES": "CORE,B2B,CREDITCARD"})
-        response = requests.get(
-            url=url,
-            headers=headers,
-            timeout=15,
-        )
+        response = requests.get(url=url,headers=headers,timeout=15,)
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Feed", response)
@@ -93,12 +91,7 @@ class Document(object):
         url = self.client.instance_url("/customer/" + str(customer_id))
 
         self.client.refreshTokenIfRequired()
-        response = requests.patch(
-            url=url,
-            params=data,
-            headers=self.client.headers(),
-            timeout=15,
-        )
+        response = requests.patch(url=url, params=data, headers=self.client.headers(), timeout=15)
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Cancel", response)
 

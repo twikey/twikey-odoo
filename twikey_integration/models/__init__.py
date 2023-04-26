@@ -8,3 +8,5 @@ from . import sale_order
 from . import ir_config_parameter
 from . import account_journal
 from . import twikey_sync_contract_templates
+from . import payment_acquirer
+from . import payment_transaction

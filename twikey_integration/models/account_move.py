@@ -7,6 +7,7 @@ import requests
 from odoo import _, api, exceptions, fields, models
 from odoo.exceptions import UserError
 
+from utils import get_twikey_customer
 from .. import twikey
 
 _logger = logging.getLogger(__name__)
@@ -23,13 +24,9 @@ InvoiceStatus = {
 class AccountInvoice(models.Model):
     _inherit = "account.move"
 
-    twikey_url = fields.Char(
-        string="Twikey Invoice URL", help="URL of the Twikey Invoice", readonly=True
-    )
-    twikey_invoice_identifier = fields.Char(
-        string="Twikey Invoice ID", help="Invoice ID of Twikey.", readonly=True
-    )
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
+    twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice", readonly=True)
+    twikey_invoice_identifier = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.", readonly=True)
+    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template", config_parameter='twikey.invoice_template')
     twikey_invoice_state = fields.Selection(
         selection=[
             ("BOOKED", "Booked"),
@@ -41,8 +38,9 @@ class AccountInvoice(models.Model):
         readonly=True,
         default="BOOKED",
     )
-    no_auto_collect_invoice = fields.Boolean(string="Do not auto collect the invoice")
-    do_not_send_to_twikey = fields.Boolean(string="Do not send to Twikey")
+    no_auto_collect_invoice = fields.Boolean(string="Do not auto collect the invoice", config_parameter='twikey.auto_collect')
+    do_not_send_to_twikey = fields.Boolean(string="Do not send to Twikey", config_parameter='twikey.send_invoice')
+    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", config_parameter='twikey.send_pdf')
     has_to_be_sent_to_twikey = fields.Boolean(
         string="Has to be sent to Twikey",
         help="The account move has to be sent to Twikey according to the standard rules. Even if "
@@ -79,43 +77,17 @@ class AccountInvoice(models.Model):
                 else:
                     amount = invoice_id.amount_total
                     invoice_report = self.env.ref("account.account_invoices")
-                    report_file = base64.b64encode(
-                        self.env["ir.actions.report"]
-                        .sudo()
-                        ._render_qweb_pdf(invoice_report, [invoice_id.id], data=None)[0]
-                    )
+                    if self.include_pdf_invoice:
+                        report_file = base64.b64encode(
+                            self.env["ir.actions.report"]
+                            .sudo()
+                            ._render_qweb_pdf(invoice_report, [invoice_id.id], data=None)[0]
+                        )
                     remittance = invoice_id.payment_reference
 
                 try:
-                    customer = invoice_id.partner_id
                     today = fields.Date.context_today(self).isoformat()
-                    current_id = customer.id
-                    if customer.parent_id:
-                        current_id = customer.parent_id.id
-                    invoice_customer = {
-                        "locale": customer.lang if customer else "en",
-                        "customerNumber": current_id,
-                        "address": customer.street if customer and customer.street else "",
-                        "city": customer.city if customer and customer.city else "",
-                        "zip": customer.zip if customer and customer.zip else "",
-                        "country": customer.country_id.code
-                        if customer and customer.country_id
-                        else "",
-                        "mobile": customer.mobile if customer.mobile else "",
-                    }
-                    if customer.email:
-                        invoice_customer["email"] = customer.email
-                    if customer.company_type == "company" and customer.name:
-                        invoice_customer["companyName"] = customer.name
-                        invoice_customer["coc"] = customer.vat
-                    elif customer.name:  # 'person'
-                        customer_name = customer.name.split(" ")
-                        if customer_name and len(customer_name) > 1:
-                            invoice_customer["firstname"] = customer_name[0]
-                            invoice_customer["lastname"] = " ".join(customer_name[1:])
-                        else:
-                            invoice_customer["firstname"] = customer.name
-
+                    twikey_customer = get_twikey_customer(invoice_id.partner_id)
                     data = {
                         "id": invoice_uuid,
                         "number": invoice_id.name,
@@ -128,8 +100,8 @@ class AccountInvoice(models.Model):
                         else today,
                         "remittance": remittance,
                         "ref": invoice_id.id,
-                        "locale": customer.lang if customer else "en",
-                        "customer": invoice_customer,
+                        "locale": twikey_customer["l"] if twikey_customer else "en",
+                        "customer": twikey_customer,
                         "manual": self.no_auto_collect_invoice,
                     }
 
@@ -161,10 +133,9 @@ class AccountInvoice(models.Model):
     def update_twikey_state(self, state):
         try:
             _logger.debug("Updating Twikey of %s to %s" % (self, state))
-            twikey_client = (
-                self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
-            )
-            twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
+            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            if twikey_client:
+                twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
         except UserError as ue:
             _logger.error("Error while updating invoice in Twikey: %s" % ue)
         except (ValueError, requests.exceptions.RequestException) as e:

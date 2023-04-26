@@ -1,13 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
+
 {
     "name": "Twikey Integration",
-    "category": "Accounting",
+    "version": "16.0.2.0.0",
+    "category": "eCommerce",
     "summary": "Twikey Integration",
-    "version": "16.0.1.0.0",
     'author': "Twikey N.V.",
     'website': "https://www.twikey.com/partner/odoo.html",
     "depends": [
+        "payment",
         "account",
         "account_check_printing",
         "contacts",
@@ -25,6 +27,11 @@
         "views/res_config_settings_views.xml",
         "views/res_partner_view.xml",
         "views/contract_template.xml",
+
+        'views/payment_twikey_templates.xml',
+        'views/payment_views.xml',
+        'data/payment_acquirer_data.xml',
+
         "wizard/wizard_cancel_reason.xml",
         "wizard/success_message_wizard.xml",
         "wizard/twikey_contract_template_wizard.xml",
@@ -34,6 +41,9 @@
         "views/account_journal.xml",
         "report/report_account_invoice.xml",
     ],
+    'application': False,
+    'post_init_hook': 'post_init_hook',
+    'uninstall_hook': 'uninstall_hook',
     "installable": True,
     "images": ["static/description/icon.png"],
     "auto_install": False,

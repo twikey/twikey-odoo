@@ -19,6 +19,7 @@ Field_Type = {
 
 class SyncContractTemplates(models.AbstractModel):
     _name = "twikey.sync.contract.templates"
+    _description = "Profiles in Twikey"
 
     def fetch_contract_templates(self):
         twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
@@ -54,6 +55,8 @@ class SyncContractTemplates(models.AbstractModel):
                     "mandate_number_required": response.get("mandateNumberRequired"),
                 }
             )
+            self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]) \
+                .message_post(subject="Configuration", body=f"Added template {name} (#{ct})")
 
         return template_id
 

@@ -10,16 +10,16 @@
                     <div class="o_setting_right_pane">
                         <label string="Twikey" for="twikey_api_key" />
                         <div class="text-muted">
-                            Enable Twikey Integration
+                            Automate your payments
                         </div>
                         <div>
                             <div class="content-group mt16">
-                                <label for="twikey_api_key" class="o_light_label" />
-                                <field name="twikey_api_key" />
-                            </div>
-                            <div class="content-group mt16">
                                 <label for="twikey_base_url" class="o_light_label" />
                                 <field name="twikey_base_url" />
+                            </div>
+                            <div class="content-group mt16">
+                                <label for="twikey_api_key" class="o_light_label" />
+                                <field name="twikey_api_key" />
                             </div>
                             <div>
                                     <button

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="payment_provider_twikey" model="payment.provider">
+            <field name="code">twikey</field>
+            <field name="name">Twikey</field>
+            <field name="display_as">Payment via Twikey</field>
+            <field name="show_credentials_page">False</field>
+            <field name="image_128" type="base64" file="twikey_integration/static/description/icon.png"/>
+            <field name="redirect_form_view_id" ref="redirect_form"/>
+            <field name="allow_tokenization">True</field>
+        </record>
+
+        <record id="channel_twikey" model="mail.channel" >
+            <field name="name">twikey</field>
+            <field name="description">Twikey payment updates</field>
+        </record>
+    </data>
+</odoo>
+
+

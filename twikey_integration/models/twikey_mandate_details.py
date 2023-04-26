@@ -58,7 +58,8 @@ class TwikeyMandateDetails(models.Model):
         try:
             _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-            twikey_client.document.feed(OdooDocumentFeed(self.env))
+            if twikey_client:
+                twikey_client.document.feed(OdooDocumentFeed(self.env))
         except (ValueError, requests.exceptions.RequestException) as e:
             raise UserError from e
 
@@ -99,7 +100,8 @@ class TwikeyMandateDetails(models.Model):
                     raise UserError(_("This mandate is in already signed or cancelled. It can not be deleted."))
                 elif mandate.state == "pending":
                     twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-                    twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
+                    if twikey_client:
+                        twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
                     return super(TwikeyMandateDetails, mandate).unlink()
                 else:
                     return super(TwikeyMandateDetails, mandate).unlink()
@@ -200,16 +202,10 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
         partner_id = self.prepare_partner(partner_id, debtor, address, zip_code, city, country_id, email)
 
         if updatedDoc:
-            new_state = (
-                "suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed"
-            )
-            mandate_id = self.env["twikey.mandate.details"].search(
-                [("reference", "=", mandate_number)]
-            )
+            new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
         else:
-            mandate_id = self.env["twikey.mandate.details"].search(
-                [("reference", "=", doc.get("MndtId"))]
-            )
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
 
         if mandate_id:
             mandate_vals = {

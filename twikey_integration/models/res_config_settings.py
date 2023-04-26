@@ -29,8 +29,12 @@ class ResConfigSettings(models.TransientModel):
 
     def connection_succesful_message(self):
         view = self.env.ref("twikey_integration.success_message_wizard")
+
+        self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]) \
+            .message_post(subject="Configuration",body="Connection successful!",)
+
         context = dict(self._context or {})
-        context["message"] = "Connection succesful!"
+        context["message"] = "Connection successful!"
         return {
             "name": "Test OK",
             "type": "ir.actions.act_window",

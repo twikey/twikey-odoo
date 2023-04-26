@@ -1,0 +1,37 @@
+# -*- coding: utf-8 -*-
+
+import logging
+
+from odoo import _, api, fields, models, service
+
+_logger = logging.getLogger(__name__)
+
+class PaymentProvider(models.Model):
+
+    _inherit = 'payment.provider'
+
+    code = fields.Selection(selection_add=[('twikey', 'Twikey')], ondelete={'twikey': 'set default'})
+    name = fields.Char(string="Name", required=True, translate=True)
+    twikey_template_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template")
+    twikey_method = fields.Selection(
+        [
+            ("bancontact", "bancontact"),
+            ("sofort", "sofort"),
+            ("sms", "sms"),
+            ("itsme", "itsme"),
+            ("emachtiging", "emachtiging"),
+            ("idin", "idin"),
+            ("ideal", "ideal"),
+        ],
+        help="This will be the method to use to sign mandate"
+    )
+
+    def _compute_feature_support_fields(self):
+        """ Override of `payment` to enable additional features. """
+        super()._compute_feature_support_fields()
+        self.filtered(lambda p: p.code == 'twikey').update({
+            'support_refund': 'partial',
+            'support_tokenization': True,
+        })
+        self.filtered(lambda p: p.code == 'twikey').show_credentials_page = False
+

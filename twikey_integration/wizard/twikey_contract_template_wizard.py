@@ -4,7 +4,7 @@ import logging
 import requests
 
 from odoo import _, exceptions, fields, models
-from odoo.exceptions import UserError
+from utils import get_twikey_customer
 
 _logger = logging.getLogger(__name__)
 
@@ -31,43 +31,15 @@ class TwikeyContractTemplateWizard(models.Model):
     )
     partner_id = fields.Many2one(comodel_name="res.partner")
 
-    def prepare_contract_date(self, template_id, current_id, customer):
-        contract_data = {
-            "ct": template_id.template_id_twikey,
-            "l": language_dict.get(customer.lang),
-            "customerNumber": current_id,
-            "mandateNumber": customer.id if not template_id.mandate_number_required else "",
-            "mobile": customer.mobile if customer.mobile else "",
-            "address": customer.street if customer.street else "",
-            "city": customer.city if customer.city else "",
-            "zip": customer.zip if customer.zip else "",
-            "country": customer.country_id.code if customer.country_id else "",
-        }
-
-        if customer.email:
-            contract_data["email"] = customer.email
-            contract_data["sendInvite"] = True
-        if customer.company_type == "company" and customer.name:
-            contract_data["companyName"] = customer.name
-            contract_data["coc"] = customer.vat
-        elif customer.name:  # 'person'
-            customer_name = customer.name.split(" ")
-            if customer_name and len(customer_name) > 1:
-                contract_data["firstname"] = customer_name[0]
-                contract_data["lastname"] = " ".join(customer_name[1:])
-            else:
-                contract_data["firstname"] = customer.name
-        return contract_data
-
     def action_confirm(self):
         twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
         if twikey_client:
-            customer = self.partner_id
-            current_id = customer.id
-            if customer.parent_id:
-                current_id = customer.parent_id.id
-
-            contract_data = self.prepare_contract_date(self.template_id, current_id, customer)
+            payload = get_twikey_customer(self.partner_id)
+            payload["ct"] = self.template_id.template_id_twikey
+            if self.template_id.mandate_number_required:
+                payload["mandateNumber"] = payload["customerNumber"]
+            if payload["email"]:
+                payload["sendInvite"] = True
 
             sp_lst = [
                 "x_" + attr.name + "_" + str(self.template_id.template_id_twikey)
@@ -101,37 +73,27 @@ class TwikeyContractTemplateWizard(models.Model):
                     if len(key_split) > 0 and key_split[0] == "x":
                         new_keys.append(key_split[1])
                 final_dict = dict(zip(new_keys, list(get_fields[0].values())))
-                contract_data.update(final_dict)
+                payload.update(final_dict)
             try:
-                _logger.debug("New mandate creation data: {}".format(contract_data))
+                _logger.debug("New mandate creation data: {}".format(payload))
 
                 twikey_client.refreshTokenIfRequired()
-                response = requests.post(
-                    twikey_client.api_base + "/invite",
-                    data=contract_data,
-                    headers=twikey_client.headers(),
-                    timeout=15,
-                )
-                _logger.info("Creating new mandate with response: %s" % (response.content))
-                resp_obj = response.json()
-                response_text = json.loads(response.text)
-                if "code" in response_text:
-                    if "err" in response_text["code"]:
-                        raise UserError(_("%s") % (resp_obj.get("message")))
+                resp_obj = twikey_client.document.create(payload)
+                _logger.info("Creating new mandate with response: %s" % (resp_obj))
                 mandate_id = (
                     self.env["twikey.mandate.details"]
                     .sudo()
                     .create(
                         {
-                            "contract_temp_id": get_template_id.id,
-                            "lang": customer.lang,
-                            "partner_id": current_id,
+                            "contract_temp_id": self.template_id.id,
+                            "lang": self.partner_id.lang,
+                            "partner_id": self.partner_id.id,
                             "reference": resp_obj.get("mndtId"),
                             "url": resp_obj.get("url"),
-                            "zip": customer.zip if customer.zip else False,
-                            "address": customer.street if customer.street else False,
-                            "city": customer.city if customer.city else False,
-                            "country_id": customer.country_id.id if customer.country_id else False,
+                            "zip": self.partner_id.zip if self.partner_id.zip else False,
+                            "address": self.partner_id.street if self.partner_id.street else False,
+                            "city": self.partner_id.city if self.partner_id.city else False,
+                            "country_id": self.partner_id.country_id.id if self.partner_id.country_id else False,
                         }
                     )
                 )

@@ -1,4 +1,4 @@
-from odoo import _, exceptions, models, tools
+from odoo import _, exceptions, models, tools, service
 
 from .. import twikey
 
@@ -15,8 +15,16 @@ class IrConfigParameter(models.Model):
             api_key = company.twikey_api_key
             base_url = company.twikey_base_url
             if not api_key or not base_url:
-                self.env.user.notify_warning(message=_("Twikey not configured!"))
+                self.env['mail.channel'].sudo().search([('name', '=', 'twikey')])\
+                    .message_post(
+                        subject="Configuration",
+                        body="Twikey was not configured",
+                )
                 return False
-            return twikey.client.TwikeyClient(api_key, base_url, "twikey-odoo-16/v0.1.0")
+
+            server_ver = service.common.exp_version()['server_version']
+            module = self.env['ir.module.module'].sudo().search([('name', '=', 'twikey_integration')])
+            twikey_ver = module and module.installed_version or ''
+            return twikey.client.TwikeyClient(api_key, base_url, f'odoo/{server_ver} twikey/{twikey_ver}')
         else:
             raise exceptions.UserError(_("No company set!"))
