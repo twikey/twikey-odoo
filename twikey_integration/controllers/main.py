@@ -26,14 +26,14 @@ class TwikeyController(http.Controller):
             return Response(status=403)
 
         _logger.info("Twikey: entering webhook with post data %s", pprint.pformat(post))
-        type = post.get("type")
-        if type == "payment":
+        webhooktype = post.get("type")
+        if webhooktype == "payment":
             if post.get("id"):
                 request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
             else:
                 request.env["account.move"].sudo().update_invoice_feed()
             return "OK"
-        elif type == "contract":
+        elif webhooktype == "contract":
             if post.get("mandateNumber"):
                 # Removal of a prepared mandate doesn't show up in the feed
                 mandate_id = (
@@ -46,14 +46,14 @@ class TwikeyController(http.Controller):
                     if event == "Invite" and post.get("reason") in ["removed", "expired"]:
                         mandate_id.with_context(update_feed=True).unlink()
                     else:
-                        if event not in ["Sign","Update"]:
+                        if event not in ["Sign", "Update"]:
                             _logger.info("Unknown twikey mandate event of type "+event)
                         request.env["twikey.mandate.details"].sudo().update_feed()
                 else:
                     request.env["twikey.mandate.details"].sudo().update_feed()
             return "OK"
-        elif type == "event" and post.get("msg") == "dummytest":
-            _logger.info("Twikey Webhook test successfull!")
+        elif webhooktype == "event" and post.get("msg") == "dummytest":
+            _logger.info("Twikey Webhook test successful!")
             return "OK"
         else:
             return "OK"
