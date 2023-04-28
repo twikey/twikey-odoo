@@ -5,7 +5,8 @@ import requests
 from odoo import _, exceptions, fields, models
 from odoo.exceptions import UserError
 
-from .. import twikey
+from ..twikey.client import TwikeyError
+from ..twikey.document import DocumentFeed
 
 _logger = logging.getLogger(__name__)
 
@@ -32,15 +33,15 @@ class TwikeyMandateDetails(models.Model):
         required=True,
     )
     creditor_id = fields.Many2one("res.partner", string="Creditor-ID")
-    reference = fields.Char(string="Mandate Reference", required=True, readonly=True)
+    reference = fields.Char(string="Mandate Reference", index=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract_temp_id = fields.Many2one(
-        comodel_name="twikey.contract.template", string="Contract Template"
-    )
+    contract_temp_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template", readonly=True)
     description = fields.Text()
     lang = fields.Selection(_lang_get, string="Language")
     url = fields.Char(string="URL", readonly=True)
+
+    is_creditcard = fields.Boolean(compute='_compute_is_creditcard')
 
     country_id = fields.Many2one("res.country")
     city = fields.Char()
@@ -59,7 +60,10 @@ class TwikeyMandateDetails(models.Model):
             _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env))
+                try:
+                    twikey_client.document.feed(OdooDocumentFeed(self.env))
+                except TwikeyError as e:
+                    raise UserError from e
         except (ValueError, requests.exceptions.RequestException) as e:
             raise UserError from e
 
@@ -67,29 +71,32 @@ class TwikeyMandateDetails(models.Model):
         self.ensure_one()
         res = super(TwikeyMandateDetails, self).write(values)
 
-        twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-        if twikey_client:
-            if not self._context.get("update_feed"):
-                data = {}
-                if self.state != "signed":
-                    data["mndtId"] = values.get("reference") if values.get("reference") else self.reference
-                    if "iban" in values:
-                        data["iban"] = values.get("iban") or ""
-                    if "bic" in values:
-                        data["bic"] = values.get("bic")
-                    if "lang" in values:
-                        data["l"] = values.get("lang")
-                    if "email" in values:
-                        data["email"] = values.get("email")
-                    if "mobile" in values:
-                        data["mobile"] = values.get("mobile")
+        try:
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+            if twikey_client:
+                if not self._context.get("update_feed"):
+                    data = {}
+                    if self.state != "signed":
+                        data["mndtId"] = values.get("reference") if values.get("reference") else self.reference
+                        if "iban" in values:
+                            data["iban"] = values.get("iban") or ""
+                        if "bic" in values:
+                            data["bic"] = values.get("bic")
+                        if "lang" in values:
+                            data["l"] = values.get("lang")
+                        if "email" in values:
+                            data["email"] = values.get("email")
+                        if "mobile" in values:
+                            data["mobile"] = values.get("mobile")
 
-                    try:
-                        if data != {}:
-                            twikey_client.document.update(data)
-                    except (Exception, requests.exceptions.RequestException) as e:
-                        raise UserError(_('Error sending update: %s') % (str(e)))
-        return res
+                        try:
+                            if data != {}:
+                                twikey_client.document.update(data)
+                        except (Exception, requests.exceptions.RequestException) as e:
+                            raise UserError(_('Error sending update: %s') % (str(e)))
+            return res
+        except TwikeyError as e:
+            raise UserError from e
 
     def unlink(self):
         for mandate in self:
@@ -99,17 +106,29 @@ class TwikeyMandateDetails(models.Model):
                 if mandate.state in ["signed", "cancelled"]:
                     raise UserError(_("This mandate is in already signed or cancelled. It can not be deleted."))
                 elif mandate.state == "pending":
-                    twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-                    if twikey_client:
-                        twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
-                    return super(TwikeyMandateDetails, mandate).unlink()
+                    try:
+                        twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+                        if twikey_client:
+                            twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
+                        return super(TwikeyMandateDetails, mandate).unlink()
+                    except TwikeyError as e:
+                        raise UserError from e
                 else:
                     return super(TwikeyMandateDetails, mandate).unlink()
             else:
                 return super(TwikeyMandateDetails, mandate).unlink()
 
+    def _compute_is_creditcard(self):
+        return self.contract_temp_id and self.contract_temp_id.type == "CREDITCARD"
 
-class OdooDocumentFeed(twikey.document.DocumentFeed):
+    def get_attribute(self, name):
+        ct = self.contract_temp_id.ct()
+        return self.contract_temp_id and self[f"x_{name}_{ct}"]
+
+    def is_mandatenumber_required(self):
+        return self.contract_temp_id and self.contract_temp_id.mandate_number_required
+
+class OdooDocumentFeed(DocumentFeed):
     def __init__(self, env):
         self.env = env
 
@@ -136,6 +155,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
         return address, zip_code, city, country_id
 
     def prepare_partner(self, partner_id, debtor, address, zip_code, city, country_id, email):
+        """ Only update name for new partners, existing ones will update address and email info"""
         if not partner_id and "Nm" in debtor:
             partner_id = self.env["res.partner"].search([("name", "=", debtor.get("Nm"))])
 
@@ -149,7 +169,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
                     "zip": zip_code,
                     "city": city,
                     "country_id": country_id.id if country_id else False,
-                    "email": email,
+                    "email": email if email else '',
                 }
             )
 
@@ -178,7 +198,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
 
         if "CtctDtls" in debtor:
             contact_details = debtor.get("CtctDtls")
-            email = contact_details.get("EmailAdr")
+            email = contact_details.get("EmailAdr") if "EmailAdr" in contact_details else False
             if "Othr" in contact_details:
                 customer_number = contact_details.get("Othr")
                 try:
@@ -190,7 +210,7 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
             else:
                 _logger.warning("Got no customerNumber in Twikey, trying with email" % contact_details)
 
-            if "EmailAdr" in contact_details:
+            if not partner_id and email:
                 partner_id = self.env["res.partner"].search([("email", "ilike", email)])
                 if len(partner_id) != 1:
                     _logger.error(
@@ -207,38 +227,31 @@ class OdooDocumentFeed(twikey.document.DocumentFeed):
         else:
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
 
-        if mandate_id:
-            mandate_vals = {
-                "partner_id": partner_id.id if partner_id else False,
-                "state": new_state if updatedDoc else "signed",
-                "lang": lang_id.code if lang_id else False,
-                "contract_temp_id": template_id.id if template_id else False,
-                "iban": iban if iban else False,
-                "bic": bic if bic else False,
-            }
-            if updatedDoc:
-                mandate_vals["reference"] = doc.get("MndtId")
-
-            mandate_id.with_context(update_feed=True).write(mandate_vals)
-        else:
-            mandate_vals = {
-                "partner_id": partner_id.id if partner_id else False,
-                "state": new_state if updatedDoc else "signed",
-                "lang": lang_id.code if lang_id else False,
-                "contract_temp_id": template_id.id if template_id else False,
-                "reference": doc.get("MndtId"),
-                "iban": iban if iban else False,
-                "bic": bic if bic else False,
-            }
-            self.env["twikey.mandate.details"].sudo().create(mandate_vals)
-
+        mandate_vals = {
+            "partner_id": partner_id.id if partner_id else False,
+            "state": new_state if updatedDoc else "signed",
+            "lang": lang_id.code if lang_id else False,
+            "contract_temp_id": template_id.id if template_id else False,
+            "iban": iban if iban else False,
+            "bic": bic if bic else False,
+        }
+        # add attributes to it
         if template_id:
             attributes = template_id.twikey_attribute_ids.mapped("name")
-            for key in field_dict:
-                if key in attributes:
+            for key in attributes:
+                if key in field_dict:
                     value = field_dict[key]
                     field_name = "x_" + key + "_" + str(temp_id)
-                    mandate_vals.update({field_name: value})
+                    mandate_vals[field_name] = value
+
+        if mandate_id:
+            if updatedDoc:
+                mandate_vals["reference"] = doc.get("MndtId")
+            mandate_id.with_context(update_feed=True).write(mandate_vals)
+        else:
+            mandate_vals["reference"] = doc.get("MndtId")
+            mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
+
 
     def newDocument(self, doc):
         self.new_update_document(doc, False, False, False)

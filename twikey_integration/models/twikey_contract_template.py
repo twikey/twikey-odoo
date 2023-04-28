@@ -7,10 +7,10 @@ class TwikeyContractTemplate(models.Model):
 
     _sql_constraints = [("template_id_unique", "unique(template_id_twikey)", "Already Exist!")]
 
-    name = fields.Char(string="Contract Template", required=True)
-    template_id_twikey = fields.Integer(string="Template ID")
-    active = fields.Boolean(default=True)
-    mandate_number_required = fields.Boolean(default=True)
+    name = fields.Char(string="Contract Template", required=True, readonly=True)
+    template_id_twikey = fields.Integer(string="Template ID", readonly=True)
+    active = fields.Boolean(default=True, readonly=True)
+    mandate_number_required = fields.Boolean(default=True, readonly=True)
     type = fields.Selection(
         [
             ("CORE", "CORE"),
@@ -22,21 +22,25 @@ class TwikeyContractTemplate(models.Model):
             ("CREDITCARD", "CREDITCARD"),
             ("WIK", "WIK"),
             ("PAYROLL", "PAYROLL"),
-        ],
+        ]
+        , readonly=True
     )
-    twikey_attribute_ids = fields.One2many(
-        "twikey.contract.template.attribute", "contract_template_id", string="Attributes"
-    )
-    display_name = fields.Char(help="Can be used e.g. in checkout of the webshop", translate=True)
+    twikey_attribute_ids = fields.One2many("twikey.contract.template.attribute", "contract_template_id", string="Attributes")
+
+    def is_creditcard(self):
+        return self.type == "CREDITCARD"
+
+    def ct(self):
+        return self.template_id_twikey
 
 
 class ContractTemplateAttribute(models.Model):
     _name = "twikey.contract.template.attribute"
     _description = "Attributes for Contract Template"
 
-    name = fields.Char(string="Contract Template Attribute")
+    name = fields.Char(string="Contract Template Attribute", readonly=True)
     contract_template_id = fields.Many2one(
-        "twikey.contract.template", string="Contract Template", required=True, ondelete="cascade"
+        "twikey.contract.template", string="Contract Template", required=True, ondelete="cascade", readonly=True
     )
     type = fields.Selection(
         [
@@ -46,4 +50,5 @@ class ContractTemplateAttribute(models.Model):
             ("float", "Amount"),
             ("selection", "Select"),
         ]
+        , readonly=True
     )

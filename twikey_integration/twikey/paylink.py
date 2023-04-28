@@ -9,44 +9,45 @@ class Paylink(object):
     def create(self, data):  # pylint: disable=W8106
         url = self.client.instance_url("/payment/link")
         data = data or {}
-        self.client.refreshTokenIfRequired()
-        response = requests.post(
-            url=url,
-            data=data,
-            headers=self.client.headers(),
-            timeout=15,
-        )
-        if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error creating paylink : %s" % error)
-        return response.json()
+        try:
+            self.client.refreshTokenIfRequired()
+            response = requests.post(
+                url=url,
+                data=data,
+                headers=self.client.headers(),
+                timeout=15,
+            )
+            if "ApiErrorCode" in response.headers:
+                raise self.client.raise_error("Create paylink", response)
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            raise self.client.raise_error_from_request("Create paylink", e)
 
     def feed(self, paylinkFeed):
         url = self.client.instance_url("/payment/link/feed")
-
-        self.client.refreshTokenIfRequired()
-        response = requests.get(
-            url=url,
-            headers=self.client.headers(),
-            timeout=15,
-        )
-        response.raise_for_status()
-        if "ApiErrorCode" in response.headers:
-            error = response.json()
-            raise Exception("Error feed : %s" % error)
-        feed_response = response.json()
-        while len(feed_response["Links"]) > 0:
-            for msg in feed_response["Links"]:
-                paylinkFeed.paylink(msg)
+        try:
+            self.client.refreshTokenIfRequired()
             response = requests.get(
                 url=url,
                 headers=self.client.headers(),
                 timeout=15,
             )
             if "ApiErrorCode" in response.headers:
-                error = response.json()
-                raise Exception("Error feed : %s" % error)
+                raise self.client.raise_error("Feed paylink", response)
             feed_response = response.json()
+            while len(feed_response["Links"]) > 0:
+                for msg in feed_response["Links"]:
+                    paylinkFeed.paylink(msg)
+                response = requests.get(
+                    url=url,
+                    headers=self.client.headers(),
+                    timeout=15,
+                )
+                if "ApiErrorCode" in response.headers:
+                    raise self.client.raise_error("Feed paylink", response)
+                feed_response = response.json()
+        except requests.exceptions.RequestException as e:
+            raise self.client.raise_error_from_request("Feed paylink", e)
 
 
 class PaylinkFeed:

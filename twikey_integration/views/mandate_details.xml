@@ -13,31 +13,19 @@
                         class="oe_highlight"
                         attrs="{'invisible': [('state', '!=', 'signed')]}"
                     />
-                    <button name="update_feed" string="Sync" type="object" class="oe_highlight" />
+                    <button name="update_feed" string="Sync" type="object" class="oe_highlight" attrs="{'invisible': [('url','=',False)]}"/>
                     <field name="state" widget="statusbar" nolabel="1" />
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field
-                                name="partner_id"
-                                placeholder="Customer"
-                                attrs="{'readonly': [('state', '!=', 'pending')]}"
-                            />
+                            <field name="partner_id" placeholder="Customer" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="reference" readonly="1" />
-                            <field
-                                name="contract_temp_id"
-                                attrs="{'readonly': [('state', '!=', 'pending')]}"
-                            />
-                            <field
-                                name="url"
-                                widget="url"
-                                attrs="{'invisible': [('state', '!=', 'pending')]}"
-                            />
+                            <field name="contract_temp_id" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
+                            <field name="url" widget="url" attrs="{'invisible': ['|',('state', '!=', 'pending'),('url','=',False)]}"/>
                         </group>
                         <group>
                             <field name="iban" attrs="{'readonly': [('state', '!=', 'pending')]}" />
@@ -53,11 +41,7 @@
                             <field name="country_id" readonly="1" />
                         </group>
                     </group>
-                    <field
-                        name="description"
-                        placeholder="Description"
-                        attrs="{'readonly': [('state', '!=', 'pending')]}"
-                    />
+                    <field name="description" placeholder="Description" attrs="{'readonly': [('state', '!=', 'pending')]}"/>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids" widget="mail_followers" />

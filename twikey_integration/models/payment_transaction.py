@@ -5,8 +5,10 @@ import logging
 from werkzeug import urls
 
 from odoo import _, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
+from odoo.http import request
 
+from ..twikey.client import TwikeyError
 from utils import get_twikey_customer
 
 _logger = logging.getLogger(__name__)
@@ -27,40 +29,43 @@ class PaymentTransaction(models.Model):
         twikey_template = self.provider_id.twikey_template_id
         method = self.provider_id.twikey_method
 
-        customer = self.partner_id
-        if self.provider_id.allow_tokenization and twikey_template:
-            payload = self._twikey_prepare_token_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
-            mndt = twikey_client.document.sign(payload)
-            # The provider reference is set now to allow fetching the payment status after redirection
-            self.provider_reference = mndt.get('MndtId')
-            url = mndt.get('url')
+        try:
+            customer = self.partner_id
+            if self.provider_id.allow_tokenization and twikey_template:
+                payload = self._twikey_prepare_token_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
+                mndt = twikey_client.document.sign(payload)
+                # The provider reference is set now to allow fetching the payment status after redirection
+                self.provider_reference = mndt.get('MndtId')
+                url = mndt.get('url')
 
-            # Store the mandate
-            self.env["twikey.mandate.details"].sudo().create({
-                "contract_temp_id": twikey_template.id,
-                "lang": customer.lang,
-                "partner_id": payload.get("customerNumber"),
-                "reference": self.provider_reference,
-                "url": url,
-                "zip": customer.zip if customer.zip else False,
-                "address": customer.street if customer.street else False,
-                "city": customer.city if customer.city else False,
-                "country_id": customer.country_id.id if customer.country_id else False,
-            })
-        else:
-            payload = self._twikey_prepare_payment_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
-            paylink = twikey_client.paylink.create(payload)
-            # The provider reference is set now to allow fetching the payment status after redirection
-            self.provider_reference = paylink.get('id')
-            url = paylink.get('url')
+                # Store the mandate
+                self.env["twikey.mandate.details"].sudo().create({
+                    "contract_temp_id": twikey_template.id,
+                    "lang": customer.lang,
+                    "partner_id": payload.get("customerNumber"),
+                    "reference": self.provider_reference,
+                    "url": url,
+                    "zip": customer.zip if customer.zip else False,
+                    "address": customer.street if customer.street else False,
+                    "city": customer.city if customer.city else False,
+                    "country_id": customer.country_id.id if customer.country_id else False,
+                })
+            else:
+                payload = self._twikey_prepare_payment_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
+                paylink = twikey_client.paylink.create(payload)
+                # The provider reference is set now to allow fetching the payment status after redirection
+                self.provider_reference = paylink.get('id')
+                url = paylink.get('url')
 
-        parsed_url = urls.url_parse(url)
-        url_params = urls.url_decode(parsed_url.query)
-        # Extract the checkout URL from the payment data and add it with its query parameters to the
-        # rendering values. Passing the query parameters separately is necessary to prevent them
-        # from being stripped off when redirecting the user to the checkout URL, which can happen
-        # when only one payment method is enabled and query parameters are provided.
-        return {'api_url': url, 'url_params': url_params, 'reference': self.provider_reference}
+            parsed_url = urls.url_parse(url)
+            url_params = urls.url_decode(parsed_url.query)
+            # Extract the checkout URL from the payment data and add it with its query parameters to the
+            # rendering values. Passing the query parameters separately is necessary to prevent them
+            # from being stripped off when redirecting the user to the checkout URL, which can happen
+            # when only one payment method is enabled and query parameters are provided.
+            return {'api_url': url, 'url_params': url_params, 'reference': self.provider_reference}
+        except TwikeyError as e:
+            raise ValidationError("Twikey: " + e.error)
 
     def _twikey_prepare_payment_request_payload(self, customer, base_url, template, method):
         """ Create the payload for the payment request based on the transaction values.
@@ -174,17 +179,66 @@ class PaymentTransaction(models.Model):
 
         if self.tokenize and values.get('state') in ['draft','pending']:
             # Webhook should have come in with the mandate now being signed
-            mandate_id = (self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)]))
-            if mandate_id.state == 'signed':
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)])
+            if mandate_id and mandate_id.state == 'signed':
                 _logger.info("Tokenized poll, mandate was %s",mandate_id.state)
-                self.env['payment.token'].create({
-                    'payment_details': mandate_id.iban,
-                    'provider_id': self.provider_id.id,
-                    'partner_id': self.partner_id.id,
-                    'provider_ref': mandate_id.reference,
-                    'active': True,
-                })
+                if mandate_id.is_creditcard:
+                    last_digits = mandate_id.get_attribute("_last")
+                    expiry = mandate_id.get_attribute("_expiry")
+                    self.env['payment.token'].create({
+                        'payment_details': last_digits,
+                        'provider_id': self.provider_id.id,
+                        'partner_id': self.partner_id.id,
+                        'provider_ref': mandate_id.reference,
+                        'active': True,
+                        'expiry': expiry,
+                        'type': 'CC',
+                    })
+                else:
+                    self.env['payment.token'].create({
+                        'payment_details': mandate_id.iban,
+                        'provider_id': self.provider_id.id,
+                        'partner_id': self.partner_id.id,
+                        'provider_ref': mandate_id.reference,
+                        'active': True,
+                        'type': 'SDD',
+                    })
                 self._set_done()
             else:
                 _logger.info("Mandate was in %s for ref %s",mandate_id.state, self.reference)
         return values
+
+    def _send_payment_request(self):
+        """ Override of payment to send a payment request to Twikey.
+
+        Note: self.ensure_one()
+
+        :return: None
+        :raise UserError: If the transaction is not linked to a token.
+        """
+        super()._send_payment_request()
+        if self.provider_code != 'twikey':
+            return
+
+        # Prepare the payment request to Flutterwave.
+        if not self.token_id:
+            raise UserError("Twikey: " + _("The transaction is not linked to a token."))
+
+        twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+        if twikey_client:
+            try:
+                tx = twikey_client.transaction.create({
+                    'mndtId': self.token_id.provider_ref,
+                    'message': self.reference,
+                    'ref': self.id,
+                    'amount': self.amount,
+                    'place': request and request.httprequest.remote_addr or '',
+                })
+                self.provider_reference = 'tx:'+tx["id"]
+                self._set_pending()
+                # Handle the payment request response.
+                _logger.info("Send transaction with reference %s: %s",self.reference, tx)
+            except TwikeyError as e:
+                raise UserError("Twikey: " + e.error)
+        else:
+            raise UserError("Twikey: " + _("Could not connect to Twikey"))

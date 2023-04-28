@@ -5,49 +5,15 @@
         <field name="model">account.move</field>
         <field name="inherit_id" ref="account.view_move_form" />
         <field name="arch" type="xml">
-            <xpath expr="//button[@name='preview_invoice']" position="after">
-                <button
-                    name="update_invoice_feed"
-                    string="Sync"
-                    type="object"
-                    class="oe_highlight"
-                    attrs="{'invisible': [('has_to_be_sent_to_twikey', '=', False)]}"
-                />
-            </xpath>
             <xpath expr="//page[@name='other_info']" position="after">
-                <field name="has_to_be_sent_to_twikey" invisible="1" />
-                <page
-                    id="twikey_info"
-                    name="twikey_info"
-                    string="Twikey Info"
-                    attrs="{'invisible': [('has_to_be_sent_to_twikey', '=', False)]}"
-                >
+                <field name="is_twikey_eligable" invisible="1"/>
+                <page id="twikey_info" name="twikey_info" string="Twikey Info" attrs="{'invisible': [('is_twikey_eligable', '=', False)]}">
                     <group>
-                        <field
-                            name="do_not_send_to_twikey"
-                            attrs="{'readonly': [('state', '!=', 'draft')]}"
-                        />
-                        <field
-                            name="no_auto_collect_invoice"
-                            attrs="{'readonly': [('state', '!=', 'draft')], 'invisible': [('do_not_send_to_twikey', '=', True)]}"
-                        />
-                        <field
-                            name="twikey_url"
-                            widget="url"
-                            attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"
-                        />
-                        <field
-                            name="twikey_invoice_identifier"
-                            attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"
-                        />
-                        <field
-                            name="twikey_template_id"
-                            attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"
-                        />
-                        <field
-                            name="twikey_invoice_state"
-                            attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"
-                        />
+                        <field name="do_not_send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="no_auto_collect_invoice"   attrs="{'invisible': [('do_not_send_to_twikey', '=', True)], 'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="twikey_url" widget="url"   attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
+                        <field name="twikey_template_id"        attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
+                        <field name="twikey_invoice_state"      attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
                     </group>
                 </page>
             </xpath>

@@ -22,6 +22,9 @@ class PaymentProvider(models.Model):
             ("emachtiging", "emachtiging"),
             ("idin", "idin"),
             ("ideal", "ideal"),
+            ("visa", "visa"),
+            ("mastercard", "mastercard"),
+            ("amex", "amex"),
         ],
         help="This will be the method to use to sign mandate"
     )

@@ -33,7 +33,6 @@ class ResPartner(models.Model):
             record.show_create_mandate_invite_button = True
 
     def action_invite_customer(self):
-        self.env["res.config.settings"].twikey_sync_contract_template()
         wizard = self.env["twikey.contract.template.wizard"].create(
             {
                 "partner_id": self.id,

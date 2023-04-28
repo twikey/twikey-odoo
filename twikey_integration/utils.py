@@ -33,34 +33,28 @@ def get_twikey_customer(partner):
 
     return customer
 
-def format_partner_name(partner_name):
-    """ Format the partner name to comply with the payload structure of the API request.
-
-    :param str partner_name: The name of the partner making the payment.
-    :return: The formatted partner name.
-    :rtype: dict
-    """
-
+def get_error_msg(msg, title='Twikey', sticky = False):
     return {
-        'firstName': first_name,
-        'lastName': last_name,
+        'type': 'ir.actions.client',
+        'tag': 'display_notification',
+        'params': {
+            'type': 'danger',
+            'title': title,
+            'message': msg,
+            'next': {'type': 'ir.actions.act_window_close'},
+            'sticky': sticky,
+        }
     }
 
-
-def format_partner_address(partner):
-    """ Format the partner address to comply with the payload structure of the API request.
-
-    :param res.partner partner: The partner making the payment.
-    :return: The formatted partner address.
-    :rtype: dict
-    """
-    street_data = partner._get_street_split()
+def get_success_msg(msg, title='Twikey', sticky = False):
     return {
-        'city': partner.city,
-        'country': partner.country_id.code or 'ZZ',  # 'ZZ' if the country is not known.
-        'stateOrProvince': partner.state_id.code,
-        'postalCode': partner.zip,
-        # Fill in the address fields if the format is supported, or fallback to the raw address.
-        'street': street_data.get('street_name', partner.street),
-        'houseNumberOrName': street_data.get('street_number'),
+        'type': 'ir.actions.client',
+        'tag': 'display_notification',
+        'params': {
+            'type': 'success',
+            'title': title,
+            'message': msg,
+            'next': {'type': 'ir.actions.act_window_close'},
+            'sticky': sticky,
+        }
     }

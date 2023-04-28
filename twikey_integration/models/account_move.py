@@ -7,8 +7,9 @@ import requests
 from odoo import _, api, exceptions, fields, models
 from odoo.exceptions import UserError
 
-from utils import get_twikey_customer
-from .. import twikey
+from ..twikey.client import TwikeyError
+from ..twikey.invoice import InvoiceFeed
+from ..utils import get_twikey_customer, get_error_msg, get_success_msg
 
 _logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class AccountInvoice(models.Model):
 
     twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice", readonly=True)
     twikey_invoice_identifier = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.", readonly=True)
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template", config_parameter='twikey.invoice_template')
+    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
     twikey_invoice_state = fields.Selection(
         selection=[
             ("BOOKED", "Booked"),
@@ -38,16 +39,19 @@ class AccountInvoice(models.Model):
         readonly=True,
         default="BOOKED",
     )
-    no_auto_collect_invoice = fields.Boolean(string="Do not auto collect the invoice", config_parameter='twikey.auto_collect')
-    do_not_send_to_twikey = fields.Boolean(string="Do not send to Twikey", config_parameter='twikey.send_invoice')
-    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", config_parameter='twikey.send_pdf')
-    has_to_be_sent_to_twikey = fields.Boolean(
-        string="Has to be sent to Twikey",
-        help="The account move has to be sent to Twikey according to the standard rules. Even if "
-        "it has to be sent, the user can still override this with "
-        "field 'do_not_send_to_twikey'.",
-        compute="_compute_has_to_be_sent_to_twikey",
+
+    do_not_send_to_twikey = fields.Boolean(string="Do not send to Twikey", compute='_compute_do_not_send')
+    no_auto_collect_invoice = fields.Boolean(string="Do not auto collect the invoice", compute='_compute_auto_collect')
+    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", compute='_compute_include_pdf')
+    is_twikey_eligable = fields.Boolean(
+        string="Invoice or Creditnote",
+        help="The account move can be sent to Twikey. The user can override this with field 'do_not_send_to_twikey'.",
+        compute="_compute_twikey_eligable",
     )
+
+    def get_default(self, key, _default):
+        cfg = self.env['ir.config_parameter'].sudo()
+        return cfg.get_param(key, _default)
 
     def action_post(self):
         res = super(AccountInvoice, self).action_post()
@@ -57,7 +61,7 @@ class AccountInvoice(models.Model):
         if not self:
             return res
 
-        if not self.do_not_send_to_twikey and self.has_to_be_sent_to_twikey:
+        if self.is_twikey_eligable and not self.do_not_send_to_twikey:
             twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
             if twikey_client:
                 invoice_id = self
@@ -102,8 +106,10 @@ class AccountInvoice(models.Model):
                         "ref": invoice_id.id,
                         "locale": twikey_customer["l"] if twikey_customer else "en",
                         "customer": twikey_customer,
-                        "manual": self.no_auto_collect_invoice,
                     }
+
+                    if self.no_auto_collect_invoice:
+                        data["manual"] = "true"
 
                     if report_file:
                         data["pdf"] = report_file.decode("utf-8")
@@ -111,10 +117,12 @@ class AccountInvoice(models.Model):
                         data["invoice_ref"] = credit_note_for
 
                     twikey_client.invoice.create(data)
-
-                except (ValueError, requests.exceptions.RequestException) as e:
-                    raise exceptions.AccessError from e
-
+                    return get_success_msg(f"Send {invoice_id.name}")
+                except TwikeyError as e:
+                    errmsg = "Exception raised while creating a new Invoice:\n%s" % (e)
+                    self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+                    _logger.error(errmsg)
+                    return get_error_msg(str(e), 'Exception raised while creating a new Invoice')
             else:
                 _logger.info("Not sending to Twikey %s" % self)
         return res
@@ -127,8 +135,9 @@ class AccountInvoice(models.Model):
             )
             if twikey_client:
                 twikey_client.invoice.feed(OdooInvoiceFeed(self.env))
-        except (ValueError, requests.exceptions.RequestException) as e:
-            raise UserError from e
+        except TwikeyError as e:
+            errmsg = "Exception raised while fetching updates:\n%s" % (e)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
 
     def update_twikey_state(self, state):
         try:
@@ -136,10 +145,10 @@ class AccountInvoice(models.Model):
             twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
-        except UserError as ue:
-            _logger.error("Error while updating invoice in Twikey: %s" % ue)
-        except (ValueError, requests.exceptions.RequestException) as e:
-            _logger.error("Error while updating invoices in Twikey: %s" % e)
+        except TwikeyError as ue:
+            errmsg = "Error while updating invoice in Twikey: %s" % ue
+            _logger.error(errmsg)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
 
     def write(self, values):
         """
@@ -152,10 +161,7 @@ class AccountInvoice(models.Model):
             return res
 
         for record in self:
-            if "move_type" in values and not record.has_to_be_sent_to_twikey:
-                record.do_not_send_to_twikey = True
-
-            if record.twikey_invoice_identifier and values.get("state"):
+            if record._compute_twikey_eligable() and record.twikey_invoice_identifier and values.get("state"):
                 if values.get("state") == "paid":
                     record.update_twikey_state("paid")
                 elif values.get("state") == "cancel":
@@ -168,7 +174,7 @@ class AccountInvoice(models.Model):
         res = super().create(vals_list)
         for val in vals_list:
             if (
-                res.has_to_be_sent_to_twikey
+                res.is_twikey_eligable
                 and not self._context.get("default_do_not_send_to_twikey")
                 and not val.get("do_not_send_to_twikey")
             ):
@@ -177,26 +183,25 @@ class AccountInvoice(models.Model):
                 res.do_not_send_to_twikey = True
         return res
 
-    # def create(self, values):
-    #     """Set a default value for 'do_not_send_to_twikey' according to the standard rules."""
-    #     res = super().create(values)
-    #     if not res.has_to_be_sent_to_twikey:
-    #         res.do_not_send_to_twikey = True
-    #     return res
-
     @api.depends("move_type")
-    def _compute_has_to_be_sent_to_twikey(self):
+    def _compute_twikey_eligable(self):
         """
-        Only certain types of account moves must be sent to Twikey (for the moment: only customer
-        invoices).
+        Only certain types of account moves can be sent to Twikey.
         """
-        for record in self:
-            record.has_to_be_sent_to_twikey = False
-            if record.move_type == "out_invoice" or record.move_type == "out_refund":
-                record.has_to_be_sent_to_twikey = True
+        return self.move_type in ["out_invoice", "out_refund"]
+
+    def _compute_do_not_send(self):
+        return bool(self.get_default("twikey.no.send.invoice", True))
+
+    def _compute_include_pdf(self):
+        return bool(self.get_default("twikey.send_pdf", False))
+
+    def _compute_auto_collect(self):
+        return bool(self.get_default("twikey.auto_collect", False))
 
 
-class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
+
+class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
         self.env = env
 
@@ -318,16 +323,17 @@ class OdooInvoiceFeed(twikey.invoice.InvoiceFeed):
                                 payment_reference = "Other"
 
                         invoice_id.message_post(body="Twikey payment via " + payment_reference)
-
-                    except (ValueError, requests.exceptions.RequestException) as e:
+                    except Exception as e:
                         _logger.error("Error marking invoice as paid in odoo %s" % (e))
-                        raise exceptions.AccessError from e
-                    else:
-                        _logger.info(
-                            "Unknown invoice update of {} - {}".format(
-                                _invoice.get("title"), new_state
-                            )
-                        )
+                        invoice_id.message_post(body=str(e))
+                else:
+                    number = _invoice.get("title")
+                    _logger.info(f"Ignoring invoice update of {number} - {new_state}")
+
                 invoice_id.with_context(update_feed=True).write({"state": odoo_state})
+        except TwikeyError as te:
+            errmsg = "Error while updating invoices :\n%s" % (te)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
+            _logger.error(errmsg)
         except Exception as ue:
             _logger.error("Error while updating invoices from Twikey: %s" % ue)
