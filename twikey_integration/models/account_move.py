@@ -130,14 +130,13 @@ class AccountInvoice(models.Model):
     def update_invoice_feed(self):
         try:
             _logger.debug("Fetching Twikey updates")
-            twikey_client = self.env["ir.config_parameter"].get_twikey_client(
-                company=self.env.company
-            )
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.invoice.feed(OdooInvoiceFeed(self.env))
         except TwikeyError as e:
-            errmsg = "Exception raised while fetching updates:\n%s" % (e)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+            if e.error_code != "err_call_in_progress": # ignore parallel calls
+                errmsg = "Exception raised while fetching updates:\n%s" % (e)
+                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
 
     def update_twikey_state(self, state):
         try:

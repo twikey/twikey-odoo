@@ -41,8 +41,6 @@ class TwikeyMandateDetails(models.Model):
     lang = fields.Selection(_lang_get, string="Language")
     url = fields.Char(string="URL", readonly=True)
 
-    is_creditcard = fields.Boolean(compute='_compute_is_creditcard')
-
     country_id = fields.Many2one("res.country")
     city = fields.Char()
     zip = fields.Integer()
@@ -60,12 +58,11 @@ class TwikeyMandateDetails(models.Model):
             _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
-                try:
-                    twikey_client.document.feed(OdooDocumentFeed(self.env))
-                except TwikeyError as e:
-                    raise UserError from e
-        except (ValueError, requests.exceptions.RequestException) as e:
-            raise UserError from e
+                twikey_client.document.feed(OdooDocumentFeed(self.env))
+        except TwikeyError as e:
+            if e.error_code != "err_call_in_progress": # ignore parallel calls
+                errmsg = "Exception raised while fetching updates:\n%s" % (e)
+                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Mandates",body=errmsg,)
 
     def write(self, values):
         self.ensure_one()
@@ -118,7 +115,10 @@ class TwikeyMandateDetails(models.Model):
             else:
                 return super(TwikeyMandateDetails, mandate).unlink()
 
-    def _compute_is_creditcard(self):
+    def is_signed(self):
+        return self.state == 'signed'
+
+    def is_creditcard(self):
         return self.contract_temp_id and self.contract_temp_id.type == "CREDITCARD"
 
     def get_attribute(self, name):
@@ -252,6 +252,10 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["reference"] = doc.get("MndtId")
             mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
 
+        if template_id and mandate_id and partner_id:
+            providers = self.env['payment.provider'].sudo().search([("twikey_template_id", "=", template_id.id)])
+            for provider in providers:
+                provider.token_from_mandate(partner_id, mandate_id)
 
     def newDocument(self, doc):
         self.new_update_document(doc, False, False, False)

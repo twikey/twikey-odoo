@@ -143,19 +143,11 @@ class PaymentTransaction(models.Model):
 
         if self.tokenize:
             # Webhook should have come in with the mandate now being signed
-            mandate_id = (
-                self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)])
-            )
+            mandate_id = (self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)]))
             if mandate_id.state == 'signed':
                 payment_status = 'paid'
                 _logger.debug("Tokenized redirect, mandate was %s",mandate_id.state)
-                self.env['payment.token'].create({
-                    'payment_details': mandate_id.iban,
-                    'provider_id': self.provider.id,
-                    'partner_id': self.partner.id,
-                    'provider_ref': mandate_id.reference,
-                    'active': True,
-                })
+                self.provider_id.token_from_mandate(self.partner_id, mandate_id)
             else:
                 payment_status = 'pending'
                 _logger.info("Tokenized redirect but mandate was %s",mandate_id.state)
@@ -182,27 +174,7 @@ class PaymentTransaction(models.Model):
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)])
             if mandate_id and mandate_id.state == 'signed':
                 _logger.info("Tokenized poll, mandate was %s",mandate_id.state)
-                if mandate_id.is_creditcard:
-                    last_digits = mandate_id.get_attribute("_last")
-                    expiry = mandate_id.get_attribute("_expiry")
-                    self.env['payment.token'].create({
-                        'payment_details': last_digits,
-                        'provider_id': self.provider_id.id,
-                        'partner_id': self.partner_id.id,
-                        'provider_ref': mandate_id.reference,
-                        'active': True,
-                        'expiry': expiry,
-                        'type': 'CC',
-                    })
-                else:
-                    self.env['payment.token'].create({
-                        'payment_details': mandate_id.iban,
-                        'provider_id': self.provider_id.id,
-                        'partner_id': self.partner_id.id,
-                        'provider_ref': mandate_id.reference,
-                        'active': True,
-                        'type': 'SDD',
-                    })
+                self.provider_id.token_from_mandate(self.partner_id, mandate_id)
                 self._set_done()
             else:
                 _logger.info("Mandate was in %s for ref %s",mandate_id.state, self.reference)

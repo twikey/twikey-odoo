@@ -12,7 +12,7 @@ class PaymentProvider(models.Model):
 
     code = fields.Selection(selection_add=[('twikey', 'Twikey')], ondelete={'twikey': 'set default'})
     name = fields.Char(string="Name", required=True, translate=True)
-    twikey_template_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template")
+    twikey_template_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template", index=True)
     twikey_method = fields.Selection(
         [
             ("bancontact", "bancontact"),
@@ -38,3 +38,36 @@ class PaymentProvider(models.Model):
         })
         self.filtered(lambda p: p.code == 'twikey').show_credentials_page = False
 
+    def token_from_mandate(self, partner_id, mandate_id):
+        existing_token = self.env['payment.token'].sudo().search([
+            ('provider_id', '=', self.id),
+            ('provider_ref', '=', mandate_id.reference)
+        ])
+
+        active = mandate_id.is_signed()
+        if existing_token:
+            existing_token.update({'active': active})
+            return
+
+        if mandate_id.is_creditcard():
+            last_digits = mandate_id.get_attribute("_last")
+            expiry = mandate_id.get_attribute("_expiry")
+
+            self.env['payment.token'].create({
+                'payment_details': last_digits,
+                'provider_id': self.id,
+                'partner_id': partner_id.id,
+                'provider_ref': mandate_id.reference,
+                'active': active,
+                'expiry': expiry,
+                'type': 'CC',
+            })
+        else:
+            self.env['payment.token'].create({
+                'payment_details': mandate_id.iban,
+                'provider_id': self.id,
+                'partner_id': partner_id.id,
+                'provider_ref': mandate_id.reference,
+                'active': active,
+                'type': 'SDD',
+            })
