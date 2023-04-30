@@ -33,7 +33,6 @@
         'data/payment_acquirer_data.xml',
 
         "wizard/wizard_cancel_reason.xml",
-        "wizard/success_message_wizard.xml",
         "wizard/twikey_contract_template_wizard.xml",
         "wizard/sale_make_invoice_advance.xml",
         "views/mandate_details.xml",
