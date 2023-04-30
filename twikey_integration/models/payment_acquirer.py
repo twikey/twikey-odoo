@@ -39,6 +39,15 @@ class PaymentProvider(models.Model):
         self.filtered(lambda p: p.code == 'twikey').show_credentials_page = False
 
     def token_from_mandate(self, partner_id, mandate_id):
+        if mandate_id.is_creditcard():
+            payment_details = mandate_id.get_attribute("_last")
+            type = 'CC'
+            expiry = mandate_id.get_attribute("_expiry")
+        else:
+            payment_details = mandate_id.iban
+            type = 'SDD'
+            expiry = False
+
         existing_token = self.env['payment.token'].sudo().search([
             ('provider_id', '=', self.id),
             ('provider_ref', '=', mandate_id.reference)
@@ -46,28 +55,18 @@ class PaymentProvider(models.Model):
 
         active = mandate_id.is_signed()
         if existing_token:
-            existing_token.update({'active': active})
-            return
-
-        if mandate_id.is_creditcard():
-            last_digits = mandate_id.get_attribute("_last")
-            expiry = mandate_id.get_attribute("_expiry")
-
+            existing_token.update({
+                'payment_details': payment_details,
+                'active': active,
+                'expiry': expiry,
+            })
+        else:
             self.env['payment.token'].create({
-                'payment_details': last_digits,
+                'payment_details': payment_details,
                 'provider_id': self.id,
                 'partner_id': partner_id.id,
                 'provider_ref': mandate_id.reference,
                 'active': active,
                 'expiry': expiry,
-                'type': 'CC',
-            })
-        else:
-            self.env['payment.token'].create({
-                'payment_details': mandate_id.iban,
-                'provider_id': self.id,
-                'partner_id': partner_id.id,
-                'provider_ref': mandate_id.reference,
-                'active': active,
-                'type': 'SDD',
+                'type': type,
             })

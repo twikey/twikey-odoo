@@ -8,7 +8,7 @@ class TwikeyContractTemplate(models.Model):
     _sql_constraints = [("template_id_unique", "unique(template_id_twikey)", "Already Exist!")]
 
     name = fields.Char(string="Contract Template", required=True, readonly=True)
-    template_id_twikey = fields.Integer(string="Template ID", readonly=True)
+    template_id_twikey = fields.Integer(string="Template ID", readonly=True, index=True)
     active = fields.Boolean(default=True, readonly=True)
     mandate_number_required = fields.Boolean(default=True, readonly=True)
     type = fields.Selection(

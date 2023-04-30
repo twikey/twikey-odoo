@@ -24,46 +24,48 @@ class PaymentTransaction(models.Model):
         # _logger.info("Sending transaction request:\n%s", pprint.pformat(payload))
 
         base_url = self.provider_id.get_base_url()
-        twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
-
         twikey_template = self.provider_id.twikey_template_id
         method = self.provider_id.twikey_method
 
         try:
             customer = self.partner_id
-            if self.provider_id.allow_tokenization and twikey_template:
-                payload = self._twikey_prepare_token_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
-                mndt = twikey_client.document.sign(payload)
-                # The provider reference is set now to allow fetching the payment status after redirection
-                self.provider_reference = mndt.get('MndtId')
-                url = mndt.get('url')
+            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            if twikey_client:
+                if self.provider_id.allow_tokenization and twikey_template:
+                    payload = self._twikey_prepare_token_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
+                    mndt = twikey_client.document.sign(payload)
+                    # The provider reference is set now to allow fetching the payment status after redirection
+                    self.provider_reference = mndt.get('MndtId')
+                    url = mndt.get('url')
 
-                # Store the mandate
-                self.env["twikey.mandate.details"].sudo().create({
-                    "contract_temp_id": twikey_template.id,
-                    "lang": customer.lang,
-                    "partner_id": payload.get("customerNumber"),
-                    "reference": self.provider_reference,
-                    "url": url,
-                    "zip": customer.zip if customer.zip else False,
-                    "address": customer.street if customer.street else False,
-                    "city": customer.city if customer.city else False,
-                    "country_id": customer.country_id.id if customer.country_id else False,
-                })
+                    # Store the mandate
+                    self.env["twikey.mandate.details"].sudo().create({
+                        "contract_temp_id": twikey_template.id,
+                        "lang": customer.lang,
+                        "partner_id": payload.get("customerNumber"),
+                        "reference": self.provider_reference,
+                        "url": url,
+                        "zip": customer.zip if customer.zip else False,
+                        "address": customer.street if customer.street else False,
+                        "city": customer.city if customer.city else False,
+                        "country_id": customer.country_id.id if customer.country_id else False,
+                    })
+                else:
+                    payload = self._twikey_prepare_payment_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
+                    paylink = twikey_client.paylink.create(payload)
+                    # The provider reference is set now to allow fetching the payment status after redirection
+                    self.provider_reference = paylink.get('id')
+                    url = paylink.get('url')
+
+                parsed_url = urls.url_parse(url)
+                url_params = urls.url_decode(parsed_url.query)
+                # Extract the checkout URL from the payment data and add it with its query parameters to the
+                # rendering values. Passing the query parameters separately is necessary to prevent them
+                # from being stripped off when redirecting the user to the checkout URL, which can happen
+                # when only one payment method is enabled and query parameters are provided.
+                return {'api_url': url, 'url_params': url_params, 'reference': self.provider_reference}
             else:
-                payload = self._twikey_prepare_payment_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
-                paylink = twikey_client.paylink.create(payload)
-                # The provider reference is set now to allow fetching the payment status after redirection
-                self.provider_reference = paylink.get('id')
-                url = paylink.get('url')
-
-            parsed_url = urls.url_parse(url)
-            url_params = urls.url_decode(parsed_url.query)
-            # Extract the checkout URL from the payment data and add it with its query parameters to the
-            # rendering values. Passing the query parameters separately is necessary to prevent them
-            # from being stripped off when redirecting the user to the checkout URL, which can happen
-            # when only one payment method is enabled and query parameters are provided.
-            return {'api_url': url, 'url_params': url_params, 'reference': self.provider_reference}
+                raise ValidationError("Connection problem")
         except TwikeyError as e:
             raise ValidationError("Twikey: " + e.error)
 
@@ -199,17 +201,38 @@ class PaymentTransaction(models.Model):
         twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
         if twikey_client:
             try:
-                tx = twikey_client.transaction.create({
-                    'mndtId': self.token_id.provider_ref,
-                    'message': self.reference,
-                    'ref': self.id,
-                    'amount': self.amount,
-                    'place': request and request.httprequest.remote_addr or '',
-                })
-                self.provider_reference = 'tx:'+tx["id"]
-                self._set_pending()
-                # Handle the payment request response.
-                _logger.info("Send transaction with reference %s: %s",self.reference, tx)
+                if self._context.get('active_model') == 'account.move':
+                    invoice_id = self.env['account.move'].browse(self._context.get('active_ids', []))
+                    invoice = {
+                        "customerByDocument": self.token_id.provider_ref,
+                        "number": invoice_id.name,
+                        "title": self.reference,
+                        "amount": self.amount,
+                        "remittance": self.reference,
+                        "ref": invoice_id.id,
+                        "date": invoice_id.invoice_date.isoformat(),
+                        "duedate": invoice_id.invoice_date_due.isoformat(),
+                    }
+                    twikey_invoice = twikey_client.invoice.create(invoice)
+
+                    template_id = self.env["twikey.contract.template"].search(
+                        [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
+                    )
+                    invoice_id.with_context(update_feed=True).write({
+                        "send_to_twikey": True,
+                        "twikey_template_id": template_id.id,
+                        "twikey_url": twikey_invoice.get("url"),
+                        "twikey_invoice_identifier": twikey_invoice.get("id"),
+                        "twikey_invoice_state": twikey_invoice.get("state")
+                    })
+                    invoice_id.message_post(body="Send to Twikey with state=" + invoice_id.twikey_invoice_state)
+                    self.reference = twikey_invoice.get("id")
+                    self.provider_reference = twikey_invoice.get("id")
+                    self._set_pending(f"Send to Twikey (State={invoice_id.twikey_invoice_state}")
+                    # Handle the payment request response.
+                    _logger.info("Send transaction with reference %s: %s",self.reference, self.provider_reference)
+                else:
+                    raise UserError(_("The register payment wizard should only be called on account.move records."))
             except TwikeyError as e:
                 raise UserError("Twikey: " + e.error)
         else:

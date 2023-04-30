@@ -31,7 +31,7 @@ class TwikeyClient(object):
         self,
         api_key,
         base_url="https://api.twikey.com",
-        user_agent="twikey-odoo-12/v0.1.0",
+        user_agent="twikey-odoo/v0.1.0",
     ) -> None:
         self.user_agent = user_agent
         self.api_key = api_key

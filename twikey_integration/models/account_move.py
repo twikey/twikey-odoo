@@ -2,8 +2,6 @@ import base64
 import logging
 import uuid
 
-import requests
-
 from odoo import _, api, exceptions, fields, models
 from odoo.exceptions import UserError
 
@@ -37,15 +35,15 @@ class AccountInvoice(models.Model):
             ("ARCHIVED", "Archived"),
         ],
         readonly=True,
-        default="BOOKED",
     )
 
-    do_not_send_to_twikey = fields.Boolean(string="Do not send to Twikey", compute='_compute_do_not_send')
-    no_auto_collect_invoice = fields.Boolean(string="Do not auto collect the invoice", compute='_compute_auto_collect')
-    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", compute='_compute_include_pdf')
+    send_to_twikey = fields.Boolean(string="Send to Twikey", compute='_compute_twikey_send', readonly=False, store=True, copy=True)
+    auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible", compute='_compute_auto_collect', readonly=False, store=True, copy=True)
+    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", compute='_compute_include_pdf', store=True, copy=True)
+
     is_twikey_eligable = fields.Boolean(
         string="Invoice or Creditnote",
-        help="The account move can be sent to Twikey. The user can override this with field 'do_not_send_to_twikey'.",
+        help="The account move can be sent to Twikey. The user can override this with field 'send_to_twikey'.",
         compute="_compute_twikey_eligable",
     )
 
@@ -61,16 +59,16 @@ class AccountInvoice(models.Model):
         if not self:
             return res
 
-        if self.is_twikey_eligable and not self.do_not_send_to_twikey:
+        if self.is_twikey_eligable and self.send_to_twikey:
             twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
             if twikey_client:
                 invoice_id = self
-                invoice_uuid = str(uuid.uuid4())
 
+                # ensure logged in otherwise company of url might not be filled in
+                twikey_client.refreshTokenIfRequired()
+
+                invoice_uuid = str(uuid.uuid4())
                 url = twikey_client.invoice.geturl(invoice_uuid)
-                invoice_id.with_context(update_feed=True).write(
-                    {"twikey_url": url, "twikey_invoice_identifier": invoice_uuid}
-                )
 
                 report_file = False
                 credit_note_for = False
@@ -90,7 +88,7 @@ class AccountInvoice(models.Model):
                     remittance = invoice_id.payment_reference
 
                 try:
-                    today = fields.Date.context_today(self).isoformat()
+                    today = self.date.isoformat()
                     twikey_customer = get_twikey_customer(invoice_id.partner_id)
                     data = {
                         "id": invoice_uuid,
@@ -98,7 +96,7 @@ class AccountInvoice(models.Model):
                         "title": invoice_id.name,
                         "ct": self.twikey_template_id.template_id_twikey,
                         "amount": amount,
-                        "date": today,
+                        "date": self.invoice_date.isoformat(),
                         "duedate": invoice_id.invoice_date_due.isoformat()
                         if invoice_id.invoice_date_due
                         else today,
@@ -108,7 +106,7 @@ class AccountInvoice(models.Model):
                         "customer": twikey_customer,
                     }
 
-                    if self.no_auto_collect_invoice:
+                    if not self.auto_collect_invoice:
                         data["manual"] = "true"
 
                     if report_file:
@@ -116,8 +114,13 @@ class AccountInvoice(models.Model):
                     else:
                         data["invoice_ref"] = credit_note_for
 
-                    twikey_client.invoice.create(data)
-                    return get_success_msg(f"Send {invoice_id.name}")
+                    twikey_invoice = twikey_client.invoice.create(data)
+                    invoice_id.with_context(update_feed=True).write({
+                        "twikey_url": url,
+                        "twikey_invoice_identifier": invoice_uuid,
+                        "twikey_invoice_state": twikey_invoice.get("state")
+                    })
+                    return get_success_msg(f"Send {invoice_id.name} with state={self.twikey_invoice_state}")
                 except TwikeyError as e:
                     errmsg = "Exception raised while creating a new Invoice:\n%s" % (e)
                     self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
@@ -151,7 +154,7 @@ class AccountInvoice(models.Model):
 
     def write(self, values):
         """
-        Set a default value for 'do_not_send_to_twikey' according to the standard rules. This
+        Set a default value for 'send_to_twikey' according to the standard rules. This
         is only done if move_type is changed into a type that doesn't have to be sent.
         """
         res = super(AccountInvoice, self).write(values)
@@ -160,7 +163,7 @@ class AccountInvoice(models.Model):
             return res
 
         for record in self:
-            if record._compute_twikey_eligable() and record.twikey_invoice_identifier and values.get("state"):
+            if record.twikey_invoice_identifier and values.get("state"):
                 if values.get("state") == "paid":
                     record.update_twikey_state("paid")
                 elif values.get("state") == "cancel":
@@ -169,17 +172,17 @@ class AccountInvoice(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Set a default value for 'do_not_send_to_twikey' according to the standard rules."""
+        """Set a default value for 'send_to_twikey' according to the standard rules."""
         res = super().create(vals_list)
         for val in vals_list:
             if (
                 res.is_twikey_eligable
-                and not self._context.get("default_do_not_send_to_twikey")
-                and not val.get("do_not_send_to_twikey")
+                and not self._context.get("default_send_to_twikey")
+                and val.get("send_to_twikey")
             ):
-                res.do_not_send_to_twikey = False
+                res.send_to_twikey = True
             else:
-                res.do_not_send_to_twikey = True
+                res.send_to_twikey = False
         return res
 
     @api.depends("move_type")
@@ -187,16 +190,24 @@ class AccountInvoice(models.Model):
         """
         Only certain types of account moves can be sent to Twikey.
         """
-        return self.move_type in ["out_invoice", "out_refund"]
+        for move in self:
+            move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
 
-    def _compute_do_not_send(self):
-        return bool(self.get_default("twikey.no.send.invoice", True))
+    def _compute_twikey_send(self):
+        for move in self:
+            if move.send_to_twikey:
+                continue
+            move.send_to_twikey = bool(self.get_default("twikey.send.invoice", True))
 
     def _compute_include_pdf(self):
-        return bool(self.get_default("twikey.send_pdf", False))
+        for move in self:
+            move.include_pdf_invoice = bool(self.get_default("twikey.send_pdf", False))
 
     def _compute_auto_collect(self):
-        return bool(self.get_default("twikey.auto_collect", False))
+        for move in self:
+            if move.auto_collect_invoice:
+                continue
+            move.auto_collect_invoice = bool(self.get_default("twikey.auto_collect", True))
 
 
 
@@ -299,7 +310,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                 if invoice_id.payment_state == "paid":
                     try:
                         payment_reference = "unknown"
-                        if "lastpayment" in _invoice:
+                        if "lastpayment" in _invoice and len(_invoice["lastpayment"]) > 0:
                             payment = _invoice["lastpayment"][0]
                             twikey_payment_method = payment["method"]
                             if twikey_payment_method == "paylink":

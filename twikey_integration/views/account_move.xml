@@ -9,11 +9,11 @@
                 <field name="is_twikey_eligable" invisible="1"/>
                 <page id="twikey_info" name="twikey_info" string="Twikey Info" attrs="{'invisible': [('is_twikey_eligable', '=', False)]}">
                     <group>
-                        <field name="do_not_send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
-                        <field name="no_auto_collect_invoice"   attrs="{'invisible': [('do_not_send_to_twikey', '=', True)], 'readonly': [('state', '!=', 'draft')]}"/>
-                        <field name="twikey_url" widget="url"   attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
-                        <field name="twikey_template_id"        attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
-                        <field name="twikey_invoice_state"      attrs="{'invisible': [('do_not_send_to_twikey', '=', True)]}"/>
+                        <field name="send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="auto_collect_invoice"      attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="twikey_url" widget="url"   attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                        <field name="twikey_template_id"        attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                        <field name="twikey_invoice_state"      attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
                     </group>
                 </page>
             </xpath>

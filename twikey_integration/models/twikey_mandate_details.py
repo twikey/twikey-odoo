@@ -250,6 +250,10 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_id.with_context(update_feed=True).write(mandate_vals)
         else:
             mandate_vals["reference"] = doc.get("MndtId")
+            mandate_vals["address"] = address
+            mandate_vals["zip"] = zip_code
+            mandate_vals["city"] = city
+            mandate_vals["country_id"] = country_id.id if country_id else 0
             mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
 
         if template_id and mandate_id and partner_id:
