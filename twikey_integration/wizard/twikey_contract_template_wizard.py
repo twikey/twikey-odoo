@@ -1,10 +1,9 @@
 import logging
 
 from odoo import _, exceptions, fields, models
-from utils import get_twikey_customer
 
 from ..twikey.client import TwikeyError
-from ..utils import get_error_msg, get_success_msg
+from ..utils import get_error_msg, get_success_msg, get_twikey_customer
 
 _logger = logging.getLogger(__name__)
 
@@ -18,7 +17,6 @@ language_dict = {
     "es_ES": "es",
     "it_IT": "it",
 }
-
 
 class TwikeyContractTemplateWizard(models.Model):
     _name = "twikey.contract.template.wizard"

@@ -6,7 +6,6 @@ from werkzeug import urls
 
 from odoo import _, models
 from odoo.exceptions import UserError, ValidationError
-from odoo.http import request
 
 from ..twikey.client import TwikeyError
 from utils import get_twikey_customer

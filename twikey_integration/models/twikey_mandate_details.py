@@ -10,7 +10,6 @@ from ..twikey.document import DocumentFeed
 
 _logger = logging.getLogger(__name__)
 
-
 def _lang_get(self):
     return self.env["res.lang"].get_installed()
 
