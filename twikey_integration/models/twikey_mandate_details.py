@@ -255,10 +255,15 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["country_id"] = country_id.id if country_id else 0
             mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
 
+        # Allow register payments
         if template_id and mandate_id and partner_id:
             providers = self.env['payment.provider'].sudo().search([("twikey_template_id", "=", template_id.id)])
             for provider in providers:
                 provider.token_from_mandate(partner_id, mandate_id)
+
+        # Allow regular refunds
+        if partner_id and iban:
+            self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
 
     def newDocument(self, doc):
         self.new_update_document(doc, False, False, False)

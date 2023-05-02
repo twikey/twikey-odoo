@@ -248,25 +248,24 @@ class OdooInvoiceFeed(InvoiceFeed):
                         }
                     )
 
-                iban = False
                 if twikey_invoice.get("lastpayment")[0].get("method") in ["sdd", "transfer"]:
                     iban = twikey_invoice.get("lastpayment")[0].get("iban")
 
-                customer = False
-                if twikey_invoice.get("customer") and twikey_invoice.get("customer").get("customerNumber"):
-                    customer = self.env["res.partner"].browse(
-                        [int(twikey_invoice.get("customer").get("customerNumber"))]
-                    )
-
-                _logger.info("Found customer: " + str(customer.name) + " and iban: " + str(iban))
-
-                customer_bank_id = False
-                if customer and iban:
-                    customer_bank_id = customer.bank_ids.filtered(lambda x: x.acc_number == iban)
-                    if not customer_bank_id:
-                        customer_bank_id = self.env["res.partner.bank"].create(
-                            {"partner_id": customer.id, "acc_number": iban}
+                    # if we have an iban (customer might have done the payment twice of regular payment)
+                    if twikey_invoice.get("customer") and twikey_invoice.get("customer").get("customerNumber"):
+                        customer = self.env["res.partner"].browse(
+                            [int(twikey_invoice.get("customer").get("customerNumber"))]
                         )
+
+                        if customer and iban:
+                            customer_bank_id = customer.bank_ids.filtered(lambda x: x.acc_number == iban)
+                            if not customer_bank_id:
+                                _logger.info("Linked customer: " + str(customer.name) + " and iban: " + str(iban))
+                                self.env["res.partner.bank"].create({"partner_id": customer.id, "acc_number": iban})
+                            else:
+                                _logger.debug("Known customer: " + str(customer.name) + " and iban: " + str(iban))
+                    else:
+                        _logger.info("Unknown customer: " + str(twikey_invoice.get("customer")) )
 
                 payment = (
                     self.env["account.payment.register"]
@@ -275,10 +274,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                         {
                             "journal_id": journals.id,
                             "payment_date": twikey_invoice["paydate"],
-                            "payment_method_line_id": payment_method_line_twikey[
-                                0
-                            ].payment_method_id.id,
-                            "partner_bank_id": customer_bank_id.id if customer_bank_id else False,
+                            "payment_method_line_id": payment_method_line_twikey[0].payment_method_id.id,
                         }
                     )
                 )
@@ -314,7 +310,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                             payment = _invoice["lastpayment"][0]
                             twikey_payment_method = payment["method"]
                             if twikey_payment_method == "paylink":
-                                payment_reference = "paylink #%d" % payment["link"]
+                                payment_reference = "paylink #{}".format(payment["link"])
                             elif twikey_payment_method == "sdd":
                                 payment_reference = "Sepa Direct Debit pmtinf={} e2e={}".format(
                                     payment["pmtinf"],
@@ -326,15 +322,15 @@ class OdooInvoiceFeed(InvoiceFeed):
                                     payment["e2e"],
                                 )
                             elif twikey_payment_method == "transfer":
-                                payment_reference = "Regular transfer msg=%s" % (payment["msg"])
+                                payment_reference = "Regular transfer msg={}".format(payment["msg"])
                             elif twikey_payment_method == "manual":
-                                payment_reference = "Manually set as paid msg=%s" % (payment["msg"])
+                                payment_reference = "Manually set as paid msg={}".format(payment["msg"])
                             else:
                                 payment_reference = "Other"
 
                         invoice_id.message_post(body="Twikey payment via " + payment_reference)
                     except Exception as e:
-                        _logger.error("Error marking invoice as paid in odoo %s" % (e))
+                        _logger.error("Error marking invoice as paid in odoo {}".format(e))
                         invoice_id.message_post(body=str(e))
                 else:
                     number = _invoice.get("title")
