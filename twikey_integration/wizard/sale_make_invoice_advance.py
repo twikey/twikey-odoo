@@ -14,8 +14,8 @@ class SaleAdvancePaymentInv(models.TransientModel):
         context.update(
             {
                 "twikey_template_id": self.twikey_template_id.id,
-                "default_send_to_twikey": self.send_to_twikey,
-                "default_auto_collect_invoice": self.auto_collect_invoice,
+                "send_to_twikey": self.send_to_twikey,
+                "auto_collect_invoice": self.auto_collect_invoice,
             }
         )
         sale_orders = self.env["sale.order"].browse(self._context.get("active_ids", []))

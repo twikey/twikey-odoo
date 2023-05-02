@@ -37,9 +37,12 @@ class AccountInvoice(models.Model):
         readonly=True,
     )
 
-    send_to_twikey = fields.Boolean(string="Send to Twikey", compute='_compute_twikey_send', readonly=False, store=True, copy=True)
-    auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible", compute='_compute_auto_collect', readonly=False, store=True, copy=True)
-    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey", compute='_compute_include_pdf', store=True, copy=True)
+    send_to_twikey = fields.Boolean(string="Send to Twikey",
+                                    default=lambda self: self._default_twikey_send,  readonly=False)
+    auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible",
+                                    default=lambda self: self._default_auto_collect, readonly=False)
+    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey",
+                                    default=lambda self: self._default_include_pdf)
 
     is_twikey_eligable = fields.Boolean(
         string="Invoice or Creditnote",
@@ -193,23 +196,14 @@ class AccountInvoice(models.Model):
         for move in self:
             move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
 
-    def _compute_twikey_send(self):
-        for move in self:
-            if move.send_to_twikey:
-                continue
-            move.send_to_twikey = bool(self.get_default("twikey.send.invoice", True))
+    def _default_twikey_send(self):
+        return bool(self.get_default("twikey.send.invoice", True))
 
-    def _compute_include_pdf(self):
-        for move in self:
-            move.include_pdf_invoice = bool(self.get_default("twikey.send_pdf", False))
+    def _default_include_pdf(self):
+        return bool(self.get_default("twikey.send_pdf", False))
 
-    def _compute_auto_collect(self):
-        for move in self:
-            if move.auto_collect_invoice:
-                continue
-            move.auto_collect_invoice = bool(self.get_default("twikey.auto_collect", True))
-
-
+    def _default_auto_collect(self):
+        return bool(self.get_default("twikey.auto_collect", True))
 
 class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
