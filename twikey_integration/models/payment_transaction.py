@@ -8,7 +8,7 @@ from odoo import _, models
 from odoo.exceptions import UserError, ValidationError
 
 from ..twikey.client import TwikeyError
-from utils import get_twikey_customer
+from ..utils import get_twikey_customer
 
 _logger = logging.getLogger(__name__)
 
