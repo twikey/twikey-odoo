@@ -13,7 +13,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
         context = dict(self._context)
         context.update(
             {
-                "twikey_template_id": self.twikey_template_id,
+                "twikey_template_id": self.twikey_template_id.id,
                 "default_send_to_twikey": self.send_to_twikey,
                 "default_auto_collect_invoice": self.auto_collect_invoice,
             }
