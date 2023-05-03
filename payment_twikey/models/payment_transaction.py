@@ -28,7 +28,7 @@ class PaymentTransaction(models.Model):
 
         try:
             customer = self.partner_id
-            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.provider_id.company_id)
             if twikey_client:
                 if self.provider_id.allow_tokenization and twikey_template:
                     payload = self._twikey_prepare_token_request_payload(customer, base_url, twikey_template.template_id_twikey, method)
@@ -198,7 +198,7 @@ class PaymentTransaction(models.Model):
         if not self.token_id:
             raise UserError("Twikey: " + _("The transaction is not linked to a token."))
 
-        twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+        twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.provider_id.company_id)
         if twikey_client:
             try:
                 if self._context.get('active_model') == 'account.move':
@@ -237,3 +237,6 @@ class PaymentTransaction(models.Model):
                 raise UserError("Twikey: " + e.error)
         else:
             raise UserError("Twikey: " + _("Could not connect to Twikey"))
+
+    def _reconcile_after_done(self):
+        _logger.info("Pending transaction with reference %s: %s",self.reference, self.provider_reference)
