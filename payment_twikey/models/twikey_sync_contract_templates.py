@@ -99,7 +99,7 @@ class SyncContractTemplates(models.AbstractModel):
             return ir_fields
 
     def process_new_mandate_field_views(self, mandate_field_list, template_id):
-        inherit_mandate_id = self.env.ref("twikey_integration.mandate_details_view_twikey_form")
+        inherit_mandate_id = self.env.ref("payment_twikey.mandate_details_view_twikey_form")
         mandate_arch_base = _(
             '<?xml version="1.0"?>' "<data>" '<field name="url" position="after">\n'
         )
@@ -133,7 +133,7 @@ class SyncContractTemplates(models.AbstractModel):
         )
 
     def process_new_field_views(self, fields_list, template_id):
-        inherit_id = self.env.ref("twikey_integration.contract_template_wizard_view_twikey_form")
+        inherit_id = self.env.ref("payment_twikey.contract_template_wizard_view_twikey_form")
         arch_base = _(
             '<?xml version="1.0"?>' "<data>" '<field name="template_id" position="after">\n'
         )

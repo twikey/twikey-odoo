@@ -76,8 +76,12 @@ class Invoice(object):
             raise self.client.raise_error_from_request("Invoice feed", e)
 
     def geturl(self, invoice_id):
-        return "%s/%s/%s" % (
-            self.client.api_base.replace("api", "app"),
+        if '.beta.' in self.client.api_base:
+            return "https://app.beta.twikey.com/%s/%s" % (
+                self.client.merchant_id,
+                invoice_id,
+            )
+        return "https://app.twikey.com/%s/%s" % (
             self.client.merchant_id,
             invoice_id,
         )

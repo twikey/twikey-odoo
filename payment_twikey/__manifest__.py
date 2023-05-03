@@ -2,22 +2,17 @@
 
 
 {
-    "name": "Twikey Integration",
+    "name": "Payment Provider: Twikey",
     "version": "16.0.2.0.0",
-    "category": "eCommerce",
+    "category": "Accounting/Payment Providers",
     "summary": "Twikey Integration",
     'author': "Twikey N.V.",
     'website': "https://www.twikey.com/partner/odoo.html",
     "depends": [
         "payment",
         "account",
-        "account_check_printing",
         "contacts",
-        "mail",
-        "product",
         "sale",
-        "sale_management",
-        "stock",
     ],
     "data": [
         "data/schedulers.xml",
@@ -46,5 +41,5 @@
     "installable": True,
     "images": ["static/description/icon.png"],
     "auto_install": False,
-    'license': 'OEEL-1',
+    'license': 'LGPL-3',
 }

@@ -41,19 +41,4 @@
             </div>
         </field>
     </record>
-     <record id="error_message_mail_twikey_authentication" model="mail.template">
-        <field name="name">Error on authenticating Twikey</field>
-        <field name="model_id" ref="mail.model_mail_template" />
-         <field name="auto_delete" eval="False" />
-        <field name="body_html" type="html">
-            <div style="margin: 0px; padding: 0px;">
-                <p style="margin: 0px; padding: 0px; font-size: 13px;">
-                    Dear Admin,
-
-                    There was an unexpected error while authenticating Twikey. Please check your Twikey settings and test the connection again.
-
-                </p>
-            </div>
-        </field>
-    </record>
 </odoo>

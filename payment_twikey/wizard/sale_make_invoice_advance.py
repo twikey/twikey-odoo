@@ -18,7 +18,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
                 "auto_collect_invoice": self.auto_collect_invoice,
             }
         )
-        sale_orders = self.env["sale.order"].browse(self._context.get("active_ids", []))
+        sale_orders = self.env["sale.order"].sudo().browse(self._context.get("active_ids", []))
         if self.advance_payment_method == "delivered":
             sale_orders.with_context(**context)._create_invoices()
         else:

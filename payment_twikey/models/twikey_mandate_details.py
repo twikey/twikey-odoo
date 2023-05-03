@@ -48,7 +48,7 @@ class TwikeyMandateDetails(models.Model):
     def action_cancel_reason(self):
         self.ensure_one()
         wizard = self.env["mandate.cancel.reason"].create({"mandate_id": self.id,})
-        action = self.env.ref("twikey_integration.mandate_cancel_reason_action").read()[0]
+        action = self.env.ref("payment_twikey.mandate_cancel_reason_action").read()[0]
         action["res_id"] = wizard.id
         return action
 

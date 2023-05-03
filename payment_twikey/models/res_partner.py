@@ -38,7 +38,7 @@ class ResPartner(models.Model):
                 "partner_id": self.id,
             }
         )
-        action = self.env.ref("twikey_integration.contract_template_wizard_action").read()[0]
+        action = self.env.ref("payment_twikey.contract_template_wizard_action").read()[0]
         action["res_id"] = wizard.id
         return action
 
@@ -173,13 +173,3 @@ class ResPartner(models.Model):
 
                     except (ValueError, requests.exceptions.RequestException) as e:
                         raise exceptions.AccessError from e
-
-    def send_twikey_error(self):
-        mail_template = self.env.ref("twikey_integration.error_message_mail_twikey_authentication")
-        if mail_template:
-            users = self.env["res.users"].search([])
-            for user in users:
-                if user.has_group("base.group_system"):
-                    email_values = {"email_to": user.email}
-
-                    mail_template.send_mail(user.id, force_send=True, email_values=email_values)

@@ -64,7 +64,8 @@ class PaymentTransaction(models.Model):
                 # when only one payment method is enabled and query parameters are provided.
                 return {'api_url': url, 'url_params': url_params, 'reference': self.provider_reference}
             else:
-                raise ValidationError("Connection problem")
+                _logger.warning(f"No configuration found for {self.env.company}")
+                raise ValidationError("Configuration not set")
         except TwikeyError as e:
             raise ValidationError("Twikey: " + e.error)
 

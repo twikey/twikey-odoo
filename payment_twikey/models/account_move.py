@@ -176,17 +176,16 @@ class AccountInvoice(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Set a default value for 'send_to_twikey' according to the standard rules."""
-        res = super().create(vals_list)
         for val in vals_list:
             if (
-                res.is_twikey_eligable
+                val.is_twikey_eligable
                 and not self._context.get("default_send_to_twikey")
                 and val.get("send_to_twikey")
             ):
-                res.send_to_twikey = True
+                val.send_to_twikey = True
             else:
-                res.send_to_twikey = False
-        return res
+                val.send_to_twikey = False
+        return super().create(vals_list)
 
     @api.depends("move_type")
     def _compute_twikey_eligable(self):
@@ -306,10 +305,17 @@ class OdooInvoiceFeed(InvoiceFeed):
                             if twikey_payment_method == "paylink":
                                 payment_reference = "paylink #{}".format(payment["link"])
                             elif twikey_payment_method == "sdd":
-                                payment_reference = "Sepa Direct Debit pmtinf={} e2e={}".format(
-                                    payment["pmtinf"],
-                                    payment["e2e"],
-                                )
+                                # Can be reversed
+                                if "rc" in payment:
+                                    payment_reference = "REVERSAL of Sepa Direct Debit pmtinf={} e2e={}".format(
+                                        payment["pmtinf"],
+                                        payment["e2e"],
+                                    )
+                                else:
+                                    payment_reference = "Sepa Direct Debit pmtinf={} e2e={}".format(
+                                        payment["pmtinf"],
+                                        payment["e2e"],
+                                    )
                             elif twikey_payment_method == "rcc":
                                 payment_reference = "Recurring Credit Card pmtinf={} e2e={}".format(
                                     payment["pmtinf"],
