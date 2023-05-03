@@ -77,6 +77,7 @@ class TwikeyClient(object):
                 self.instance_url(),
                 data=payload,
                 headers={"User-Agent": self.user_agent},
+                timeout=15,
             )
             if "ApiErrorCode" in response.headers:
                 raise requests.exceptions.HTTPError("Error authenticating : %s - %s"% (response.headers["ApiErrorCode"], response.headers["ApiError"]))
@@ -111,7 +112,7 @@ class TwikeyClient(object):
 
     def logout(self):
         self.logger.info("Logging out of Twikey")
-        response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent})
+        response = requests.get(self.instance_url(), headers={"User-Agent": self.user_agent}, timeout=15)
         if "ApiErrorCode" in response.headers:
             # print response.headers
             raise TwikeyError("Logout", response.headers["ApiErrorCode"], response.headers["ApiError"])

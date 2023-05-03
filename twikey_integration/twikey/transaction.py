@@ -10,7 +10,7 @@ class Transaction(object):
         url = self.client.instance_url("/transaction")
         data = data or {}
         self.client.refreshTokenIfRequired()
-        response = requests.post(url=url, data=data, headers=self.client.headers())
+        response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
             error = response.json()
@@ -21,7 +21,7 @@ class Transaction(object):
         url = self.client.instance_url("/transaction")
 
         self.client.refreshTokenIfRequired()
-        response = requests.get(url=url, headers=self.client.headers())
+        response = requests.get(url=url, headers=self.client.headers(), timeout=15)
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
             error = response.json()
@@ -30,7 +30,7 @@ class Transaction(object):
         while len(feed_response["Entries"]) > 0:
             for msg in feed_response["Entries"]:
                 transactionFeed.transaction(msg)
-            response = requests.get(url=url, headers=self.client.headers())
+            response = requests.get(url=url, headers=self.client.headers(), timeout=15)
             if "ApiErrorCode" in response.headers:
                 error = response.json()
                 raise Exception("Error creating : %s" % error)

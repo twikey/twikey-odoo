@@ -13,7 +13,7 @@ class Invoice(object):
         self.client.refreshTokenIfRequired()
         headers = self.client.headers("application/json")
         headers['X-PARTNER'] = "Odoo"
-        response = requests.post(url=url, json=data, headers=headers)
+        response = requests.post(url=url, json=data, headers=headers, timeout=15)
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Create invoice", response)
@@ -25,7 +25,7 @@ class Invoice(object):
         data = data or {}
         self.client.refreshTokenIfRequired()
         headers = self.client.headers("application/json")
-        response = requests.put(url=url, json=data, headers=headers)
+        response = requests.put(url=url, json=data, headers=headers, timeout=15)
         json_response = response.json()
         if "ApiErrorCode" in response.headers:
             error = json_response
@@ -38,7 +38,7 @@ class Invoice(object):
 
         self.client.refreshTokenIfRequired()
         initheaders = self.client.headers()
-        response = requests.get(url=url, headers=initheaders)
+        response = requests.get(url=url, headers=initheaders, timeout=15)
         response.raise_for_status()
         if "ApiErrorCode" in response.headers:
             raise self.client.raise_error("Feed invoice", response)
@@ -48,7 +48,7 @@ class Invoice(object):
             for invoice in feed_response["Invoices"]:
                 self.logger.debug("Feed handling : %s" % invoice)
                 invoiceFeed.invoice(invoice)
-            response = requests.get(url=url, headers=self.client.headers())
+            response = requests.get(url=url, headers=self.client.headers(), timeout=15)
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
