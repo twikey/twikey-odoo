@@ -177,14 +177,10 @@ class AccountInvoice(models.Model):
     def create(self, vals_list):
         """Set a default value for 'send_to_twikey' according to the standard rules."""
         for val in vals_list:
-            if (
-                val.is_twikey_eligable
-                and not self._context.get("default_send_to_twikey")
-                and val.get("send_to_twikey")
-            ):
-                val.send_to_twikey = True
+            if val.get("send_to_twikey") and val.get("move_type") in ["out_invoice", "out_refund"]:
+                val["send_to_twikey"] = True
             else:
-                val.send_to_twikey = False
+                val["send_to_twikey"] = False
         return super().create(vals_list)
 
     @api.depends("move_type")
