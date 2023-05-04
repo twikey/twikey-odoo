@@ -32,7 +32,7 @@ class TwikeyController(http.Controller):
                 request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
             else:
                 request.env["account.move"].sudo().update_invoice_feed()
-            return "OK"
+            return Response(status=204)
         elif webhooktype == "contract":
             if post.get("mandateNumber"):
                 # Removal of a prepared mandate doesn't show up in the feed
@@ -51,12 +51,12 @@ class TwikeyController(http.Controller):
                         request.env["twikey.mandate.details"].sudo().update_feed()
                 else:
                     request.env["twikey.mandate.details"].sudo().update_feed()
-            return "OK"
+            return Response(status=204)
         elif webhooktype == "event" and post.get("msg") == "dummytest":
             _logger.info("Twikey Webhook test successful!")
-            return "OK"
+            return Response(status=204)
         else:
-            return "OK"
+            return Response(status=204)
 
     @http.route("/twikey/status", type='http', auth='public', methods=['GET', 'POST'], csrf=False, save_session=False)
     def twikey_return_from_checkout(self, **data):

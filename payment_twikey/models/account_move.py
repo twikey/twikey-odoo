@@ -7,7 +7,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.invoice import InvoiceFeed
-from ..utils import get_twikey_customer, get_error_msg, get_success_msg
+from ..utils import get_twikey_customer, get_error_msg, get_success_msg, sanitise_iban
 
 _logger = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                         )
 
                         if customer and iban:
-                            customer_bank_id = customer.bank_ids.filtered(lambda x: x.acc_number == iban)
+                            customer_bank_id = customer.bank_ids.filtered(lambda x: sanitise_iban(x.acc_number) == iban)
                             if not customer_bank_id:
                                 _logger.info("Linked customer: " + str(customer.name) + " and iban: " + str(iban))
                                 self.env["res.partner.bank"].create({"partner_id": customer.id, "acc_number": iban})

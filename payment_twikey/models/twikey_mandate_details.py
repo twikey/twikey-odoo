@@ -7,6 +7,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.document import DocumentFeed
+from ..utils import sanitise_iban
 
 _logger = logging.getLogger(__name__)
 
@@ -263,7 +264,10 @@ class OdooDocumentFeed(DocumentFeed):
 
         # Allow regular refunds
         if partner_id and iban:
-            self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
+            customer_bank_id = partner_id.bank_ids.filtered(lambda x: sanitise_iban(x.acc_number) == iban)
+            if not customer_bank_id:
+                _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
+                self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
 
     def newDocument(self, doc):
         self.new_update_document(doc, False, False, False)

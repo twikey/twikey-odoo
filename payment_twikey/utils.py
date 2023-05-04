@@ -1,4 +1,5 @@
 from odoo.addons.payment import utils as payment_utils
+import re
 
 def get_twikey_customer(partner):
     if not partner:
@@ -58,3 +59,6 @@ def get_success_msg(msg, title='Twikey', sticky = False):
             'sticky': sticky,
         }
     }
+
+def sanitise_iban(iban):
+    return re.sub(r'\W+', '', iban).upper()
