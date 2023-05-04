@@ -99,6 +99,7 @@ class SyncContractTemplates(models.AbstractModel):
             return ir_fields
 
     def process_new_mandate_field_views(self, mandate_field_list, template_id):
+        name = f"mandate.dynamic.fields.{template_id.template_id_twikey}"
         inherit_mandate_id = self.env.ref("payment_twikey.mandate_details_view_twikey_form")
         mandate_arch_base = _(
             '<?xml version="1.0"?>' "<data>" '<field name="url" position="after">\n'
@@ -120,9 +121,14 @@ class SyncContractTemplates(models.AbstractModel):
                     attrs="{{'invisible':[('contract_temp_id', '!=', {template_id.id})]}}"/>\n"""
 
         mandate_arch_base += _("</field>" "</data>")
+
+        existing_views = self.env["ir.ui.view"].sudo().search([("name", "=", name), ("inherit_id", "=", inherit_mandate_id.id)])
+        for view in existing_views:
+            view.unlink()
+
         self.env["ir.ui.view"].sudo().create(
             {
-                "name": f"mandate.dynamic.fields.{template_id.template_id_twikey}",
+                "name": name,
                 "type": "form",
                 "model": "twikey.mandate.details",
                 "mode": "extension",
@@ -133,6 +139,7 @@ class SyncContractTemplates(models.AbstractModel):
         )
 
     def process_new_field_views(self, fields_list, template_id):
+        name = f"attribute.dynamic.fields.{template_id.template_id_twikey}"
         inherit_id = self.env.ref("payment_twikey.contract_template_wizard_view_twikey_form")
         arch_base = _(
             '<?xml version="1.0"?>' "<data>" '<field name="template_id" position="after">\n'
@@ -150,9 +157,13 @@ class SyncContractTemplates(models.AbstractModel):
                 arch_base += f"""\t<field name="{field.name}" attrs="{{'invisible': [('template_id', '!=', {template_id.id})]}}"/>\n"""
 
         arch_base += _("</field>" "</data>")
+        existing_views = self.env["ir.ui.view"].sudo().search([("name", "=", name), ("inherit_id", "=", inherit_id.id)])
+        for view in existing_views:
+            view.unlink()
+
         self.env["ir.ui.view"].sudo().create(
             {
-                "name": f"attribute.dynamic.fields.{template_id.template_id_twikey}",
+                "name": name,
                 "type": "form",
                 "model": "twikey.contract.template.wizard",
                 "mode": "extension",
