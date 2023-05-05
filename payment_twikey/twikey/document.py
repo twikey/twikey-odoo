@@ -56,11 +56,11 @@ class Document(object):
         try:
             self.client.refreshTokenIfRequired()
             response = requests.delete(url=url, headers=self.client.headers(), timeout=15)
-            self.logger.debug("Updated mandate : %s status=%d" % (mandate_number, response.status_code))
+            self.logger.debug("Cancel mandate : %s status=%d" % (mandate_number, response.status_code))
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Cancel", response)
         except requests.exceptions.RequestException as e:
-            raise self.client.raise_error_from_request("Invite", e)
+            raise self.client.raise_error_from_request("Cancel", e)
 
     def feed(self, documentFeed):
         url = self.client.instance_url("/mandate")

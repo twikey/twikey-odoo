@@ -107,9 +107,10 @@ class TwikeyMandateDetails(models.Model):
                         twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
                         if twikey_client:
                             twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
-                        return super(TwikeyMandateDetails, mandate).unlink()
                     except TwikeyError as e:
-                        raise UserError from e
+                        if e.error_code != 'err_no_contract': #Ignore as not avail in Twikey
+                            raise UserError(_("This mandate could not be cancelled: %s") % e.error)
+                    return super(TwikeyMandateDetails, mandate).unlink()
                 else:
                     return super(TwikeyMandateDetails, mandate).unlink()
             else:
@@ -258,8 +259,10 @@ class OdooDocumentFeed(DocumentFeed):
 
         # Allow register payments
         if template_id and mandate_id and partner_id:
+            _logger.debug("Finding linked providers for %s", template_id)
             providers = self.env['payment.provider'].sudo().search([("twikey_template_id", "=", template_id.id)])
             for provider in providers:
+                _logger.debug("Creating token for : %s", mandate_id.reference)
                 provider.token_from_mandate(partner_id, mandate_id)
 
         # Allow regular refunds
@@ -270,10 +273,16 @@ class OdooDocumentFeed(DocumentFeed):
                 self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
 
     def newDocument(self, doc):
-        self.new_update_document(doc, False, False, False)
+        try:
+            self.new_update_document(doc, False, False, False)
+        except Exception as e:
+            _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s",doc.get("MndtId"), e)
 
     def updatedDocument(self, mandate_number, doc, reason):
-        self.new_update_document(doc, True, mandate_number, reason)
+        try:
+            self.new_update_document(doc, True, mandate_number, reason)
+        except Exception as e:
+            _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s",mandate_number, e)
 
     def cancelDocument(self, mandateNumber, rsn):
         mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandateNumber)])

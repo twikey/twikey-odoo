@@ -64,6 +64,6 @@ class TwikeyController(http.Controller):
         :param dict data: The notification data (only `id`) and the transaction reference (`ref`)
                           embedded in the return URL
         """
-        _logger.info("handling redirection from Twikey with data:\n%s", pprint.pformat(data))
+        _logger.info("handling redirection from Twikey with data: %s", pprint.pformat(data))
         request.env['payment.transaction'].sudo()._handle_notification_data('twikey', data)
         return request.redirect('/payment/status')
