@@ -13,7 +13,6 @@
                         class="oe_highlight"
                         attrs="{'invisible': [('state', '!=', 'signed')]}"
                     />
-                    <button name="update_feed" string="Sync" type="object" class="oe_highlight" attrs="{'invisible': [('url','=',False)]}"/>
                     <field name="state" widget="statusbar" nolabel="1" />
                 </header>
                 <sheet>

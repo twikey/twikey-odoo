@@ -7,17 +7,12 @@
        <field name="arch" type="xml">
            <xpath expr="//form//sheet" position="before">
                <header>
-                   <button
-                        name="action_invite_customer"
+                   <button name="action_invite_customer"
                         string="Create mandate invite"
                         type="object"
                         class="oe_highlight"
-                        attrs="{'invisible': [('show_create_mandate_invite_button', '=', False)]}"
                     />
                </header>
-           </xpath>
-           <xpath expr="//form//field[@name='name']" position="after">
-               <field name="show_create_mandate_invite_button" invisible="1" />
            </xpath>
            <xpath expr="//notebook" position="inside">
                 <page name="mandate" string="Mandates">
@@ -26,4 +21,24 @@
            </xpath>
        </field>
    </record>
+
+    <record id="twikey_invite_partner_mandate" model="ir.actions.server">
+        <field name="name">Invite mandate</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">tree,form</field>
+        <field name="state">code</field>
+        <field name="code">
+            if records:
+                action = records.action_invite_customer()
+        </field>
+    </record>
+
+    <menuitem
+            id="menu_action_mandate"
+            action="twikey_invite_partner_mandate"
+            parent="contacts.res_partner_menu_config"
+            sequence="1"
+    />
+
 </odoo>
