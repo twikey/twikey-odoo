@@ -105,6 +105,10 @@ class Document(object):
             raise self.client.raise_error_from_request("Update customer", e)
 
 class DocumentFeed:
+
+    def start(self, position, number_of_updates):
+        pass
+
     def newDocument(self, doc):
         pass
 

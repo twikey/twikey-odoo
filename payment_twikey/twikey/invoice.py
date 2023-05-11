@@ -57,18 +57,16 @@ class Invoice(object):
                 raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
             while len(feed_response["Invoices"]) > 0:
+
                 self.logger.debug(
                     "Feed handling %d invoices from seq=%s"
                     % (len(feed_response["Invoices"]), response.headers["X-LAST"])
                 )
+                invoiceFeed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
                 for invoice in feed_response["Invoices"]:
                     self.logger.debug("Feed handling : %s" % invoice)
                     invoiceFeed.invoice(invoice)
-                response = requests.get(
-                    url=url,
-                    headers=self.client.headers(),
-                    timeout=15,
-                )
+                response = requests.get(url=url, headers=self.client.headers(), timeout=15, )
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed invoice", response)
                 feed_response = response.json()
@@ -88,5 +86,9 @@ class Invoice(object):
 
 
 class InvoiceFeed:
+
+    def start(self, position, lenght):
+        pass
+
     def invoice(self, invoice):
         pass
