@@ -1,4 +1,4 @@
-import requests
+import logging
 
 from odoo import _, exceptions, models
 from odoo.exceptions import UserError
@@ -18,6 +18,7 @@ Field_Type = {
     "multi": "char",
 }
 
+_logger = logging.getLogger(__name__)
 
 class SyncContractTemplates(models.AbstractModel):
     _name = "twikey.sync.contract.templates"
@@ -28,19 +29,7 @@ class SyncContractTemplates(models.AbstractModel):
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.refreshTokenIfRequired()
-                try:
-                    response = requests.get(
-                        twikey_client.api_base + "/template",
-                        headers=twikey_client.headers(),
-                        timeout=15,
-                    )
-                    if response.status_code == 200:
-                        return response.json()
-                    else:
-                        raise UserError(_("Error on syncing contract templates.") + "\n" + response.text)
-
-                except (ValueError, requests.exceptions.RequestException) as e:
-                    raise exceptions.AccessError from e
+                return twikey_client.templates()
             else:
                 return False
         except TwikeyError as e:
@@ -90,7 +79,7 @@ class SyncContractTemplates(models.AbstractModel):
                         "model_id": model.id,
                         "ttype": Field_Type[field_type],
                         "store": True,
-                        "readonly": attr.get("readonly"),
+                        "readonly": False, # readonly fields should be readonly in the view, not the model
                         "selection": str(select_list) if select_list != [] else "",
                     }
                 )
@@ -177,17 +166,19 @@ class SyncContractTemplates(models.AbstractModel):
         ct = response.get("id")
         fields_list = []
         mandate_field_list = []
+        stale_attributes = template_id.twikey_attribute_ids.mapped("name")
         for attr in response.get("Attributes"):
-            if template_id.is_creditcard() and attr.get("name") not in ["_expiry","_last","_cctype",]:
+            twikey_attr_name = attr.get("name")
+            field_type = attr.get("type")
+            if template_id.is_creditcard() and twikey_attr_name not in ["_expiry", "_last", "_cctype", ]:
                 continue
             select_list = []
-            field_type = attr.get("type")
             if field_type == "select" and attr.get("Options"):
                 select_list = [
                     (str(selection), str(selection)) for selection in attr.get("Options")
                 ]
 
-            attribute_name = "x_" + attr.get("name") + "_" + str(ct)
+            attribute_name = "x_" + twikey_attr_name + "_" + str(ct)
 
             model_id = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
             ir_fields = self.create_search_fields(
@@ -203,16 +194,25 @@ class SyncContractTemplates(models.AbstractModel):
             if ir_fields is not None:
                 mandate_field_list.append(ir_fields)
 
-            attr_vals = {
+            attribute_vals = {
                 "contract_template_id": template_id.template_id_twikey,
-                "name": attr.get("name"),
+                "name": twikey_attr_name,
                 "type": Field_Type[attr.get("type")],
             }
+            if twikey_attr_name in stale_attributes:
+                stale_attributes.remove(twikey_attr_name)
             if template_id.twikey_attribute_ids:
-                if attr.get("name") not in template_id.twikey_attribute_ids.mapped("name"):
-                    template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
+                if twikey_attr_name not in template_id.twikey_attribute_ids.mapped("name"):
+                    template_id.write({"twikey_attribute_ids": [(0, 0, attribute_vals)]})
+                    self.env["twikey.contract.template.attribute"].create(attribute_vals)
             else:
-                template_id.write({"twikey_attribute_ids": [(0, 0, attr_vals)]})
+                template_id.write({"twikey_attribute_ids": [(0, 0, attribute_vals)]})
+
+        for removable_name in stale_attributes:
+            _logger.info(f"Removing stale attribute {removable_name} from  #{template_id.template_id_twikey} - {template_id.name}")
+            self.env["twikey.contract.template.attribute"].search(
+                [("contract_template_id", "=", template_id.template_id_twikey), ("name", "=", removable_name)]
+            ).unlink()
 
         return fields_list, mandate_field_list
 
@@ -226,6 +226,7 @@ class SyncContractTemplates(models.AbstractModel):
                 twikey_temp_list.append(ct)
 
                 template_id = self.search_create_template(ct, response)
+                _logger.info(f"Handling #{template_id.template_id_twikey} - {template_id.name}")
                 if response.get("Attributes"):
 
                     fields_list, mandate_field_list = self.process_contract_attribute(

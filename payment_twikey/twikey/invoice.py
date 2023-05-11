@@ -43,11 +43,13 @@ class Invoice(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Update invoice", e)
 
-    def feed(self, invoiceFeed):
+    def feed(self, invoiceFeed, startPosition = False):
         url = self.client.instance_url("/invoice?include=customer&include=meta&include=lastpayment")
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
+            if startPosition:
+                initheaders["X-RESUME-AFTER"] = startPosition
             response = requests.get(
                 url=url,
                 headers=initheaders,
@@ -57,11 +59,7 @@ class Invoice(object):
                 raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
             while len(feed_response["Invoices"]) > 0:
-
-                self.logger.debug(
-                    "Feed handling %d invoices from seq=%s"
-                    % (len(feed_response["Invoices"]), response.headers["X-LAST"])
-                )
+                self.logger.debug("Feed handling : %d invoices from %s till %s" % (len(feed_response["Invoices"]), startPosition, response.headers["X-LAST"]))
                 invoiceFeed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
                 for invoice in feed_response["Invoices"]:
                     self.logger.debug("Feed handling : %s" % invoice)

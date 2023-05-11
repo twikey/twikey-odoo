@@ -62,18 +62,20 @@ class Document(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Cancel", e)
 
-    def feed(self, documentFeed):
+    def feed(self, documentFeed, startPosition = False):
         url = self.client.instance_url("/mandate")
         try:
             self.client.refreshTokenIfRequired()
-            headers = self.client.headers()
-            headers.update({"X-TYPES": "CORE,B2B,CREDITCARD"})
-            response = requests.get(url=url,headers=headers,timeout=15,)
+            initheaders = self.client.headers()
+            if startPosition:
+                initheaders["X-RESUME-AFTER"] = startPosition
+            response = requests.get(url=url,headers=initheaders,timeout=15,)
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Feed", response)
             feed_response = response.json()
             while len(feed_response["Messages"]) > 0:
-                self.logger.debug("Feed handling : %d from %s" % (len(feed_response["Messages"]), response.headers["X-LAST"]))
+                self.logger.debug("Feed handling : %d from %s till %s" % (len(feed_response["Messages"]), startPosition, response.headers["X-LAST"]))
+                documentFeed.start(response.headers["X-LAST"], len(feed_response["Messages"]))
                 for msg in feed_response["Messages"]:
                     if "AmdmntRsn" in msg:
                         mndt_id_ = msg["OrgnlMndtId"]
@@ -87,7 +89,7 @@ class Document(object):
                     else:
                         self.logger.debug("Feed create : %s" % (msg["Mndt"]))
                         documentFeed.newDocument(msg["Mndt"])
-                response = requests.get(url=url,headers=headers,timeout=15,)
+                response = requests.get(url=url,headers=self.client.headers(),timeout=15,)
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed", response)
                 feed_response = response.json()

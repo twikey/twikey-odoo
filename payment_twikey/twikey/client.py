@@ -107,6 +107,18 @@ class TwikeyClient(object):
             "User-Agent": self.user_agent,
         }
 
+    def templates(self):
+        try:
+            response = requests.get(self.instance_url("/template"),headers=self.headers(),timeout=15,)
+            if "ApiErrorCode" in response.headers:
+                raise self.raise_error("Feed", response)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return TwikeyError("Template", response.url, response.text)
+        except requests.exceptions.RequestException as e:
+            raise self.raise_error_from_request("Template error", e)
+
     def raise_error(self, context, response):
         self.logger.error("Error in '%s' response %s " % (context, response.text))
         try:

@@ -225,8 +225,10 @@ class OdooDocumentFeed(DocumentFeed):
         if updatedDoc:
             new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
+            mandate_id.message_post(body=f"Twikey mandate {mandate_number} was updated ({reason})")
         else:
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
+            mandate_id.message_post(body=f"Twikey mandate {mandate_number} was added")
 
         mandate_vals = {
             "partner_id": partner_id.id if partner_id else False,
@@ -264,6 +266,7 @@ class OdooDocumentFeed(DocumentFeed):
             for provider in providers:
                 _logger.debug("Creating token for : %s", mandate_id.reference)
                 provider.token_from_mandate(partner_id, mandate_id)
+                mandate_id.message_post(body=f"Twikey token {mandate_number} was added")
 
         # Allow regular refunds
         if partner_id and iban:
@@ -271,6 +274,13 @@ class OdooDocumentFeed(DocumentFeed):
             if not customer_bank_id:
                 _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
                 self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
+                mandate_id.message_post(body=f"Twikey account of {partner_id.name} was added")
+
+    def start(self, position, number_of_updates):
+        _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
+        self.env.company.update({
+            "mandate_feed_pos": position
+        })
 
     def newDocument(self, doc):
         try:
@@ -285,12 +295,17 @@ class OdooDocumentFeed(DocumentFeed):
             _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s",mandate_number, e)
 
     def cancelDocument(self, mandateNumber, rsn):
-        mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandateNumber)])
-        if mandate_id:
-            mandate_id.with_context(update_feed=True).write(
-                {"state": "cancelled", "description": "Cancelled with reason : " + rsn["Rsn"]}
-            )
-        else:
-            self.env["twikey.mandate.details"].sudo().create(
-                {"reference": mandateNumber, "state": "cancelled"}
-            )
+        try:
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandateNumber)])
+            if mandate_id:
+                mandate_id.with_context(update_feed=True).write(
+                    {"state": "cancelled", "description": "Cancelled with reason : " + rsn["Rsn"]}
+                )
+            else:
+                mandate_id = self.env["twikey.mandate.details"].sudo().create(
+                    {"reference": mandateNumber, "state": "cancelled"}
+                )
+            mandate_id.message_post(body=f"Twikey mandate {mandateNumber} was cancelled")
+        except Exception as e:
+            _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s",mandateNumber, e)
+
