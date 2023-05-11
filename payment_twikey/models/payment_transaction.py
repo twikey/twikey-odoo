@@ -118,7 +118,6 @@ class PaymentTransaction(models.Model):
         return payload
 
     def _get_tx_from_notification_data(self, provider_code, notification_data):
-
         tx = self.search([('reference', '=', notification_data.get('ref')), ('provider_code', '=', 'twikey')])
         if provider_code != 'twikey' or len(tx) == 1:
             return tx
@@ -140,7 +139,8 @@ class PaymentTransaction(models.Model):
 
         payment_status = notification_data.get('status')
         if not payment_status:
-            _logger.debug("No status update for reference %s", self.reference)
+            _logger.warning("No status update for reference %s, setting to pending", self.reference)
+            self._set_pending()
             return
 
         if self.tokenize:
@@ -190,7 +190,6 @@ class PaymentTransaction(models.Model):
         :return: None
         :raise UserError: If the transaction is not linked to a token.
         """
-        super()._send_payment_request()
         if self.provider_code != 'twikey':
             return
 
@@ -201,6 +200,7 @@ class PaymentTransaction(models.Model):
         twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.provider_id.company_id)
         if twikey_client:
             try:
+                super()._send_payment_request()
                 if self._context.get('active_model') == 'account.move':
                     invoice_id = self.env['account.move'].browse(self._context.get('active_ids', []))
                     invoice = {
@@ -214,10 +214,10 @@ class PaymentTransaction(models.Model):
                         "duedate": invoice_id.invoice_date_due.isoformat(),
                     }
                     twikey_invoice = twikey_client.invoice.create(invoice)
-
                     template_id = self.env["twikey.contract.template"].search(
                         [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
                     )
+                    state = twikey_invoice.get("state")
                     invoice_id.with_context(update_feed=True).write({
                         "send_to_twikey": True,
                         "twikey_template_id": template_id.id,
@@ -225,18 +225,17 @@ class PaymentTransaction(models.Model):
                         "twikey_invoice_identifier": twikey_invoice.get("id"),
                         "twikey_invoice_state": twikey_invoice.get("state")
                     })
-                    invoice_id.message_post(body="Send to Twikey with state=" + invoice_id.twikey_invoice_state)
-                    self.reference = twikey_invoice.get("id")
-                    self.provider_reference = twikey_invoice.get("id")
-                    self._set_pending(f"Send to Twikey (State={invoice_id.twikey_invoice_state}")
-                    # Handle the payment request response.
-                    _logger.info("Send transaction with reference %s: %s",self.reference, self.provider_reference)
+                    invoice_id.message_post(body=f"Send to Twikey with state={state}")
                 else:
-                    raise UserError(_("The register payment wizard should only be called on account.move records."))
+                    raise UserError("Twikey: Sales order without invoice is not supported")
+
+                self.reference = twikey_invoice.get("id")
+                self.provider_reference = twikey_invoice.get("id")
+                state = twikey_invoice.get("state")
+                self._set_pending(f"Send to Twikey (State={state}")
+                # Handle the payment request response.
+                _logger.info("Send transaction with reference %s: %s",self.reference, self.provider_reference)
             except TwikeyError as e:
                 raise UserError("Twikey: " + e.error)
         else:
             raise UserError("Twikey: " + _("Could not connect to Twikey"))
-
-    def _reconcile_after_done(self):
-        _logger.info("Pending transaction with reference %s: %s",self.reference, self.provider_reference)
