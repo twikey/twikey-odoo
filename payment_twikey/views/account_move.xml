@@ -12,7 +12,7 @@
                         <field name="send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
                         <field name="auto_collect_invoice"      attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
                         <field name="twikey_url" widget="url"   attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
-                        <field name="twikey_template_id"        attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}}"/>
+                        <field name="twikey_template_id"        attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
                         <field name="twikey_invoice_state"      attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
                     </group>
                 </page>

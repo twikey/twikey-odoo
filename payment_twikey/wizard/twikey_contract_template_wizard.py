@@ -51,10 +51,6 @@ class TwikeyContractTemplateWizard(models.Model):
 
             get_fields = self.read(fields=lst, load="_classic_read")
             if get_fields:
-                template_id = False
-                if get_fields[0].get("template_id"):
-                    template_id = get_fields[0].get("template_id")[0]
-                get_template_id = self.env["twikey.contract.template"].browse(template_id)
                 get_fields[0].pop("id")
                 get_fields[0].pop("template_id")
                 new_keys = []
