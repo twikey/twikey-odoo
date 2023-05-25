@@ -1,21 +1,28 @@
-version: '2'
+version: "2"
 services:
   app:
     image: odoo:15.0
     depends_on:
       - db
     restart: always
+    tty: true
     ports:
       - "8069:8069"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
     volumes:
       - odoo-web-data15:/var/lib/odoo
       - ./odoo.conf:/etc/odoo/odoo.conf
-      - ./twikey_integration:/mnt/extra-addons/twikey_integration
+      - ./payment_twikey:/mnt/extra-addons/payment_twikey
   db:
     image: postgres:alpine
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=odoo
       - POSTGRES_USER=odoo
+    ports:
+      - 6432:5432
 volumes:
   odoo-web-data15:

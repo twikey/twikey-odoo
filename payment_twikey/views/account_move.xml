@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+   <record id="view_move_form" model="ir.ui.view">
+       <field name="name">account.move.view.twikey.form.inherit</field>
+       <field name="model">account.move</field>
+       <field name="inherit_id" ref="account.view_move_form" />
+       <field name="arch" type="xml">
+            <xpath expr="//page[@name='other_info']" position="after">
+                <field name="is_twikey_eligable" invisible="1"/>
+                <page id="twikey_info" name="twikey_info" string="Twikey Info" attrs="{'invisible': [('is_twikey_eligable', '=', False)]}">
+                    <group>
+                        <field name="send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="auto_collect_invoice"      attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="twikey_url" widget="url"   attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                        <field name="twikey_template_id"        attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                        <field name="twikey_invoice_state"      attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                    </group>
+                </page>
+            </xpath>
+       </field>
+   </record>
+</odoo>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="payment_provider_form" model="ir.ui.view">
+        <field name="name">Twikey Provider Form</field>
+        <field name="model">payment.acquirer</field>
+        <field name="inherit_id" ref="payment.payment_acquirer_form"/>
+        <field name="arch" type="xml">
+            <group name="acquirer_config" position="inside">
+                <group name="twikey_config" string="Twikey Config" attrs="{'invisible': [('provider', '!=', 'twikey')]}">
+                    <field name="twikey_template_id" string="Profile to use" attrs="{'invisible': [('provider', '!=', 'twikey')]}" />
+                    <field name="twikey_method" string="Method" attrs="{'invisible': [('provider', '!=', 'twikey')]}" />
+                </group>
+            </group>
+        </field>
+    </record>
+</odoo>
