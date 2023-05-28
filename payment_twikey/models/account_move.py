@@ -2,7 +2,7 @@ import base64
 import logging
 import uuid
 
-from odoo import _, api, exceptions, fields, models
+from odoo import _, api, exceptions, fields, models,Command
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
@@ -135,7 +135,7 @@ class AccountInvoice(models.Model):
 
     def update_invoice_feed(self):
         try:
-            _logger.debug("Fetching Twikey updates")
+            _logger.debug(f"Fetching Twikey updates from {self.env.company.invoice_feed_pos}")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.invoice.feed(OdooInvoiceFeed(self.env), self.env.company.invoice_feed_pos)
@@ -212,145 +212,94 @@ class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
         self.env = env
 
-    def process_states(self, invoice_id, twikey_invoice, new_state):
-        _logger.info("Processing state for invoice: " + str(twikey_invoice))
-        invoice_id.twikey_invoice_state = new_state
-        if new_state == "PAID" and twikey_invoice["amount"] == invoice_id.amount_total:
-            journals = self.env["account.journal"].search([("use_with_twikey", "=", True)])
-
-            if len(journals) == 1:
-                payment_method_line_twikey = journals.inbound_payment_method_line_ids.filtered(
-                    lambda x: x.name == "Twikey" and x.payment_method_id.code == "manual"
-                )
-
-                if not payment_method_line_twikey:
-                    payment_method_manual = self.env["account.payment.method"].search(
-                        [("code", "=", "manual"), ("payment_type", "=", "inbound")]
-                    )
-                    if not payment_method_manual:
-                        _logger.info("Creating an account payment method")
-                        payment_method_manual = self.env["account.payment.method"].create(
-                            {
-                                "name": "Manual",
-                                "payment_type": "inbound",
-                                "code": "manual",
-                            }
-                        )
-
-                    _logger.info("Creating an account payment method line")
-                    payment_method_line_twikey = self.env["account.payment.method.line"].create(
-                        {
-                            "payment_method_id": payment_method_manual[0].id,
-                            "name": "Twikey",
-                        }
-                    )
-
-                if twikey_invoice.get("lastpayment")[0].get("method") in ["sdd", "transfer"]:
-                    iban = twikey_invoice.get("lastpayment")[0].get("iban")
-
-                    # if we have an iban (customer might have done the payment twice of regular payment)
-                    if twikey_invoice.get("customer") and twikey_invoice.get("customer").get("customerNumber"):
-                        customer = self.env["res.partner"].browse(
-                            [int(twikey_invoice.get("customer").get("customerNumber"))]
-                        )
-
-                        if customer and iban:
-                            customer_bank_id = customer.bank_ids.filtered(lambda x: sanitise_iban(x.acc_number) == iban)
-                            if not customer_bank_id:
-                                _logger.info("Linked customer: " + str(customer.name) + " and iban: " + str(iban))
-                                self.env["res.partner.bank"].create({"partner_id": customer.id, "acc_number": iban})
-                            else:
-                                _logger.debug("Known customer: " + str(customer.name) + " and iban: " + str(iban))
-                    else:
-                        _logger.info("Unknown customer: " + str(twikey_invoice.get("customer")) )
-
-                payment = (
-                    self.env["account.payment.register"]
-                    .with_context(active_model="account.move", active_ids=invoice_id.ids)
-                    .create(
-                        {
-                            "journal_id": journals.id,
-                            "payment_date": twikey_invoice["paydate"],
-                            "payment_method_line_id": payment_method_line_twikey[0].payment_method_id.id,
-                        }
-                    )
-                )
-
-                _logger.info("Creating payment")
-                payment.action_create_payments()
-
-            elif len(journals) > 1:
-                raise UserError(_("It's not allowed to use Twikey in multiple journals!"))
-            else:
-                error_message = _("Error while searching for a journal with 'use with Twikey' enabled!")
-                invoice_id.message_post(body=error_message)
-                raise UserError(error_message)
-        elif new_state in ["BOOKED","EXPIRED"]:
-            # Getting here means either a regular expiry or a reversal
-            if twikey_invoice.get("meta") and twikey_invoice.get("meta").get("lastError"):
-                # For sure a reversal
-                error = twikey_invoice.get("meta").get("lastError")
-                invoice_id.message_post(body=f"Reversed payment with error={error}")
-
     def start(self, position, number_of_invoices):
         _logger.info(f"Got new {number_of_invoices} invoice update(s) from start={position}")
         self.env.company.update({
             "invoice_feed_pos": position
         })
 
-    def invoice(self, _invoice):
-        ref_id = _invoice.get("ref")
-        new_state = _invoice["state"]
-        odoo_state = InvoiceStatus[new_state]
+    def invoice(self, twikey_invoice):
+        ref_id = twikey_invoice.get("ref")
+        new_state = twikey_invoice["state"]
 
         try:
             if ref_id.isnumeric():
                 invoice_id = self.env["account.move"].browse(int(ref_id))
                 if invoice_id.exists():
-                    _logger.debug(f"Handling invoice={invoice_id.id}")
-                    self.process_states(invoice_id, _invoice, new_state)
-                    if invoice_id.payment_state == "paid":
-                        try:
-                            payment_reference = "unknown"
-                            if "lastpayment" in _invoice and len(_invoice["lastpayment"]) > 0:
-                                payment = _invoice["lastpayment"][0]
-                                twikey_payment_method = payment["method"]
-                                if twikey_payment_method == "paylink":
-                                    payment_reference = "paylink #{}".format(payment["link"])
-                                elif twikey_payment_method == "sdd":
-                                    # Can be reversed
-                                    if "rc" in payment:
-                                        payment_reference = "REVERSAL of Sepa Direct Debit pmtinf={} e2e={}".format(
-                                            payment["pmtinf"],
-                                            payment["e2e"],
-                                        )
-                                    else:
-                                        payment_reference = "Sepa Direct Debit pmtinf={} e2e={}".format(
-                                            payment["pmtinf"],
-                                            payment["e2e"],
-                                        )
-                                elif twikey_payment_method == "rcc":
-                                    payment_reference = "Recurring Credit Card pmtinf={} e2e={}".format(
-                                        payment["pmtinf"],
-                                        payment["e2e"],
-                                    )
-                                elif twikey_payment_method == "transfer":
-                                    payment_reference = "Regular transfer msg={}".format(payment["msg"])
-                                elif twikey_payment_method == "manual":
-                                    payment_reference = "Manually set as paid msg={}".format(payment["msg"])
+                    _logger.info("Processing invoice: " + str(twikey_invoice))
+                    invoice_id.twikey_invoice_state = new_state
+                    if new_state == "PAID" and twikey_invoice["amount"] == invoice_id.amount_total:
+                        if "lastpayment" in twikey_invoice and len(twikey_invoice["lastpayment"]) > 0:
+                            last_payment = twikey_invoice.get("lastpayment")[0]
+
+                            operation = "offline"
+                            twikey_payment_method = last_payment.get("method")  # sdd/rcc/paylink/reporting/manual
+                            if twikey_payment_method == "paylink":
+                                payment_description = "paylink #{}".format(last_payment["link"])
+                                provider_reference = "pl-{}".format(last_payment["link"])
+                                operation = "online_redirect"
+                            elif twikey_payment_method in ["sdd","rcc"]:
+                                pmtinf = last_payment["pmtinf"]
+                                provider_reference = last_payment["e2e"]
+                                if twikey_payment_method == "sdd":
+                                    payment_description = "Direct Debit pmtinf={} e2e={}".format(pmtinf,provider_reference,)
                                 else:
-                                    payment_reference = "Other"
+                                    payment_description = "Credit Card pmtinf={} e2e={}".format(pmtinf,provider_reference,)
+                                operation = "offline"
+                            elif twikey_payment_method == "transfer":
+                                provider_reference = "rep-{}".format(last_payment["id"])
+                                payment_description = "Regular transfer msg={}".format(last_payment["msg"])
+                            elif twikey_payment_method == "manual":
+                                provider_reference = last_payment["msg"]
+                                payment_description = "Manually set as paid msg={}".format(last_payment["msg"])
+                            else:
+                                provider_reference = "None"
+                                payment_description = "Other"
 
-                            invoice_id.message_post(body="Twikey payment via " + payment_reference)
-                        except Exception as e:
-                            _logger.error("Error marking invoice as paid in odoo {}".format(e))
-                            invoice_id.message_post(body=str(e))
-                    else:
-                        number = _invoice.get("title")
-                        _logger.info(f"Ignoring invoice update of {number} - {new_state}")
-                        invoice_id.message_post(body="Twikey invoice state is now " + new_state)
+                            invoice_id.message_post(body="Incoming twikey payment via " + payment_description)
 
-                    invoice_id.with_context(update_feed=True).write({"state": odoo_state})
+                            provider = self.env['payment.provider'].search([('code', '=', 'twikey')])[0]
+                            token_id = False
+                            if "mndtId" in last_payment:
+                                token_id = self.env['payment.token'].search([
+                                    ('provider_code', '=', provider.code),
+                                    ('provider_ref', '=', last_payment["mndtId"])
+                                ])
+
+                            tx = self.env['payment.transaction'].create({
+                                'amount': invoice_id.amount_total,
+                                'currency_id': invoice_id.currency_id.id,
+                                'provider_id': provider.id,
+                                'token_id': token_id.id if token_id else False,
+                                'reference': twikey_invoice["remittance"],
+                                'provider_reference': provider_reference,
+                                'operation': operation,
+                                'partner_id': invoice_id.partner_id.id,
+                            })
+                            tx.invoice_ids = [Command.set(invoice_id.ids)]
+                            tx._set_done(payment_description)
+                            tx._reconcile_after_done()
+                            tx._finalize_post_processing()
+                        else:
+                            invoice_id.message_post(body=f"Unable to register payment as no last payment was found for payment_method={ref_id}")
+
+                    elif new_state in ["BOOKED","EXPIRED"]:
+                        # Getting here means either a regular expiry or a reversal
+                        if "lastpayment" in twikey_invoice and len(twikey_invoice["lastpayment"]) > 0:
+                            last_payment = twikey_invoice.get("lastpayment")[0]
+                            provider_reference = last_payment["e2e"]
+                            tx = self.env['payment.transaction'].search([('provider_reference','=',provider_reference,)])
+                            if tx:
+                                errorcode = "Failed with errorcode={}".format(last_payment["rc"])
+                                tx._set_error(errorcode)
+                                refund = tx._create_refund_transaction(
+                                    provider_reference = provider_reference
+                                )
+                                refund._set_done(errorcode)
+                                refund._reconcile_after_done()
+                            else:
+                                _logger.warning(f"payment.transaction with reference={provider_reference} not found")
+                                invoice_id.message_post(body=f"payment.transaction with reference={provider_reference} not found")
                 else:
                     _logger.debug(f"No invoice found with id={ref_id}")
             else:

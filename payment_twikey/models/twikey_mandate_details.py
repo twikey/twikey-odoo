@@ -55,7 +55,7 @@ class TwikeyMandateDetails(models.Model):
 
     def update_feed(self):
         try:
-            _logger.debug("Fetching Twikey updates")
+            _logger.debug(f"Fetching Twikey updates from {self.env.company.mandate_feed_pos}")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.document.feed(OdooDocumentFeed(self.env), self.env.company.mandate_feed_pos)
@@ -221,7 +221,6 @@ class OdooDocumentFeed(DocumentFeed):
                     )
 
         partner_id = self.prepare_partner(partner_id, debtor, address, zip_code, city, country_id, email)
-
         if updatedDoc:
             new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
@@ -249,8 +248,11 @@ class OdooDocumentFeed(DocumentFeed):
             if updatedDoc:
                 mandate_vals["reference"] = doc.get("MndtId")
             mandate_id.with_context(update_feed=True).write(mandate_vals)
-            update_reason = reason["Rsn"]
-            partner_id.message_post(body=f"Twikey mandate {mandate_number} was updated ({update_reason})")
+            if reason:
+                update_reason = reason["Rsn"]
+                partner_id.message_post(body=f"Twikey mandate {mandate_number} was updated ({update_reason})")
+            else:
+                partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
         else:
             mandate_vals["reference"] = doc.get("MndtId")
             mandate_vals["address"] = address
@@ -263,7 +265,11 @@ class OdooDocumentFeed(DocumentFeed):
         # Allow register payments
         if template_id and mandate_id and partner_id:
             _logger.debug("Finding linked providers for %s", template_id)
-            providers = self.env['payment.provider'].sudo().search([("twikey_template_id", "=", template_id.id)])
+            providers = self.env['payment.provider'].sudo().search([("code", "=", 'twikey')])
+            # find more specific
+            providers_for_profile = providers.filtered(lambda x: x.twikey_template_id and x.twikey_template_id == template_id.id)
+            if len(providers_for_profile) > 0:
+                providers = providers_for_profile
             for provider in providers:
                 if provider.token_from_mandate(partner_id, mandate_id):
                     _logger.debug("Activating token for : %s", mandate_id.reference)

@@ -63,7 +63,7 @@ class Document(object):
             raise self.client.raise_error_from_request("Cancel", e)
 
     def feed(self, documentFeed, startPosition = False):
-        url = self.client.instance_url("/mandate")
+        url = self.client.instance_url("/mandate?include=id&include=mandate&include=person")
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
