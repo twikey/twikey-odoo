@@ -249,6 +249,8 @@ class OdooDocumentFeed(DocumentFeed):
             if updatedDoc:
                 mandate_vals["reference"] = doc.get("MndtId")
             mandate_id.with_context(update_feed=True).write(mandate_vals)
+            update_reason = reason["Rsn"]
+            partner_id.message_post(body=f"Twikey mandate {mandate_number} was updated ({update_reason})")
         else:
             mandate_vals["reference"] = doc.get("MndtId")
             mandate_vals["address"] = address
@@ -256,15 +258,16 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["city"] = city
             mandate_vals["country_id"] = country_id.id if country_id else 0
             mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
+            partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
 
         # Allow register payments
         if template_id and mandate_id and partner_id:
             _logger.debug("Finding linked providers for %s", template_id)
             providers = self.env['payment.provider'].sudo().search([("twikey_template_id", "=", template_id.id)])
             for provider in providers:
-                _logger.debug("Creating token for : %s", mandate_id.reference)
-                provider.token_from_mandate(partner_id, mandate_id)
-                mandate_id.message_post(body=f"Twikey token {mandate_number} was added")
+                if provider.token_from_mandate(partner_id, mandate_id):
+                    _logger.debug("Activating token for : %s", mandate_id.reference)
+                    partner_id.message_post(body=f"Twikey token {mandate_number} was added")
 
         # Allow regular refunds
         if partner_id and iban:
@@ -272,7 +275,7 @@ class OdooDocumentFeed(DocumentFeed):
             if not customer_bank_id:
                 _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
                 self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
-                mandate_id.message_post(body=f"Twikey account of {partner_id.name} was added")
+                partner_id.message_post(body=f"Twikey account of {partner_id.name} was added")
 
     def start(self, position, number_of_updates):
         _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
@@ -303,7 +306,7 @@ class OdooDocumentFeed(DocumentFeed):
                 mandate_id = self.env["twikey.mandate.details"].sudo().create(
                     {"reference": mandateNumber, "state": "cancelled"}
                 )
-            mandate_id.message_post(body=f"Twikey mandate {mandateNumber} was cancelled")
+            mandate_id.partner_id.message_post(body=f"Twikey mandate {mandateNumber} was cancelled")
         except Exception as e:
             _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s",mandateNumber, e)
 
