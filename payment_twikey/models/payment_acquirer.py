@@ -49,7 +49,7 @@ class PaymentProvider(models.Model):
             expiry = False
 
         existing_token = self.env['payment.token'].sudo().search([
-            ('provider_id', '=', self.id),
+            ('provider_code', '=', self.code),
             ('provider_ref', '=', mandate_id.reference)
         ])
 
@@ -60,6 +60,7 @@ class PaymentProvider(models.Model):
                 'active': active,
                 'expiry': expiry,
             })
+            return False
         else:
             self.env['payment.token'].create({
                 'payment_details': payment_details,
@@ -70,3 +71,4 @@ class PaymentProvider(models.Model):
                 'expiry': expiry,
                 'type': type,
             })
+            return True
