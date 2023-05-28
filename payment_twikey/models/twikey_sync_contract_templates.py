@@ -195,7 +195,7 @@ class SyncContractTemplates(models.AbstractModel):
                 mandate_field_list.append(ir_fields)
 
             attribute_vals = {
-                "contract_template_id": template_id.template_id_twikey,
+                "contract_template_id": template_id.id,
                 "name": twikey_attr_name,
                 "type": Field_Type[attr.get("type")],
             }

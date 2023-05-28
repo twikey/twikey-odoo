@@ -58,7 +58,7 @@ class TwikeyMandateDetails(models.Model):
             _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env))
+                twikey_client.document.feed(OdooDocumentFeed(self.env), self.env.company.mandate_feed_pos)
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress": # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)
@@ -225,10 +225,8 @@ class OdooDocumentFeed(DocumentFeed):
         if updatedDoc:
             new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
-            mandate_id.message_post(body=f"Twikey mandate {mandate_number} was updated ({reason})")
         else:
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
-            mandate_id.message_post(body=f"Twikey mandate {mandate_number} was added")
 
         mandate_vals = {
             "partner_id": partner_id.id if partner_id else False,
