@@ -7,7 +7,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.invoice import InvoiceFeed
-from ..utils import get_twikey_customer, get_error_msg, get_success_msg, sanitise_iban
+from ..utils import get_twikey_customer, get_error_msg, get_success_msg
 
 _logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class AccountInvoice(models.Model):
             _logger.debug("Fetching Twikey updates")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
-                twikey_client.invoice.feed(OdooInvoiceFeed(self.env))
+                twikey_client.invoice.feed(OdooInvoiceFeed(self.env), self.env.company.invoice_feed_pos)
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress": # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)
@@ -177,10 +177,18 @@ class AccountInvoice(models.Model):
     def create(self, vals_list):
         """Set a default value for 'send_to_twikey' according to the standard rules."""
         for val in vals_list:
-            if val.get("send_to_twikey") and val.get("move_type") in ["out_invoice", "out_refund"]:
-                val["send_to_twikey"] = True
-            else:
-                val["send_to_twikey"] = False
+            if not val.get("send_to_twikey"):
+                val["send_to_twikey"] = bool(self.get_default("twikey.send.invoice", True))
+            if not val.get("auto_collect_invoice"):
+                val["auto_collect_invoice"] = bool(self.get_default("twikey.auto_collect", True))
+            if not val.get("include_pdf_invoice"):
+                val["include_pdf_invoice"] = bool(self.get_default("twikey.send_pdf", False))
+
+            if val.get("move_type"):
+                if val.get("send_to_twikey") and  val.get("move_type") in ["out_invoice", "out_refund"]:
+                    val["send_to_twikey"] = True
+                else:
+                    val["send_to_twikey"] = False
         return super().create(vals_list)
 
     @api.depends("move_type")
@@ -348,8 +356,19 @@ class OdooInvoiceFeed(InvoiceFeed):
             else:
                 _logger.warning(f"Invalid invoice-ref={ref_id} ignoring")
         except TwikeyError as te:
+            self.env.cr.rollback()
             errmsg = "Error while updating invoices :\n%s" % (te)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
-            _logger.exception("encountered an error in invoice with number=%s:\n%s",_invoice.get("number"), e)
-        except Exception as ue:
-            _logger.error("Error while updating invoices from Twikey: %s" % ue)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Twikey problem while updating invoices",body=errmsg,message_type="comment")
+            _logger.error("Error while updating invoices from Twikey: %s" % te)
+            return te
+        except UserError as ue:
+            errmsg = "Skipping error while handing invoice=%s :\n%s" % (ref_id,ue)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Odoo problem while updating invoices",body=errmsg,message_type="comment")
+            _logger.exception("Skipping error while handling invoice with number=%s:\n%s", twikey_invoice.get("number"), ue)
+            return False
+        except Exception as ge:
+            self.env.cr.rollback()
+            errmsg = "Error while handing invoice=%s :\n%s" % (ref_id,ge)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="General problem while updating invoices",body=errmsg,message_type="comment")
+            _logger.exception("Error while handling invoice with number=%s:\n%s", twikey_invoice.get("number"), ge)
+            return ge
