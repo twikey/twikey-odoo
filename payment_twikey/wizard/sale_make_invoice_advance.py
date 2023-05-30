@@ -7,9 +7,9 @@ class SaleAdvancePaymentInv(models.TransientModel):
 
     twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
     auto_collect_invoice = fields.Boolean(string="Auto collect the invoice",
-                                  default=lambda self: self._default_auto_collect)
+                                          default=lambda self: self._default_auto_collect)
     send_to_twikey = fields.Boolean(string="Send to Twikey",
-                                  default=lambda self: self._default_twikey_send)
+                                    default=lambda self: self._default_twikey_send)
 
     def create_invoices(self):
         context = dict(self._context)

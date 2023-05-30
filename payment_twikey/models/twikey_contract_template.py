@@ -22,8 +22,7 @@ class TwikeyContractTemplate(models.Model):
             ("CREDITCARD", "CREDITCARD"),
             ("WIK", "WIK"),
             ("PAYROLL", "PAYROLL"),
-        ]
-        , readonly=True
+        ], readonly=True
     )
     twikey_attribute_ids = fields.One2many("twikey.contract.template.attribute", "contract_template_id", string="Attributes")
 
@@ -49,6 +48,5 @@ class ContractTemplateAttribute(models.Model):
             ("boolean", "Boolean"),
             ("float", "Amount"),
             ("selection", "Select"),
-        ]
-        , readonly=True
+        ], readonly=True
     )

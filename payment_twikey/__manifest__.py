@@ -30,7 +30,6 @@
         "wizard/sale_make_invoice_advance.xml",
         "views/mandate_details.xml",
         "views/account_move.xml",
-        "views/account_journal.xml",
         "report/report_account_invoice.xml",
     ],
     'application': False,

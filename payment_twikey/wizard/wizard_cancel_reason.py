@@ -5,6 +5,7 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+
 class MandateCancelReason(models.TransientModel):
     _name = "mandate.cancel.reason"
     _description = "Add Reason for select contract template"

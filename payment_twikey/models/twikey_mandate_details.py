@@ -1,8 +1,7 @@
 import logging
 
 import requests
-
-from odoo import _, exceptions, fields, models
+from odoo import _, fields, models
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
@@ -10,6 +9,7 @@ from ..twikey.document import DocumentFeed
 from ..utils import sanitise_iban
 
 _logger = logging.getLogger(__name__)
+
 
 def _lang_get(self):
     return self.env["res.lang"].get_installed()
@@ -48,7 +48,7 @@ class TwikeyMandateDetails(models.Model):
 
     def action_cancel_reason(self):
         self.ensure_one()
-        wizard = self.env["mandate.cancel.reason"].create({"mandate_id": self.id,})
+        wizard = self.env["mandate.cancel.reason"].create({"mandate_id": self.id})
         action = self.env.ref("payment_twikey.mandate_cancel_reason_action").read()[0]
         action["res_id"] = wizard.id
         return action
@@ -60,9 +60,9 @@ class TwikeyMandateDetails(models.Model):
             if twikey_client:
                 twikey_client.document.feed(OdooDocumentFeed(self.env), self.env.company.mandate_feed_pos)
         except TwikeyError as e:
-            if e.error_code != "err_call_in_progress": # ignore parallel calls
-                errmsg = "Exception raised while fetching updates:\n%s" % (e)
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Mandates",body=errmsg,)
+            if e.error_code != "err_call_in_progress":  # ignore parallel calls
+                errmsg = "Exception raised while fetching updates:\n%s" % e
+                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
 
     def write(self, values):
         self.ensure_one()
@@ -108,7 +108,7 @@ class TwikeyMandateDetails(models.Model):
                         if twikey_client:
                             twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
                     except TwikeyError as e:
-                        if e.error_code != 'err_no_contract': #Ignore as not avail in Twikey
+                        if e.error_code != 'err_no_contract':  # Ignore as not avail in Twikey
                             raise UserError(_("This mandate could not be cancelled: %s") % e.error)
                     return super(TwikeyMandateDetails, mandate).unlink()
                 else:
@@ -129,11 +129,13 @@ class TwikeyMandateDetails(models.Model):
     def is_mandatenumber_required(self):
         return self.contract_temp_id and self.contract_temp_id.mandate_number_required
 
+
 class OdooDocumentFeed(DocumentFeed):
     def __init__(self, env):
         self.env = env
 
-    def splmtrAsDict(self, doc):
+    @staticmethod
+    def splmtr_as_dict(doc):
         field_dict = {}
         if "SplmtryData" in doc:
             lst = doc.get("SplmtryData")
@@ -176,7 +178,7 @@ class OdooDocumentFeed(DocumentFeed):
 
         return partner_id
 
-    def new_update_document(self, doc, updatedDoc, mandate_number, reason):
+    def new_update_document(self, doc, updated_doc, mandate_number, reason):
         partner_id = False
         debtor = doc.get("Dbtr")
         iban = doc.get("DbtrAcct")
@@ -184,7 +186,7 @@ class OdooDocumentFeed(DocumentFeed):
         template_id = False
         lang_id = False
 
-        field_dict = self.splmtrAsDict(doc)
+        field_dict = self.splmtr_as_dict(doc)
         if "Language" in field_dict:
             lang = field_dict["Language"]
             lang_id = self.env["res.lang"].search([("iso_code", "=", lang)])
@@ -221,7 +223,7 @@ class OdooDocumentFeed(DocumentFeed):
                     )
 
         partner_id = self.prepare_partner(partner_id, debtor, address, zip_code, city, country_id, email)
-        if updatedDoc:
+        if updated_doc:
             new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
         else:
@@ -229,7 +231,7 @@ class OdooDocumentFeed(DocumentFeed):
 
         mandate_vals = {
             "partner_id": partner_id.id if partner_id else False,
-            "state": new_state if updatedDoc else "signed",
+            "state": new_state if updated_doc else "signed",
             "lang": lang_id.code if lang_id else False,
             "contract_temp_id": template_id.id if template_id else False,
             "iban": iban if iban else False,
@@ -245,7 +247,7 @@ class OdooDocumentFeed(DocumentFeed):
                     mandate_vals[field_name] = value
 
         if mandate_id:
-            if updatedDoc:
+            if updated_doc:
                 mandate_vals["reference"] = doc.get("MndtId")
             mandate_id.with_context(update_feed=True).write(mandate_vals)
             if reason:
@@ -263,13 +265,15 @@ class OdooDocumentFeed(DocumentFeed):
             partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
 
         # Allow register payments
-        if template_id and mandate_id and partner_id:
-            _logger.debug("Finding linked providers for %s", template_id)
-            providers = self.env['payment.provider'].sudo().search([("code", "=", 'twikey')])
-            # find more specific
-            providers_for_profile = providers.filtered(lambda x: x.twikey_template_id and x.twikey_template_id == template_id.id)
-            if len(providers_for_profile) > 0:
-                providers = providers_for_profile
+        if partner_id and mandate_id:
+            providers = self.env['payment.acquirer'].sudo().search([("provider", "=", 'twikey')])
+            if template_id:
+                _logger.debug("Finding linked providers for %s", template_id)
+                # find more specific
+                providers_for_profile = providers.filtered(
+                    lambda x: x.twikey_template_id and x.twikey_template_id == template_id.id)
+                if len(providers_for_profile) > 0:
+                    providers = providers_for_profile
             for provider in providers:
                 if provider.token_from_mandate(partner_id, mandate_id):
                     _logger.debug("Activating token for : %s", mandate_id.reference)
@@ -293,26 +297,25 @@ class OdooDocumentFeed(DocumentFeed):
         try:
             self.new_update_document(doc, False, False, False)
         except Exception as e:
-            _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s",doc.get("MndtId"), e)
+            _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s", doc.get("MndtId"), e)
 
     def updatedDocument(self, mandate_number, doc, reason):
         try:
             self.new_update_document(doc, True, mandate_number, reason)
         except Exception as e:
-            _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s",mandate_number, e)
+            _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s", mandate_number, e)
 
-    def cancelDocument(self, mandateNumber, rsn):
+    def cancelDocument(self, mandate_number, rsn):
         try:
-            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandateNumber)])
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
             if mandate_id:
                 mandate_id.with_context(update_feed=True).write(
                     {"state": "cancelled", "description": "Cancelled with reason : " + rsn["Rsn"]}
                 )
             else:
                 mandate_id = self.env["twikey.mandate.details"].sudo().create(
-                    {"reference": mandateNumber, "state": "cancelled"}
+                    {"reference": mandate_number, "state": "cancelled"}
                 )
-            mandate_id.partner_id.message_post(body=f"Twikey mandate {mandateNumber} was cancelled")
+            mandate_id.partner_id.message_post(body=f"Twikey mandate {mandate_number} was cancelled")
         except Exception as e:
-            _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s",mandateNumber, e)
-
+            _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s", mandate_number, e)

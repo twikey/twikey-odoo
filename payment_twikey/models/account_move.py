@@ -2,7 +2,7 @@ import base64
 import logging
 import uuid
 
-from odoo import _, api, exceptions, fields, models,Command
+from odoo import _, api, fields, models,Command
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
@@ -10,14 +10,6 @@ from ..twikey.invoice import InvoiceFeed
 from ..utils import get_twikey_customer, get_error_msg, get_success_msg
 
 _logger = logging.getLogger(__name__)
-
-InvoiceStatus = {
-    "BOOKED": "posted",
-    "PENDING": "posted",
-    "PAID": "posted",
-    "EXPIRED": "posted",
-    "ARCHIVED": "cancel",
-}
 
 
 class AccountInvoice(models.Model):
@@ -38,7 +30,7 @@ class AccountInvoice(models.Model):
     )
 
     send_to_twikey = fields.Boolean(string="Send to Twikey",
-                                    default=lambda self: self._default_twikey_send,  readonly=False)
+                                    default=lambda self: self._default_twikey_send, readonly=False)
     auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible",
                                     default=lambda self: self._default_auto_collect, readonly=False)
     include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey",
@@ -140,7 +132,7 @@ class AccountInvoice(models.Model):
             if twikey_client:
                 twikey_client.invoice.feed(OdooInvoiceFeed(self.env), self.env.company.invoice_feed_pos)
         except TwikeyError as e:
-            if e.error_code != "err_call_in_progress": # ignore parallel calls
+            if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)
                 self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
 
@@ -153,7 +145,7 @@ class AccountInvoice(models.Model):
         except TwikeyError as ue:
             errmsg = "Error while updating invoice in Twikey: %s" % ue
             _logger.error(errmsg)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices", body=errmsg, )
 
     def write(self, values):
         """
@@ -185,7 +177,7 @@ class AccountInvoice(models.Model):
                 val["include_pdf_invoice"] = bool(self.get_default("twikey.send_pdf", False))
 
             if val.get("move_type"):
-                if val.get("send_to_twikey") and  val.get("move_type") in ["out_invoice", "out_refund"]:
+                if val.get("send_to_twikey") and val.get("move_type") in ["out_invoice", "out_refund"]:
                     val["send_to_twikey"] = True
                 else:
                     val["send_to_twikey"] = False
@@ -208,6 +200,7 @@ class AccountInvoice(models.Model):
     def _default_auto_collect(self):
         return bool(self.get_default("twikey.auto_collect", True))
 
+
 class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
         self.env = env
@@ -222,13 +215,13 @@ class OdooInvoiceFeed(InvoiceFeed):
         twikey_payment_method = last_payment.get("method")  # sdd/rcc/paylink/reporting/manual
         if twikey_payment_method == "paylink":
             payment_description = "paylink #{}".format(last_payment["link"])
-        elif twikey_payment_method in ["sdd","rcc"]:
+        elif twikey_payment_method in ["sdd", "rcc"]:
             pmtinf = last_payment["pmtinf"]
             e2e = last_payment["e2e"]
             if twikey_payment_method == "sdd":
-                payment_description = "Direct Debit pmtinf={} e2e={}".format(pmtinf,e2e,)
+                payment_description = "Direct Debit pmtinf={} e2e={}".format(pmtinf, e2e, )
             else:
-                payment_description = "Credit Card pmtinf={} e2e={}".format(pmtinf,e2e,)
+                payment_description = "Credit Card pmtinf={} e2e={}".format(pmtinf, e2e, )
         elif twikey_payment_method == "transfer":
             payment_description = "Regular transfer rep-{} msg={}".format(last_payment["id"], last_payment["msg"])
         elif twikey_payment_method == "manual":
@@ -236,6 +229,12 @@ class OdooInvoiceFeed(InvoiceFeed):
         else:
             payment_description = "Other"
         return payment_description
+
+    def get_or_create_payment_transaction(self, txdict):
+        tx = self.env['payment.transaction'].search([("provider_ref", "=", txdict['provider_ref'])], limit=1)
+        if tx:
+            return tx
+        return self.env['payment.transaction'].create(txdict)
 
     def invoice(self, twikey_invoice):
         id = twikey_invoice.get("id")
@@ -260,7 +259,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                             token_id = False
                             if "mndtId" in last_payment:
                                 token_id = self.env['payment.token'].search([('provider_code', '=', provider.code),('provider_ref', '=', last_payment["mndtId"])])
-                            tx = self.env['payment.transaction'].create({
+                            tx = self.get_or_create_payment_transaction({
                                 'amount': twikey_invoice["amount"],
                                 'currency_id': invoice_id.currency_id.id,
                                 'provider_id': provider.id,
@@ -276,7 +275,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                             tx._finalize_post_processing()
                         else:
                             invoice_id.message_post(body=f"Unable to register payment as no last payment was found for payment_method={ref_id}")
-                    elif new_state in ["BOOKED","EXPIRED"]:
+                    elif new_state in ["BOOKED", "EXPIRED"]:
                         # Getting here means either a regular expiry or a reversal
                         if last_payment:
                             provider_reference = last_payment["e2e"]
@@ -284,7 +283,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                             if tx:
                                 errorcode = "Failed with errorcode={}".format(last_payment["rc"])
                                 tx._set_error(errorcode)
-                                refund = tx._create_refund_transaction(provider_reference = id)
+                                refund = tx._create_refund_transaction(provider_reference=id)
                                 refund._set_done(errorcode)
                                 refund._reconcile_after_done()
                                 refund._finalize_post_processing()
@@ -304,10 +303,10 @@ class OdooInvoiceFeed(InvoiceFeed):
                             tx._set_done(payment_description)
                             tx._reconcile_after_done()
                             tx._finalize_post_processing()
-                        elif new_state in ["BOOKED","EXPIRED"]:
+                        elif new_state in ["BOOKED", "EXPIRED"]:
                             errorcode = "Failed with errorcode={}".format(last_payment["rc"])
                             tx._set_error(errorcode)
-                            refund = tx._create_refund_transaction(acquirer_reference = id)
+                            refund = tx._create_refund_transaction(acquirer_reference=id)
                             refund._set_done(errorcode)
                             refund._reconcile_after_done()
                             refund._finalize_post_processing()

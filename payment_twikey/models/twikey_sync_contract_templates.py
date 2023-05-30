@@ -1,6 +1,6 @@
 import logging
 
-from odoo import _, exceptions, models
+from odoo import _, models
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
@@ -19,6 +19,7 @@ Field_Type = {
 }
 
 _logger = logging.getLogger(__name__)
+
 
 class SyncContractTemplates(models.AbstractModel):
     _name = "twikey.sync.contract.templates"
@@ -239,7 +240,7 @@ class SyncContractTemplates(models.AbstractModel):
                     if mandate_field_list or template_id.mandate_number_required:
                         self.process_new_mandate_field_views(mandate_field_list, template_id)
 
-                elif template_id.mandate_number_required: # field for mandatory ref
+                elif template_id.mandate_number_required:  # field for mandatory ref
                     self.process_new_field_views([], template_id)
                     self.process_new_mandate_field_views([], template_id)
 

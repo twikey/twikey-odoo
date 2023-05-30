@@ -6,8 +6,8 @@ from odoo import _, api, fields, models, service
 
 _logger = logging.getLogger(__name__)
 
-class PaymentProvider(models.Model):
 
+class PaymentProvider(models.Model):
     _inherit = 'payment.provider'
 
     code = fields.Selection(selection_add=[('twikey', 'Twikey')], ondelete={'twikey': 'set default'})

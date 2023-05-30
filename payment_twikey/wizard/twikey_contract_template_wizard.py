@@ -1,6 +1,6 @@
 import logging
 
-from odoo import _, exceptions, fields, models
+from odoo import fields, models
 
 from ..twikey.client import TwikeyError
 from ..utils import get_error_msg, get_success_msg, get_twikey_customer
@@ -17,6 +17,7 @@ language_dict = {
     "es_ES": "es",
     "it_IT": "it",
 }
+
 
 class TwikeyContractTemplateWizard(models.Model):
     _name = "twikey.contract.template.wizard"
@@ -74,7 +75,7 @@ class TwikeyContractTemplateWizard(models.Model):
                 if twikey_client:
                     twikey_client.refreshTokenIfRequired()
                     resp_obj = twikey_client.document.create(payload)
-                    _logger.info("Creating new mandate with response: %s" % (resp_obj))
+                    _logger.info("Creating new mandate with response: %s" % resp_obj)
                     mandate_id = (
                         self.env["twikey.mandate.details"]
                         .sudo()
@@ -95,7 +96,7 @@ class TwikeyContractTemplateWizard(models.Model):
                     mandate_id.with_context(update_feed=True).write(get_fields[0])
 
             except TwikeyError as e:
-                errmsg = "Exception raised while creating a new Mandate:\n%s" % (e)
+                errmsg = "Exception raised while creating a new Mandate:\n%s" % e
                 self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
                 _logger.error(errmsg)
                 return get_error_msg(str(e), 'Exception raised while creating a new Mandate', sticky=True)
