@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import logging
+import datetime
 
 from werkzeug import urls
 
@@ -148,11 +149,11 @@ class PaymentTransaction(models.Model):
             mandate_id = (self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)]))
             if mandate_id.state == 'signed':
                 payment_status = 'paid'
-                _logger.debug("Tokenized redirect, mandate was %s",mandate_id.state)
+                _logger.debug(f"Tokenized redirect, mandate was {mandate_id.state}")
                 self.provider_id.token_from_mandate(self.partner_id, mandate_id)
             else:
                 payment_status = 'pending'
-                _logger.info("Tokenized redirect but mandate was %s",mandate_id.state)
+                _logger.info(f"Tokenized redirect but mandate ({self.provider_reference}) was {mandate_id.state}")
 
         if payment_status == 'pending':
             self._set_pending()
@@ -175,11 +176,11 @@ class PaymentTransaction(models.Model):
             # Webhook should have come in with the mandate now being signed
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", self.provider_reference)])
             if mandate_id and mandate_id.state == 'signed':
-                _logger.info("Tokenized poll, mandate was %s",mandate_id.state)
+                _logger.info(f"Tokenized poll, mandate was {mandate_id.state}")
                 self.provider_id.token_from_mandate(self.partner_id, mandate_id)
                 self._set_done()
             else:
-                _logger.info("Mandate was in %s for ref %s",mandate_id.state, self.reference)
+                _logger.info(f"Mandate ({self.provider_reference}) was in {mandate_id.state} for ref {self.reference}")
         return values
 
     def _send_payment_request(self):
@@ -217,7 +218,6 @@ class PaymentTransaction(models.Model):
                     template_id = self.env["twikey.contract.template"].search(
                         [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
                     )
-                    state = twikey_invoice.get("state")
                     invoice_id.with_context(update_feed=True).write({
                         "send_to_twikey": True,
                         "twikey_template_id": template_id.id,
@@ -225,14 +225,25 @@ class PaymentTransaction(models.Model):
                         "twikey_invoice_identifier": twikey_invoice.get("id"),
                         "twikey_invoice_state": twikey_invoice.get("state")
                     })
-                    invoice_id.message_post(body=f"Send to Twikey with state={state}")
                 else:
-                    raise UserError("Twikey: Sales order without invoice is not supported")
+                    today = datetime.date.today().isoformat()
+                    invoice = {
+                        "customerByDocument": self.token_id.acquirer_ref,
+                        "number": self.reference,
+                        "title": self.reference,
+                        "amount": self.amount,
+                        "remittance": self.reference,
+                        "ref": self.reference,
+                        "date": today,
+                        "duedate": today,
+                    }
+                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    self.acquirer_reference = twikey_invoice.get("id")
 
-                self.reference = twikey_invoice.get("id")
                 self.provider_reference = twikey_invoice.get("id")
                 state = twikey_invoice.get("state")
-                self._set_pending(f"Send to Twikey (State={state}")
+                self.partner_id.message_post(body=f"Send {self.reference} to Twikey with state={state}")
+                self._set_pending(f"Send to Twikey (state={state})")
                 # Handle the payment request response.
                 _logger.info("Send transaction with reference %s: %s",self.reference, self.provider_reference)
             except TwikeyError as e:

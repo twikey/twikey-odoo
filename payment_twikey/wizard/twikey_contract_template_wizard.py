@@ -100,4 +100,4 @@ class TwikeyContractTemplateWizard(models.Model):
                 _logger.error(errmsg)
                 return get_error_msg(str(e), 'Exception raised while creating a new Mandate', sticky=True)
 
-        return get_success_msg("Mandate invitation(s) dreated successfully.")
+        return get_success_msg("Mandate invitation(s) created successfully.")

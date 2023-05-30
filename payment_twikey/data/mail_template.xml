@@ -21,8 +21,7 @@
                     % if object.invoice_origin:
                         (with reference: ${object.invoice_origin})
                     % endif
-                    amounting in <strong
-                    >${format_amount(object.amount_total, object.currency_id)}</strong>
+                    amounting in <strong>${format_amount(object.amount_total, object.currency_id)}</strong>
                     from ${object.company_id.name}.
                     % if object.invoice_payment_state == 'paid':
                         This invoice is already paid.
