@@ -128,14 +128,15 @@ class AccountInvoice(models.Model):
             _logger.error('Error while updating invoices from Twikey: %s' % e)
 
     def update_twikey_state(self, state):
-        try:
-            _logger.warning("Update of %s to %s" % (self, state))
-            twikey_client = self.env['ir.config_parameter'].get_twikey_client()
-            twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
-        except UserError as ue:
-            _logger.error('Error while updating invoice from Twikey: %s' % ue)
-        except (ValueError, requests.exceptions.RequestException) as e:
-            _logger.error('Error while updating invoices from Twikey: %s' % e)
+        if self.twikey_invoice_id:
+            try:
+                _logger.warning("Update of %s to %s" % (self, state))
+                twikey_client = self.env['ir.config_parameter'].get_twikey_client()
+                twikey_client.invoice.update(self.twikey_invoice_id, {"status": state})
+            except UserError as ue:
+                _logger.error('Error while updating invoice from Twikey: %s' % ue)
+            except (ValueError, requests.exceptions.RequestException) as e:
+                _logger.error('Error while updating invoices from Twikey: %s' % e)
 
     @api.multi
     def write(self, values):
