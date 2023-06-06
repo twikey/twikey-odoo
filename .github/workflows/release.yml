@@ -1,0 +1,26 @@
+name: Make Python Package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build package
+        run: sed -i 's/-dev/-${{ github.ref }}/'  payment_twikey/__manifest__.py
+      - name: Show version
+        run: cat  payment_twikey/__manifest__.py
+#      - name: Archive artifacts
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: dist
+#          path: |
+#            payment_twikey
