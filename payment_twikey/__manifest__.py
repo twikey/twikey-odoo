@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     "name": "Payment Provider: Twikey",
-    "version": "15.0.2.0.0",
+    "version": "15.0.2.1.0",
     "category": "Accounting/Payment Providers",
     "summary": "Payment service provider specializing in recurring payments",
     'author': "Twikey N.V.",
