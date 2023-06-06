@@ -3,7 +3,7 @@
     "name": "Payment Provider: Twikey",
     "version": "16.0.3.0.0",
     "category": "Accounting/Payment Providers",
-    "summary": "Twikey Integration",
+    "summary": "Payment service provider specializing in recurring payments",
     'author': "Twikey N.V.",
     'website': "https://www.twikey.com/partner/odoo.html",
     "depends": [

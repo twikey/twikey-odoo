@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 
 class MandateCancelReason(models.TransientModel):
     _name = "mandate.cancel.reason"
-    _description = "Add Reason for select contract template"
+    _description = "Cancel a specific mandate"
 
     name = fields.Text(string="Reason for Cancellation")
     mandate_id = fields.Many2one("twikey.mandate.details")

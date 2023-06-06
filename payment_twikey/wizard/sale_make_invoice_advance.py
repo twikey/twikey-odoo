@@ -5,7 +5,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
     _name = "sale.advance.payment.inv"
     _inherit = "sale.advance.payment.inv"
 
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
+    twikey_template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile")
     auto_collect_invoice = fields.Boolean(string="Auto collect the invoice",
                                           default=lambda self: self._default_auto_collect)
     send_to_twikey = fields.Boolean(string="Send to Twikey",

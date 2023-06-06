@@ -21,10 +21,10 @@ language_dict = {
 
 class TwikeyContractTemplateWizard(models.Model):
     _name = "twikey.contract.template.wizard"
-    _description = "Wizard for Select Contract Template"
+    _description = "Wizard for Select Twikey Profile"
 
     name = fields.Char()
-    template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
+    template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile id")
     reference = fields.Char(string="Mandate number")
     twikey_attribute_ids = fields.One2many(
         related="template_id.twikey_attribute_ids", readonly=False

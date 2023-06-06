@@ -36,7 +36,8 @@ class TwikeyMandateDetails(models.Model):
     reference = fields.Char(string="Mandate Reference", index=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract_temp_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template", readonly=True)
+    contract_temp_id = fields.Many2one(comodel_name="twikey.contract.template", string="Twikey Profile",
+                                       readonly=True)
     description = fields.Text()
     lang = fields.Selection(_lang_get, string="Language")
     url = fields.Char(string="URL", readonly=True)

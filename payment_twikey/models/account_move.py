@@ -17,7 +17,7 @@ class AccountInvoice(models.Model):
 
     twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice", readonly=True)
     twikey_invoice_identifier = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.", readonly=True)
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
+    twikey_template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile")
     twikey_invoice_state = fields.Selection(
         selection=[
             ("BOOKED", "Booked"),

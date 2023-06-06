@@ -3,11 +3,11 @@ from odoo import fields, models
 
 class TwikeyContractTemplate(models.Model):
     _name = "twikey.contract.template"
-    _description = "Twikey Contract Template for Mandate"
+    _description = "Twikey Profile"
 
     _sql_constraints = [("template_id_unique", "unique(template_id_twikey)", "Already Exist!")]
 
-    name = fields.Char(string="Contract Template", required=True, readonly=True)
+    name = fields.Char(string="Twikey Profile", required=True, readonly=True)
     template_id_twikey = fields.Integer(string="Template ID", readonly=True, index=True)
     active = fields.Boolean(default=True, readonly=True)
     mandate_number_required = fields.Boolean(default=True, readonly=True)
@@ -35,11 +35,11 @@ class TwikeyContractTemplate(models.Model):
 
 class ContractTemplateAttribute(models.Model):
     _name = "twikey.contract.template.attribute"
-    _description = "Attributes for Contract Template"
+    _description = "Attributes for Twikey Profile"
 
-    name = fields.Char(string="Contract Template Attribute", readonly=True)
+    name = fields.Char(string="Twikey Profile Attribute", readonly=True)
     contract_template_id = fields.Many2one(
-        "twikey.contract.template", string="Contract Template", required=True, ondelete="cascade", readonly=True
+        "twikey.contract.template", string="Twikey Profile", required=True, ondelete="cascade", readonly=True
     )
     type = fields.Selection(
         [
