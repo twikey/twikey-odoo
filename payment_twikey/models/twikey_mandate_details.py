@@ -304,10 +304,6 @@ class OdooDocumentFeed(DocumentFeed):
                 mandate_id.with_context(update_feed=True).write(
                     {"state": "cancelled", "description": "Cancelled with reason : " + rsn["Rsn"]}
                 )
-            else:
-                mandate_id = self.env["twikey.mandate.details"].sudo().create(
-                    {"reference": mandate_number, "state": "cancelled"}
-                )
-            mandate_id.partner_id.message_post(body=f"Twikey mandate {mandate_number} was cancelled")
+                mandate_id.partner_id.message_post(body=f"Twikey mandate {mandate_number} was cancelled")
         except Exception as e:
             _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s", mandate_number, e)
