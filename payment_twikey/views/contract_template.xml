@@ -8,7 +8,7 @@
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Contract Template" />
+                            <field name="name" placeholder="Twikey Profile" />
                         </h1>
                     </div>
                     <group>
@@ -32,7 +32,7 @@
                                             <h1>
                                                 <field
                                                     name="name"
-                                                    placeholder="Contract Template Attributes"
+                                                    placeholder="Twikey Profile Attributes"
                                                 />
                                             </h1>
                                         </div>
@@ -65,7 +65,7 @@
     </record>
 
     <record id="contract_template_action" model="ir.actions.act_window">
-        <field name="name">Contract Templates</field>
+        <field name="name">Twikey Profiles</field>
         <field name="res_model">twikey.contract.template</field>
         <field name="view_mode">tree,form</field>
     </record>

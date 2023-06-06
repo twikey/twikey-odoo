@@ -43,11 +43,13 @@ class Invoice(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Update invoice", e)
 
-    def feed(self, invoiceFeed):
+    def feed(self, invoiceFeed, startPosition = False):
         url = self.client.instance_url("/invoice?include=customer&include=meta&include=lastpayment")
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
+            if startPosition:
+                initheaders["X-RESUME-AFTER"] = str(startPosition)
             response = requests.get(
                 url=url,
                 headers=initheaders,
@@ -57,21 +59,22 @@ class Invoice(object):
                 raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
             while len(feed_response["Invoices"]) > 0:
-                self.logger.debug(
-                    "Feed handling %d invoices from seq=%s"
-                    % (len(feed_response["Invoices"]), response.headers["X-LAST"])
-                )
+                self.logger.debug("Feed handling : %d invoices from %s till %s" % (len(feed_response["Invoices"]), startPosition, response.headers["X-LAST"]))
+                invoiceFeed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
+                error = False
                 for invoice in feed_response["Invoices"]:
                     self.logger.debug("Feed handling : %s" % invoice)
-                    invoiceFeed.invoice(invoice)
-                response = requests.get(
-                    url=url,
-                    headers=self.client.headers(),
-                    timeout=15,
-                )
+                    error = invoiceFeed.invoice(invoice)
+                    if error:
+                        break
+                if error:
+                    self.logger.debug("Error while handing invoice, stopping")
+                    break
+                response = requests.get(url=url, headers=self.client.headers(), timeout=15, )
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed invoice", response)
                 feed_response = response.json()
+            self.logger.debug("Done handing invoice feed")
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Invoice feed", e)
 
@@ -88,5 +91,19 @@ class Invoice(object):
 
 
 class InvoiceFeed:
+
+    def start(self, position, lenght):
+        """
+        Allow storing the start of the feed
+        :param position: position where the feed started
+        :param lenght: number of items in the feed
+        """
+        pass
+
     def invoice(self, invoice):
+        """
+        Handle an invoice of the feed
+        :param invoice: the updated invoice
+        :return: error from the function or False to continue
+        """
         pass

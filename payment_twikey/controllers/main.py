@@ -29,22 +29,35 @@ class TwikeyController(http.Controller):
         webhooktype = post.get("type")
         if webhooktype == "payment":
             if post.get("id"):
-                request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
+                request.env['payment.transaction'].sudo()._handle_feedback_data('twikey', post)
             else:
                 request.env["account.move"].sudo().update_invoice_feed()
             return Response(status=204)
         elif webhooktype == "contract":
-            if post.get("mandateNumber"):
+            mandate_number = post.get("mandateNumber")
+            if mandate_number:
                 # Removal of a prepared mandate doesn't show up in the feed
                 mandate_id = (
                     request.env["twikey.mandate.details"]
                     .sudo()
-                    .search([("reference", "=", post.get("mandateNumber"))])
+                    .search([("reference", "=", mandate_number)])
                 )
                 if mandate_id:
                     event = post.get("event")
-                    if event == "Invite" and post.get("reason") in ["removed", "expired"]:
-                        mandate_id.with_context(update_feed=True).unlink()
+                    if event == "Invite":
+                        reason = post.get("reason")
+                        if reason == "removed":
+                            _logger.info(f"Removing twikey mandate {mandate_number}")
+                            mandate_id.with_context(update_feed=True).unlink()
+                        elif reason == "expired":
+                            if mandate_id.contract_temp_id.mandate_number_required:
+                                _logger.info("Not removing expired (mandate_number_required) twikey mandate " + mandate_number)
+                                mandate_id.message_post(body=f"Ignoring expiry for Twikey mandate {mandate_number}")
+                            else:
+                                _logger.info(f"Removing expired twikey mandate {mandate_number}")
+                                mandate_id.with_context(update_feed=True).unlink()
+                        else:
+                            _logger.warning("Unknown twikey mandate event of type "+event)
                     else:
                         if event not in ["Sign", "Update"]:
                             _logger.info("Unknown twikey mandate event of type "+event)

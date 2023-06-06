@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import logging
+import datetime
 
 from werkzeug import urls
 
@@ -11,6 +12,7 @@ from ..twikey.client import TwikeyError
 from ..utils import get_twikey_customer
 
 _logger = logging.getLogger(__name__)
+
 
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
@@ -146,11 +148,11 @@ class PaymentTransaction(models.Model):
             mandate_id = (self.env["twikey.mandate.details"].search([("reference", "=", self.acquirer_reference)]))
             if mandate_id.state == 'signed':
                 payment_status = 'paid'
-                _logger.debug("Tokenized redirect, mandate was %s",mandate_id.state)
+                _logger.debug(f"Tokenized redirect, mandate was {mandate_id.state}")
                 self.acquirer_id.token_from_mandate(self.partner_id, mandate_id)
             else:
                 payment_status = 'pending'
-                _logger.info("Tokenized redirect but mandate was %s",mandate_id.state)
+                _logger.info(f"Tokenized redirect but mandate ({self.acquirer_reference}) was {mandate_id.state}")
 
         if payment_status == 'pending':
             self._set_pending()
@@ -161,7 +163,7 @@ class PaymentTransaction(models.Model):
         elif payment_status in ['expired', 'canceled', 'failed']:
             self._set_canceled("Twikey: " + _("Canceled payment with status: %s", payment_status))
         else:
-            _logger.info("received data with invalid payment status (%s) for transaction with reference %s",payment_status, self.reference)
+            _logger.info("received data with invalid payment status (%s) for transaction with reference %s", payment_status, self.reference)
             self._set_error("Twikey: " + _("Received data with invalid payment status: %s", payment_status))
 
     def _get_post_processing_values(self):
@@ -173,11 +175,11 @@ class PaymentTransaction(models.Model):
             # Webhook should have come in with the mandate now being signed
             mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", self.acquirer_reference)])
             if mandate_id and mandate_id.state == 'signed':
-                _logger.info("Tokenized poll, mandate was %s",mandate_id.state)
+                _logger.info(f"Tokenized poll, mandate was mandate_id.state")
                 self.acquirer_id.token_from_mandate(self.partner_id, mandate_id)
                 self._set_done()
             else:
-                _logger.info("Mandate was in %s for ref %s",mandate_id.state, self.reference)
+                _logger.info(f"Mandate ({self.acquirer_reference}) was in {mandate_id.state} for ref {self.reference}")
         return values
 
     def _send_payment_request(self):
@@ -188,7 +190,6 @@ class PaymentTransaction(models.Model):
         :return: None
         :raise UserError: If the transaction is not linked to a token.
         """
-        super()._send_payment_request()
         if self.provider != 'twikey':
             return
 
@@ -199,6 +200,7 @@ class PaymentTransaction(models.Model):
         twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.acquirer_id.company_id)
         if twikey_client:
             try:
+                super()._send_payment_request()
                 if self._context.get('active_model') == 'account.move':
                     invoice_id = self.env['account.move'].browse(self._context.get('active_ids', []))
                     invoice = {
@@ -212,7 +214,6 @@ class PaymentTransaction(models.Model):
                         "duedate": invoice_id.invoice_date_due.isoformat(),
                     }
                     twikey_invoice = twikey_client.invoice.create(invoice)
-
                     template_id = self.env["twikey.contract.template"].search(
                         [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
                     )
@@ -223,18 +224,28 @@ class PaymentTransaction(models.Model):
                         "twikey_invoice_identifier": twikey_invoice.get("id"),
                         "twikey_invoice_state": twikey_invoice.get("state")
                     })
-                    invoice_id.message_post(body="Send to Twikey with state=" + invoice_id.twikey_invoice_state)
-                    self.reference = twikey_invoice.get("id")
-                    self.acquirer_reference = twikey_invoice.get("id")
-                    self._set_pending(f"Send to Twikey (State={invoice_id.twikey_invoice_state}")
-                    # Handle the payment request response.
-                    _logger.info("Send transaction with reference %s: %s",self.reference, self.acquirer_reference)
                 else:
-                    raise UserError(_("The register payment wizard should only be called on account.move records."))
+                    today = datetime.date.today().isoformat()
+                    invoice = {
+                        "customerByDocument": self.token_id.acquirer_ref,
+                        "number": self.reference,
+                        "title": self.reference,
+                        "amount": self.amount,
+                        "remittance": self.reference,
+                        "ref": self.reference,
+                        "date": today,
+                        "duedate": today,
+                    }
+                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    self.acquirer_reference = twikey_invoice.get("id")
+
+                self.acquirer_reference = twikey_invoice.get("id")
+                state = twikey_invoice.get("state")
+                self.partner_id.message_post(body=f"Send {self.reference} to Twikey with state={state}")
+                self._set_pending(f"Send to Twikey (state={state})")
+                # Handle the payment request response.
+                _logger.info("Send transaction with reference %s: %s",self.reference, self.acquirer_reference)
             except TwikeyError as e:
                 raise UserError("Twikey: " + e.error)
         else:
             raise UserError("Twikey: " + _("Could not connect to Twikey"))
-
-    def _reconcile_after_done(self):
-        _logger.info("Pending transaction with reference %s: %s",self.reference, self.acquirer_reference)

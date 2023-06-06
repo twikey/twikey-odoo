@@ -22,7 +22,7 @@
     </record>
 
     <record id="contract_template_wizard_action" model="ir.actions.act_window">
-        <field name="name">Select Contract Template</field>
+        <field name="name">Select Twikey Profile</field>
         <field name="res_model">twikey.contract.template.wizard</field>
         <field name="target">new</field>
         <field name="view_id" ref="contract_template_wizard_view_twikey_form" />

@@ -1,10 +1,12 @@
 import logging
-from odoo import _, exceptions, fields, models
+
+from odoo import _, fields, models
 
 from ..twikey.client import TwikeyError
 from ..utils import get_error_msg, get_success_msg
 
 _logger = logging.getLogger(__name__)
+
 
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
@@ -17,7 +19,7 @@ class ResConfigSettings(models.TransientModel):
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
                 twikey_client.refreshTokenIfRequired()
-                self.__send_to_channel("Token refreshed!",)
+                self.__send_to_channel("Token refreshed!", )
                 self.twikey_sync_contract_template()
             else:
                 self.__send_to_channel("Invalid configuration")
@@ -46,7 +48,7 @@ class ResConfigSettings(models.TransientModel):
             return get_error_msg(msg, True)
 
     def __send_to_channel(self, msg):
-        self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=msg,)
+        self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration", body=msg, )
 
     def twikey_sync_contract_template(self):
         if self.env["twikey.sync.contract.templates"].twikey_sync_contract_templates():

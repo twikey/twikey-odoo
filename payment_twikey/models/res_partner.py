@@ -1,4 +1,5 @@
-from odoo import exceptions, fields, models
+from odoo import fields, models
+
 
 class ResPartner(models.Model):
     _inherit = "res.partner"
@@ -7,7 +8,7 @@ class ResPartner(models.Model):
 
     def action_invite_customer(self):
         wizard = self.env["twikey.contract.template.wizard"].create({
-                "partner_id": self.id,
+                "partner_ids": self.ids,
         })
         action = self.env.ref("payment_twikey.contract_template_wizard_action").read()[0]
         action["res_id"] = wizard.id

@@ -5,9 +5,11 @@ class SaleAdvancePaymentInv(models.TransientModel):
     _name = "sale.advance.payment.inv"
     _inherit = "sale.advance.payment.inv"
 
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Contract Template")
-    auto_collect_invoice = fields.Boolean(string="Auto collect the invoice")
-    send_to_twikey = fields.Boolean(string="Send to Twikey")
+    twikey_template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile")
+    auto_collect_invoice = fields.Boolean(string="Auto collect the invoice",
+                                          default=lambda self: self._default_auto_collect)
+    send_to_twikey = fields.Boolean(string="Send to Twikey",
+                                    default=lambda self: self._default_twikey_send)
 
     def create_invoices(self):
         context = dict(self._context)
@@ -18,15 +20,14 @@ class SaleAdvancePaymentInv(models.TransientModel):
                 "auto_collect_invoice": self.auto_collect_invoice,
             }
         )
-        sale_orders = self.env["sale.order"].sudo().browse(self._context.get("active_ids", []))
-        if self.advance_payment_method == "delivered":
-            sale_orders.with_context(**context)._create_invoices()
-        else:
-            super(SaleAdvancePaymentInv, self).create_invoices()
-        for sale_id in sale_orders:
-            invoice_id = sale_id.invoice_ids[-1]
-        if invoice_id:
-            if context.get("open_invoices", False):
-                return sale_orders.action_view_invoice()
-        else:
-            return super(SaleAdvancePaymentInv, self).create_invoices()
+        return super(SaleAdvancePaymentInv, self.with_context(**context)).create_invoices()
+
+    def get_default(self, key, _default):
+        cfg = self.env['ir.config_parameter'].sudo()
+        return cfg.get_param(key, _default)
+
+    def _default_twikey_send(self):
+        return bool(self.get_default("twikey.send.invoice", True))
+
+    def _default_auto_collect(self):
+        return bool(self.get_default("twikey.auto_collect", True))

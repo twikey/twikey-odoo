@@ -1,11 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-
-
 {
     "name": "Payment Provider: Twikey",
-    "version": "15.0.1.0.0",
+    "version": "15.0.2.0.0",
     "category": "Accounting/Payment Providers",
-    "summary": "Twikey Integration",
+    "summary": "Payment service provider specializing in recurring payments",
     'author': "Twikey N.V.",
     'website': "https://www.twikey.com/partner/odoo.html",
     "depends": [
@@ -32,7 +30,6 @@
         "wizard/sale_make_invoice_advance.xml",
         "views/mandate_details.xml",
         "views/account_move.xml",
-        "views/account_journal.xml",
         "report/report_account_invoice.xml",
     ],
     'application': False,

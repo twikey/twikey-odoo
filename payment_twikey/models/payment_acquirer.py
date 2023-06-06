@@ -3,16 +3,16 @@
 import logging
 import re
 
-from odoo import _, api, fields, models, service
+from odoo import _, fields, models
 
 _logger = logging.getLogger(__name__)
 
-class PaymentAcquirer(models.Model):
 
+class PaymentAcquirer(models.Model):
     _inherit = 'payment.acquirer'
 
     provider = fields.Selection(selection_add=[('twikey', 'Twikey')], ondelete={'twikey': 'set default'})
-    twikey_template_id = fields.Many2one(comodel_name="twikey.contract.template", string="Contract Template", index=True)
+    twikey_template_id = fields.Many2one(comodel_name="twikey.contract.template", string="Twikey Profile", index=True)
     twikey_method = fields.Selection(
         [
             ("bancontact", "bancontact"),
@@ -45,7 +45,7 @@ class PaymentAcquirer(models.Model):
                 "type": 'CC',
                 "expiry": mandate_id.get_attribute("_expiry"),
             })
-            type = 'CC'
+            _type = 'CC'
             expiry = mandate_id.get_attribute("_expiry")
         else:
             payment_details = self.build_display({
@@ -53,12 +53,11 @@ class PaymentAcquirer(models.Model):
                 "type": 'SDD',
                 "expiry": False,
             })
-            type = 'SDD'
+            _type = 'SDD'
             expiry = False
 
-
         existing_token = self.env['payment.token'].sudo().search([
-            ('acquirer_id', '=', self.id),
+            ('provider', '=', self.provider),
             ('acquirer_ref', '=', mandate_id.reference)
         ])
 
@@ -78,26 +77,25 @@ class PaymentAcquirer(models.Model):
                 'active': active,
                 'verified': True,
                 'expiry': expiry,
-                'type': type,
+                'type': _type,
             })
 
     def build_display(self, data):
         """ Build a token name of the desired maximum length with the format `•••• 1234`.
         """
         info = data.get("info") if data else False
-        _logger.info("Using data=%s",data)
+        _logger.info("Using data=%s", data)
         if not info:
             create_date_str = self.create_date.strftime('%Y/%m/%d')
             return _("Payment details saved on %(date)s", date=create_date_str)
-        elif len(info) > 8 and re.match('[a-zA-Z]{2}[0-9]{2}.*\d{4}',info):
+        elif len(info) > 8 and re.match('[a-zA-Z]{2}[0-9]{2}.*\d{4}', info):
             iban = info
-            masked = iban[:4] + "•"*(len(iban)-8) + iban[-4:]
+            masked = iban[:4] + "•" * (len(iban) - 8) + iban[-4:]
             return _("Via account %(masked)s", masked=masked)
         elif data.get("type") == 'CC':
             return _("Via card ending in %(last)s", last=info)
         else:  # Not enough room for neither padding nor the payment details.
             return info
-
 
     def _get_default_payment_method_id(self):
         self.ensure_one()

@@ -6,6 +6,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+
 class AccountPaymentMethod(models.Model):
     _inherit = 'account.payment.method'
 
