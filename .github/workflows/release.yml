@@ -1,26 +1,53 @@
-name: Make Python Package
+name: Make release
 
 on:
-  release:
-    types: [published]
-
-permissions:
-  contents: read
+  workflow_dispatch:
+    inputs:
+      subversion:
+        description: 'x.x.x of 16.0.x.x.x-dev'
+        default: '1.0.0'
+        required: true
+        type: string
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
+      - name: Git Version
+        id: version
+        run: |
+          echo "sha_short=$(echo ${{github.sha}} | cut -b -6)" >> $GITHUB_STATE
+          echo "::set-output name=sha_short::$(echo ${{github.sha}} | cut -b -6)"
+
+      - name: Git
+        run: |
+          echo Version is: ${{ steps.version.outputs.sha_short}}
+          echo REF is: ${{ github.ref_name }}
       - name: Build package
-        run: sed -i 's/-dev/-${{ github.ref }}/'  payment_twikey/__manifest__.py
-      - name: Show version
-        run: cat  payment_twikey/__manifest__.py
-#      - name: Archive artifacts
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: dist
-#          path: |
-#            payment_twikey
+        run: |
+          sed -i "s/-subver/.${{ inputs.subversion }}/"  payment_twikey/__manifest__.py
+          sed -i "s/-dev/-${{ steps.version.outputs.sha_short}}/"  payment_twikey/__manifest__.py
+          tar -zcvf twikey-odoo-${{ github.ref_name }}.tgz payment_twikey
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GPT }}
+        with:
+          tag_name: refs/tags/${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}-${{ inputs.subversion }}
+          body: |
+            Description of the release.
+          draft: true
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GPT }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: twikey-odoo-${{ github.ref_name }}.tgz
+          asset_name: twikey-odoo-${{ github.ref_name }}.tgz
+          asset_content_type: application/tar+gzip
