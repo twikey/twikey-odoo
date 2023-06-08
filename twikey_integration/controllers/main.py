@@ -45,6 +45,7 @@ class TwikeyController(http.Controller):
                 else:
                     mandate_obj = request.env['mandate.details']
                     mandate_obj.sudo().update_feed()
+                return "OK"
             elif post.get('type') == 'payment':
                 invoice_obj = request.env['account.invoice']
                 invoice_obj.sudo().update_invoice_feed()
