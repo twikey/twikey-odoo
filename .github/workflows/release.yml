@@ -36,8 +36,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GPT }}
         with:
-          tag_name: refs/tags/${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}-${{ inputs.subversion }}
+          tag_name: refs/tags/${{ github.ref_name }}.${{ inputs.subversion }}
+          release_name: Release ${{ github.ref_name }}.${{ inputs.subversion }}
           body: |
             Description of the release.
           draft: true
