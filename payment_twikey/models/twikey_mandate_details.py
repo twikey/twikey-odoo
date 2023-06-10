@@ -6,7 +6,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.document import DocumentFeed
-from ..utils import sanitise_iban
+from ..utils import sanitise_iban, field_name_from_attribute
 
 _logger = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ class OdooDocumentFeed(DocumentFeed):
             for key in attributes:
                 if key in field_dict:
                     value = field_dict[key]
-                    field_name = "x_" + key + "_" + str(temp_id)
+                    field_name = field_name_from_attribute(key, temp_id)
                     mandate_vals[field_name] = value
 
         if mandate_id:

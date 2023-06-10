@@ -60,5 +60,11 @@ def get_success_msg(msg, title='Twikey', sticky = False):
         }
     }
 
+def field_name_from_attribute(attribute, profile_id):
+    # Odoo doesn't like double underscores
+    if attribute[0] == '_':
+        return "x" + attribute + "_" + str(profile_id)
+    return "x_" + attribute + "_" + str(profile_id)
+
 def sanitise_iban(iban):
     return re.sub(r'\W+', '', iban).upper()
