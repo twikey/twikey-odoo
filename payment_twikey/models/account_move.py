@@ -29,22 +29,30 @@ class AccountInvoice(models.Model):
         readonly=True,
     )
 
-    send_to_twikey = fields.Boolean(string="Send to Twikey",
-                                    default=lambda self: self._default_twikey_send, readonly=False)
+    def get_default(self, key, _default):
+        cfg = self.env['ir.config_parameter'].sudo()
+        return cfg.get_param(key, _default)
+
+    def _default_twikey_send(self):
+        return bool(self.get_default("twikey.send.invoice", True))
+
+    def _default_include_pdf(self):
+        return bool(self.get_default("twikey.send_pdf", False))
+
+    def _default_auto_collect(self):
+        return bool(self.get_default("twikey.auto_collect", True))
+
+    send_to_twikey = fields.Boolean(string="Send to Twikey", default=_default_twikey_send, readonly=False)
     auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible",
-                                    default=lambda self: self._default_auto_collect, readonly=False)
+                                          default=_default_auto_collect, readonly=False)
     include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey",
-                                    default=lambda self: self._default_include_pdf)
+                                         default=_default_include_pdf)
 
     is_twikey_eligable = fields.Boolean(
         string="Invoice or Creditnote",
         help="The account move can be sent to Twikey. The user can override this with field 'send_to_twikey'.",
         compute="_compute_twikey_eligable",
     )
-
-    def get_default(self, key, _default):
-        cfg = self.env['ir.config_parameter'].sudo()
-        return cfg.get_param(key, _default)
 
     def action_post(self):
         res = super(AccountInvoice, self).action_post()
@@ -191,15 +199,6 @@ class AccountInvoice(models.Model):
         for move in self:
             move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
 
-    def _default_twikey_send(self):
-        return bool(self.get_default("twikey.send.invoice", True))
-
-    def _default_include_pdf(self):
-        return bool(self.get_default("twikey.send_pdf", False))
-
-    def _default_auto_collect(self):
-        return bool(self.get_default("twikey.auto_collect", True))
-
 
 class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
@@ -207,9 +206,7 @@ class OdooInvoiceFeed(InvoiceFeed):
 
     def start(self, position, number_of_invoices):
         _logger.info(f"Got new {number_of_invoices} invoice update(s) from start={position}")
-        self.env.company.update({
-            "invoice_feed_pos": position
-        })
+        self.env.company.update({"invoice_feed_pos": position})
 
     def get_payment_description(self, last_payment):
         twikey_payment_method = last_payment.get("method")  # sdd/rcc/paylink/reporting/manual
