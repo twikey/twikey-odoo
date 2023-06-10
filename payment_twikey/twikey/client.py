@@ -63,14 +63,18 @@ class TwikeyClient(object):
             self.logger.debug(
                 "Last authenticated with {} with {}".format(self.lastLogin, self.api_token)
             )
+
+        if not self.api_base:
+            raise TwikeyError(ctx="Config", error_code = "Api-Url", error = "No base url defined - %s" % self.api_base)
+
+        if not self.api_key:
+            raise TwikeyError(ctx="Config", error_code = "Api-Key", error = "No key defined - %s" % self.api_base)
+
         now = datetime.datetime.now()
         if self.lastLogin is None or (now - self.lastLogin).seconds > 23 * 3600:
             payload = {"apiToken": self.api_key}
             if self.private_key:
                 payload["otp"] = self.get_totp(self.vendorPrefix, self.private_key)
-
-            if not self.api_base:
-                raise TwikeyError(ctx="Config", error_code = "Api-Url", error = "No base url defined - %s" % self.api_base)
 
             self.logger.debug("Authenticating with {} using {}...".format(self.api_base, self.api_key[0:10]))
             response = requests.post(
