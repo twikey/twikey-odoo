@@ -3,7 +3,7 @@
     "name": "Payment Provider: Twikey",
     "version": "16.0-subver-dev",
     "category": "Accounting/Payment Providers",
-    "summary": "Payment service provider specializing in recurring payments",
+    "summary": "focus on recurring payments",
     'author': "Twikey N.V.",
     'website': "https://www.twikey.com/partner/odoo.html",
     "depends": [
