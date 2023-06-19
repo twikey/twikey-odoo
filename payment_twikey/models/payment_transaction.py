@@ -107,6 +107,7 @@ class PaymentTransaction(models.Model):
         payload["method"] = method,
         payload["redirectUrl"] = urls.url_join(base_url, f'/twikey/status?ref={self.reference}'),
         payload['transactionMessage'] = self.reference,
+        payload['transactionRef'] = self.reference,
         payload['transactionAmount'] = f"{self.amount:.2f}",
         if self.invoice_ids:
             if len(self.invoice_ids) == 1:
