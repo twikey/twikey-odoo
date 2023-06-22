@@ -125,7 +125,7 @@ class TwikeyMandateDetails(models.Model):
 
     def get_attribute(self, name):
         ct = self.contract_temp_id.ct()
-        return self.contract_temp_id and self[f"x_{name}_{ct}"]
+        return self.contract_temp_id and self[field_name_from_attribute(name,ct)]
 
     def is_mandatenumber_required(self):
         return self.contract_temp_id and self.contract_temp_id.mandate_number_required

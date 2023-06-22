@@ -3,7 +3,7 @@ import logging
 from odoo import fields, models
 
 from ..twikey.client import TwikeyError
-from ..utils import get_error_msg, get_success_msg, get_twikey_customer
+from ..utils import get_error_msg, get_success_msg, get_twikey_customer, field_name_from_attribute
 
 _logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class TwikeyContractTemplateWizard(models.Model):
                 payload["sendInvite"] = True
 
             sp_lst = [
-                "x_" + attr.name + "_" + str(self.template_id.template_id_twikey)
+                field_name_from_attribute(attr.name,self.template_id.template_id_twikey)
                 for attr in self.template_id.twikey_attribute_ids
             ]
 
@@ -56,12 +56,8 @@ class TwikeyContractTemplateWizard(models.Model):
                 get_fields[0].pop("template_id")
                 new_keys = []
                 for key, value in get_fields[0].items():
-                    model_id = self.env["ir.model"].search(
-                        [("model", "=", "twikey.contract.template.wizard")]
-                    )
-                    field_id = self.env["ir.model.fields"].search(
-                        [("name", "=", key), ("model_id", "=", model_id.id)]
-                    )
+                    model_id = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
+                    field_id = self.env["ir.model.fields"].search([("name", "=", key), ("model_id", "=", model_id.id)])
                     if field_id.ttype != "boolean" and not value:
                         get_fields[0].update({key: ""})
                     key_split = key.split("_")
