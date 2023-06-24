@@ -154,7 +154,6 @@ class PaymentTransaction(models.Model):
                 _logger.debug(f"Tokenized redirect, mandate was {mandate_id.state}")
                 self.provider_id.token_from_mandate(self.partner_id, mandate_id)
             else:
-                payment_status = 'pending'
                 _logger.info(f"Tokenized redirect but mandate ({self.provider_reference}) was {mandate_id.state}")
 
         if payment_status == 'pending':
