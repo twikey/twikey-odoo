@@ -117,7 +117,7 @@ class AccountInvoice(models.Model):
                         else:
                             data["invoice_ref"] = credit_note_for
 
-                        twikey_invoice = twikey_client.invoice.create(data)
+                        twikey_invoice = twikey_client.invoice.create(data, "Odoo")
                         invoice_id.with_context(update_feed=True).write({
                             "twikey_url": url,
                             "twikey_invoice_identifier": invoice_uuid,
@@ -138,7 +138,7 @@ class AccountInvoice(models.Model):
             _logger.debug(f"Fetching Twikey updates from {self.env.company.invoice_feed_pos}")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
             if twikey_client:
-                twikey_client.invoice.feed(OdooInvoiceFeed(self.env), self.env.company.invoice_feed_pos)
+                twikey_client.invoice.feed(OdooInvoiceFeed(self.env), self.env.company.invoice_feed_pos,"meta","lastpayment")
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)

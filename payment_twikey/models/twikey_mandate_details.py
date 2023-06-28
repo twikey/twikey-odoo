@@ -294,25 +294,25 @@ class OdooDocumentFeed(DocumentFeed):
             "mandate_feed_pos": position
         })
 
-    def newDocument(self, doc):
+    def new_document(self, doc, evt_time):
         try:
             self.new_update_document(doc, False, False, False)
         except Exception as e:
             _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s", doc.get("MndtId"), e)
 
-    def updatedDocument(self, mandate_number, doc, reason):
+    def updated_document(self, original_doc_number, doc, reason, evt_time):
         try:
-            self.new_update_document(doc, True, mandate_number, reason)
+            self.new_update_document(doc, True, original_doc_number, reason)
         except Exception as e:
-            _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s", mandate_number, e)
+            _logger.exception("encountered an error in updatedDocument with mandate_number=%s:\n%s", original_doc_number, e)
 
-    def cancelDocument(self, mandate_number, rsn):
+    def cancelled_document(self, doc_number, reason, evt_time):
         try:
-            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
+            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc_number)])
             if mandate_id:
                 mandate_id.with_context(update_feed=True).write(
-                    {"state": "cancelled", "description": "Cancelled with reason : " + rsn["Rsn"]}
+                    {"state": "cancelled", "description": "Cancelled with reason : " + reason["Rsn"]}
                 )
-                mandate_id.partner_id.message_post(body=f"Twikey mandate {mandate_number} was cancelled")
+                mandate_id.partner_id.message_post(body=f"Twikey mandate {doc_number} was cancelled")
         except Exception as e:
-            _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s", mandate_number, e)
+            _logger.exception("encountered an error in cancelDocument with mandate_number=%s:\n%s", doc_number, e)

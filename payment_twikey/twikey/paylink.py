@@ -6,7 +6,7 @@ class Paylink(object):
         super().__init__()
         self.client = client
 
-    def create(self, data):  # pylint: disable=W8106
+    def create(self, data):
         url = self.client.instance_url("/payment/link")
         data = data or {}
         try:
@@ -23,7 +23,7 @@ class Paylink(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Create paylink", e)
 
-    def feed(self, paylinkFeed):
+    def feed(self, paylink_feed):
         url = self.client.instance_url("/payment/link/feed")
         try:
             self.client.refreshTokenIfRequired()
@@ -37,7 +37,7 @@ class Paylink(object):
             feed_response = response.json()
             while len(feed_response["Links"]) > 0:
                 for msg in feed_response["Links"]:
-                    paylinkFeed.paylink(msg)
+                    paylink_feed.paylink(msg)
                 response = requests.get(
                     url=url,
                     headers=self.client.headers(),

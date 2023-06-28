@@ -215,7 +215,7 @@ class PaymentTransaction(models.Model):
                         "date": invoice_id.invoice_date.isoformat(),
                         "duedate": invoice_id.invoice_date_due.isoformat(),
                     }
-                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
                     template_id = self.env["twikey.contract.template"].search(
                         [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
                     )
@@ -238,7 +238,7 @@ class PaymentTransaction(models.Model):
                         "date": today,
                         "duedate": today,
                     }
-                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
                     self.acquirer_reference = twikey_invoice.get("id")
 
                 self.provider_reference = twikey_invoice.get("id")
