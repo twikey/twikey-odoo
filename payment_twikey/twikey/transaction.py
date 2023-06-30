@@ -6,7 +6,7 @@ class Transaction(object):
         super().__init__()
         self.client = client
 
-    def create(self, data):  # pylint: disable=W8106
+    def create(self, data):
         url = self.client.instance_url("/transaction")
         data = data or {}
         try:
@@ -24,7 +24,7 @@ class Transaction(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Create transaction", e)
 
-    def feed(self, transactionFeed):
+    def feed(self, transaction_feed):
         url = self.client.instance_url("/transaction")
         try:
             self.client.refreshTokenIfRequired()
@@ -39,7 +39,7 @@ class Transaction(object):
             feed_response = response.json()
             while len(feed_response["Entries"]) > 0:
                 for msg in feed_response["Entries"]:
-                    transactionFeed.transaction(msg)
+                    transaction_feed.transaction(msg)
                 response = requests.get(
                     url=url,
                     headers=self.client.headers(),

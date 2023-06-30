@@ -1,19 +1,25 @@
 import requests
 import logging
 
+
 class Invoice(object):
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
         self.logger = logging.getLogger(__name__)
 
-    def create(self, data):  # pylint: disable=W8106
+    def create(self, data, origin=False, purpose=False, manual=False):
         url = self.client.instance_url("/invoice")
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
             headers = self.client.headers("application/json")
-            headers["X-PARTNER"] = "Odoo"
+            if origin:
+                headers["X-PARTNER"] = origin
+            if purpose:
+                headers["X-Purpose"] = purpose
+            if manual:
+                headers["X-MANUAL"] = "true"
             response = requests.post(
                 url=url,
                 json=data,
@@ -28,8 +34,8 @@ class Invoice(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Create invoice", e)
 
-    def update(self, id, data):  # pylint: disable=W0622
-        url = self.client.instance_url("/invoice/" + id)
+    def update(self, invoice_id, data):
+        url = self.client.instance_url("/invoice/"+invoice_id)
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
@@ -43,13 +49,18 @@ class Invoice(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Update invoice", e)
 
-    def feed(self, invoiceFeed, startPosition = False):
-        url = self.client.instance_url("/invoice?include=customer&include=meta&include=lastpayment")
+    #include=meta&include=lastpayment
+    def feed(self, invoice_feed, start_position=False, *includes):
+        _includes = ""
+        for include in includes:
+            _includes += "&include=" + include
+
+        url = self.client.instance_url("/invoice?include=customer" + _includes)
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
-            if startPosition:
-                initheaders["X-RESUME-AFTER"] = str(startPosition)
+            if start_position:
+                initheaders["X-RESUME-AFTER"] = str(start_position)
             response = requests.get(
                 url=url,
                 headers=initheaders,
@@ -59,12 +70,15 @@ class Invoice(object):
                 raise self.client.raise_error("Feed invoice", response)
             feed_response = response.json()
             while len(feed_response["Invoices"]) > 0:
-                self.logger.debug("Feed handling : %d invoices from %s till %s" % (len(feed_response["Invoices"]), startPosition, response.headers["X-LAST"]))
-                invoiceFeed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
+                number_of_invoices = len(feed_response["Invoices"])
+                last_invoice = response.headers["X-LAST"]
+                self.logger.debug("Feed handling : %d invoices from %s till %s" %
+                                  (number_of_invoices, start_position, last_invoice))
+                invoice_feed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
                 error = False
                 for invoice in feed_response["Invoices"]:
                     self.logger.debug("Feed handling : %s" % invoice)
-                    error = invoiceFeed.invoice(invoice)
+                    error = invoice_feed.invoice(invoice)
                     if error:
                         break
                 if error:

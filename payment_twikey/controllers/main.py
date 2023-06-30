@@ -13,17 +13,30 @@ _logger = logging.getLogger(__name__)
 
 class TwikeyController(http.Controller):
 
-    @http.route("/twikey", type="http", auth="public", methods=['GET'], csrf=False, save_session=False)
+    @http.route(["/twikey/<int:company_id>","/twikey"], type="http", auth="public", methods=['GET'], csrf=False, save_session=False)
     def twikey_webhook(self, **post):
         """Twikey webhook will trigger either the document feed to get updates of documents persisted in Odoo
         Payments from the bank will trigger the invoice feed allowing invoices to be handled too.
         If in an eCommerce setting, the trigger of a payment to a link will cause the transaction to be updated"""
+        if post.get("company_id"):
+            company = request.env["res.company"].sudo().browse(post["company_id"])
+            if company.exists():
+                api_key = company.twikey_api_key
+            else:
+                _logger.warning("Twikey: no company found %s", pprint.pformat(post))
+                return Response(response="not yet configured", status=403)
+        else:
+            api_key = request.env.company.twikey_api_key
+        return self.handle_webhook(api_key,**post)
+
+    def handle_webhook(self, api_key, **post):
+        if not api_key:
+            _logger.warning("Twikey: not yet configured %s", pprint.pformat(post))
+            return Response(response="not yet configured", status=403)
+
         payload = url_unquote(request.httprequest.query_string)
         received_sign = request.httprequest.headers.get("X-Signature")
-        api_key = request.env.ref("base.main_company").twikey_api_key
-        if not api_key:
-            _logger.warning("Twikey: not yet configured", pprint.pformat(post))
-            return Response(response="not yet configured", status=404)
+
         if not post or not Webhook.verify_signature(payload, received_sign, api_key):
             _logger.warning("Twikey: failed signature verification %s", pprint.pformat(post))
             return Response(response="invalid signature", status=403)

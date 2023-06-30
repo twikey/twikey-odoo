@@ -1,6 +1,6 @@
 <odoo noupdate="1">
     <record id="twikey_refresh_credentials" model="ir.cron">
-        <field name="name">Authenticate Twikey</field>
+        <field name="name">Twikey: Refresh session token</field>
         <field name="model_id" ref="model_res_config_settings" />
         <field name="state">code</field>
         <field name="code">model.twikey_refresh_credentials()</field>
@@ -8,8 +8,8 @@
             name="nextcall"
             eval="(DateTime.now().replace(hour=5, minute=0, second=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"
         />
-        <field name="interval_number">1</field>
-        <field name="interval_type">days</field>
+        <field name="interval_number">23</field>
+        <field name="interval_type">hours</field>
         <field name="numbercall">-1</field>
         <field name="active" eval="True" />
         <field name="doall" eval="False" />

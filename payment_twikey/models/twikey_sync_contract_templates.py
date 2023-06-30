@@ -1,5 +1,6 @@
 import logging
 
+from ..utils import field_name_from_attribute
 from odoo import _, models
 from odoo.exceptions import UserError
 
@@ -57,25 +58,16 @@ class SyncContractTemplates(models.AbstractModel):
 
         return template_id
 
-    def create_search_fields(self, attribute_name, model, field_type, select_list, attr):
-        fields = (
-            self.env["ir.model.fields"]
-            .sudo()
-            .search(
-                [
-                    ("name", "=", attribute_name),
-                    ("model_id", "=", model.id),
-                ]
-            )
-        )
+    def create_search_fields(self, field_name, model, field_type, select_list, attr):
 
+        fields = self.env["ir.model.fields"].sudo().search([("name", "=", field_name),("model_id", "=", model.id),])
         if not fields and field_type != "iban":
             ir_fields = (
                 self.env["ir.model.fields"]
                 .sudo()
                 .create(
                     {
-                        "name": attribute_name,
+                        "name": field_name,
                         "field_description": attr.get("description"),
                         "model_id": model.id,
                         "ttype": Field_Type[field_type],
@@ -179,19 +171,15 @@ class SyncContractTemplates(models.AbstractModel):
                     (str(selection), str(selection)) for selection in attr.get("Options")
                 ]
 
-            attribute_name = "x_" + twikey_attr_name + "_" + str(ct)
+            field_name = field_name_from_attribute(twikey_attr_name, ct)
 
-            model_id = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
-            ir_fields = self.create_search_fields(
-                attribute_name, model_id, field_type, select_list, attr
-            )
+            wizard_model_id = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
+            ir_fields = self.create_search_fields(field_name, wizard_model_id, field_type, select_list, attr)
             if ir_fields is not None:
                 fields_list.append(ir_fields)
 
             mandate_model_id = self.env["ir.model"].search([("model", "=", "twikey.mandate.details")])
-            ir_fields = self.create_search_fields(
-                attribute_name, mandate_model_id, field_type, select_list, attr
-            )
+            ir_fields = self.create_search_fields(field_name, mandate_model_id, field_type, select_list, attr)
             if ir_fields is not None:
                 mandate_field_list.append(ir_fields)
 

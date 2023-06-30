@@ -68,6 +68,7 @@ class PaymentAcquirer(models.Model):
                 'active': active,
                 'expiry': expiry,
             })
+            return False
         else:
             self.env['payment.token'].create({
                 'name': payment_details,
@@ -79,6 +80,7 @@ class PaymentAcquirer(models.Model):
                 'expiry': expiry,
                 'type': _type,
             })
+            return True
 
     def build_display(self, data):
         """ Build a token name of the desired maximum length with the format `•••• 1234`.

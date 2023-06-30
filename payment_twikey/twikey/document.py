@@ -1,7 +1,7 @@
-import requests
 import logging
 
-__all__ = ["Document", "DocumentFeed"]
+import requests
+
 
 class Document(object):
 
@@ -10,7 +10,7 @@ class Document(object):
         self.client = client
         self.logger = logging.getLogger(__name__)
 
-    def create(self, data):  # pylint: disable=W8106
+    def create(self, data):
         url = self.client.instance_url("/invite")
         data = data or {}
         try:
@@ -62,13 +62,13 @@ class Document(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Cancel", e)
 
-    def feed(self, documentFeed, startPosition = False):
+    def feed(self, document_feed, start_position=False):
         url = self.client.instance_url("/mandate?include=id&include=mandate&include=person")
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
-            if startPosition:
-                initheaders["X-RESUME-AFTER"] = str(startPosition)
+            if start_position:
+                initheaders["X-RESUME-AFTER"] = str(start_position)
             response = requests.get(
                 url=url,
                 headers=initheaders,
@@ -78,22 +78,29 @@ class Document(object):
                 raise self.client.raise_error("Feed", response)
             feed_response = response.json()
             while len(feed_response["Messages"]) > 0:
-                self.logger.debug("Feed handling : %d from %s till %s" % (len(feed_response["Messages"]), startPosition, response.headers["X-LAST"]))
-                documentFeed.start(response.headers["X-LAST"], len(feed_response["Messages"]))
+                self.logger.debug("Feed handling : %d from %s till %s" % (
+                    len(feed_response["Messages"]), start_position, response.headers["X-LAST"]))
+                document_feed.start(response.headers["X-LAST"], len(feed_response["Messages"]))
                 error = False
                 for msg in feed_response["Messages"]:
                     if "AmdmntRsn" in msg:
                         mndt_id_ = msg["OrgnlMndtId"]
-                        self.logger.debug("Feed update : %s" % (mndt_id_))
+                        self.logger.debug("Feed update : %s" % mndt_id_)
                         mndt_ = msg["Mndt"]
                         rsn_ = msg["AmdmntRsn"]
-                        error = documentFeed.updatedDocument(mndt_id_, mndt_, rsn_)
+                        at_ = msg["EvtTime"]
+                        error = document_feed.updatedDocument(mndt_id_, mndt_, rsn_, at_)
                     elif "CxlRsn" in msg:
-                        self.logger.debug("Feed cancel : %s" % (msg["OrgnlMndtId"]))
-                        error = documentFeed.cancelDocument(msg["OrgnlMndtId"], msg["CxlRsn"])
+                        mndt_ = msg["OrgnlMndtId"]
+                        rsn_ = msg["CxlRsn"]
+                        at_ = msg["EvtTime"]
+                        self.logger.debug("Feed cancel : %s" % mndt_)
+                        error = document_feed.cancelDocument(mndt_, rsn_, at_)
                     else:
-                        self.logger.debug("Feed create : %s" % (msg["Mndt"]))
-                        error = documentFeed.newDocument(msg["Mndt"])
+                        mndt_ = msg["Mndt"]
+                        at_ = msg["EvtTime"]
+                        self.logger.debug("Feed create : %s" % mndt_)
+                        error = document_feed.new_document(mndt_)
                     if error:
                         break
                 if error:
@@ -120,13 +127,36 @@ class Document(object):
 class DocumentFeed:
 
     def start(self, position, number_of_updates):
+        """
+        Allow storing the start of the feed
+        :param position: position where the feed started
+        :param number_of_updates: number of items in the feed
+        """
         pass
 
-    def newDocument(self, doc):
+    def new_document(self, doc, evt_time):
+        """
+        Handle a newly available document
+        :param doc: actual document
+        :param evt_time: time of creation
+        """
         pass
 
-    def updatedDocument(self, mandate_number, doc, reason):
+    def updated_document(self, original_doc_number, doc, reason, evt_time):
+        """
+        Handle an update of a document
+        :param original_doc_number: original reference to the document
+        :param doc: actual document
+        :param reason: reason of change
+        :param evt_time: time of creation
+        """
         pass
 
-    def cancelDocument(self, docNumber, reason):
+    def cancelled_document(self, doc_number, reason, evt_time):
+        """
+        Handle an cancelled document
+        :param doc_number: reference to the document
+        :param reason: reason of change
+        :param evt_time: time of creation
+        """
         pass

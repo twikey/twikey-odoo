@@ -107,6 +107,7 @@ class PaymentTransaction(models.Model):
         payload["method"] = method,
         payload["redirectUrl"] = urls.url_join(base_url, f'/twikey/status?ref={self.reference}'),
         payload['transactionMessage'] = self.reference,
+        payload['transactionRef'] = self.reference,
         payload['transactionAmount'] = f"{self.amount:.2f}",
         if self.invoice_ids:
             if len(self.invoice_ids) == 1:
@@ -151,7 +152,6 @@ class PaymentTransaction(models.Model):
                 _logger.debug(f"Tokenized redirect, mandate was {mandate_id.state}")
                 self.acquirer_id.token_from_mandate(self.partner_id, mandate_id)
             else:
-                payment_status = 'pending'
                 _logger.info(f"Tokenized redirect but mandate ({self.acquirer_reference}) was {mandate_id.state}")
 
         if payment_status == 'pending':
@@ -213,7 +213,7 @@ class PaymentTransaction(models.Model):
                         "date": invoice_id.invoice_date.isoformat(),
                         "duedate": invoice_id.invoice_date_due.isoformat(),
                     }
-                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
                     template_id = self.env["twikey.contract.template"].search(
                         [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
                     )
@@ -236,7 +236,7 @@ class PaymentTransaction(models.Model):
                         "date": today,
                         "duedate": today,
                     }
-                    twikey_invoice = twikey_client.invoice.create(invoice)
+                    twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
                     self.acquirer_reference = twikey_invoice.get("id")
 
                 self.acquirer_reference = twikey_invoice.get("id")

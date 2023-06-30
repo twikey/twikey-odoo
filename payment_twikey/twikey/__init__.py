@@ -1,7 +1,7 @@
 # Webhooks
-from . import webhook
-from . import client
-from . import document
-from . import transaction
-from . import paylink
-from . import invoice
+from .webhook import Webhook
+from .client import TwikeyClient
+from .document import DocumentFeed
+from .transaction import TransactionFeed
+from .paylink import PaylinkFeed
+from .invoice import InvoiceFeed
