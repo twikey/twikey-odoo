@@ -99,7 +99,7 @@ class Document(object):
                         mndt_ = msg["Mndt"]
                         at_ = msg["EvtTime"]
                         self.logger.debug("Feed create : %s" % mndt_)
-                        error = document_feed.new_document(mndt_)
+                        error = document_feed.new_document(mndt_, at_)
                     if error:
                         break
                 if error:
