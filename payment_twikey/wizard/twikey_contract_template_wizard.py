@@ -37,7 +37,7 @@ class TwikeyContractTemplateWizard(models.Model):
             payload["ct"] = self.template_id.template_id_twikey
             if self.template_id.mandate_number_required:
                 payload["mandateNumber"] = self.reference
-            if payload["email"]:
+            if payload.get("email"):
                 payload["sendInvite"] = True
 
             sp_lst = [
