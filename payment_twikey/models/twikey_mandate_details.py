@@ -44,7 +44,7 @@ class TwikeyMandateDetails(models.Model):
 
     country_id = fields.Many2one("res.country")
     city = fields.Char()
-    zip = fields.Integer()
+    zip = fields.Char()
     address = fields.Char()
 
     def action_cancel_reason(self):
