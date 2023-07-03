@@ -41,7 +41,7 @@ class TwikeyContractTemplateWizard(models.Model):
                 payload["sendInvite"] = True
 
             sp_lst = [
-                field_name_from_attribute(attr.name,self.template_id.template_id_twikey)
+                field_name_from_attribute(attr.name, self.template_id.template_id_twikey)
                 for attr in self.template_id.twikey_attribute_ids
             ]
 
@@ -93,7 +93,8 @@ class TwikeyContractTemplateWizard(models.Model):
 
             except TwikeyError as e:
                 errmsg = "Exception raised while creating a new Mandate:\n%s" % e
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
+                twikey_channel = self.env['mail.channel'].search([('name', '=', 'twikey')])
+                twikey_channel.message_post(subject="Configuration", body=errmsg, )
                 _logger.error(errmsg)
                 return get_error_msg(str(e), 'Exception raised while creating a new Mandate', sticky=True)
 
