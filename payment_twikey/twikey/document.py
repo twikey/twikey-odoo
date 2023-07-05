@@ -89,13 +89,13 @@ class Document(object):
                         mndt_ = msg["Mndt"]
                         rsn_ = msg["AmdmntRsn"]
                         at_ = msg["EvtTime"]
-                        error = document_feed.updatedDocument(mndt_id_, mndt_, rsn_, at_)
+                        error = document_feed.updated_document(mndt_id_, mndt_, rsn_, at_)
                     elif "CxlRsn" in msg:
                         mndt_ = msg["OrgnlMndtId"]
                         rsn_ = msg["CxlRsn"]
                         at_ = msg["EvtTime"]
                         self.logger.debug("Feed cancel : %s" % mndt_)
-                        error = document_feed.cancelDocument(mndt_, rsn_, at_)
+                        error = document_feed.cancelled_document(mndt_, rsn_, at_)
                     else:
                         mndt_ = msg["Mndt"]
                         at_ = msg["EvtTime"]
