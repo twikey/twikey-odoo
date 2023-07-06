@@ -209,6 +209,8 @@ class OdooDocumentFeed(DocumentFeed):
                     lookup_id = int(customer_number)
                     _logger.debug("Got lookup_id %s" % lookup_id)
                     partner_id = self.env["res.partner"].browse(lookup_id)
+                except ValueError:
+                    _logger.error("Customer had invalid number=%s." % customer_number)
                 except UserError:
                     _logger.error("Customer not found by id=%s." % customer_number)
             else:
