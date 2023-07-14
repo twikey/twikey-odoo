@@ -134,6 +134,12 @@ class TwikeyMandateDetails(models.Model):
 class OdooDocumentFeed(DocumentFeed):
     def __init__(self, env):
         self.env = env
+        self.res_country = self.env["res.country"]
+        self.res_lang = self.env["res.lang"]
+        self.res_partner = self.env["res.partner"]
+        self.mandates = self.env["twikey.mandate.details"]
+        self.template = self.env["twikey.contract.template"]
+        self.paymentprovider = self.env["payment.provider"]
 
     @staticmethod
     def splmtr_as_dict(doc):
@@ -154,17 +160,17 @@ class OdooDocumentFeed(DocumentFeed):
             address = address_line.get("AdrLine") if address_line.get("AdrLine") else False
             zip_code = address_line.get("PstCd") if address_line.get("PstCd") else False
             city = address_line.get("TwnNm") if address_line.get("TwnNm") else False
-            country_id = self.env["res.country"].search([("code", "=", address_line.get("Ctry"))])
+            country_id = self.res_country.search([("code", "=", address_line.get("Ctry"))])
 
         return address, zip_code, city, country_id
 
     def prepare_partner(self, partner_id, debtor, address, zip_code, city, country_id, email):
         """ Only update name for new partners, existing ones will update address and email info"""
         if not partner_id and "Nm" in debtor:
-            partner_id = self.env["res.partner"].search([("name", "=", debtor.get("Nm"))])
+            partner_id = self.res_partner.search([("name", "=", debtor.get("Nm"))])
 
             if not partner_id:
-                partner_id = self.env["res.partner"].create({"name": debtor.get("Nm")})
+                partner_id = self.res_partner.create({"name": debtor.get("Nm")})
 
         if partner_id:
             partner_id.with_context(update_feed=True).write(
@@ -190,13 +196,11 @@ class OdooDocumentFeed(DocumentFeed):
         field_dict = self.splmtr_as_dict(doc)
         if "Language" in field_dict:
             lang = field_dict["Language"]
-            lang_id = self.env["res.lang"].search([("iso_code", "=", lang)])
+            lang_id = self.res_lang.search([("iso_code", "=", lang)])
 
         if "TemplateId" in field_dict:
             temp_id = field_dict["TemplateId"]
-            template_id = self.env["twikey.contract.template"].search(
-                [("template_id_twikey", "=", temp_id)], limit=1
-            )
+            template_id = self.template.search([("template_id_twikey", "=", temp_id)], limit=1)
 
         address, zip_code, city, country_id = self.prepare_address(debtor)
 
@@ -208,7 +212,7 @@ class OdooDocumentFeed(DocumentFeed):
                 try:
                     lookup_id = int(customer_number)
                     _logger.debug("Got lookup_id %s" % lookup_id)
-                    partner_id = self.env["res.partner"].browse(lookup_id)
+                    partner_id = self.res_partner.browse(lookup_id)
                 except ValueError:
                     _logger.error("Customer had invalid number=%s." % customer_number)
                 except UserError:
@@ -217,7 +221,7 @@ class OdooDocumentFeed(DocumentFeed):
                 _logger.warning("Got no customerNumber in Twikey, trying with email" % contact_details)
 
             if not partner_id and email:
-                partner_id = self.env["res.partner"].search([("email", "ilike", email)])
+                partner_id = self.res_partner.search([("email", "ilike", email)])
                 if len(partner_id) != 1:
                     _logger.error(
                         "Incorrect number of customers found by %s skipping mandate. "
@@ -228,9 +232,9 @@ class OdooDocumentFeed(DocumentFeed):
         partner_id = self.prepare_partner(partner_id, debtor, address, zip_code, city, country_id, email)
         if updated_doc:
             new_state = ("suspended" if reason["Rsn"] and reason["Rsn"] == "uncollectable|user" else "signed")
-            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", mandate_number)])
+            mandate_id = self.mandates.search([("reference", "=", mandate_number)])
         else:
-            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc.get("MndtId"))])
+            mandate_id = self.mandates.search([("reference", "=", doc.get("MndtId"))])
 
         mandate_vals = {
             "partner_id": partner_id.id if partner_id else False,
@@ -264,12 +268,12 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["zip"] = zip_code
             mandate_vals["city"] = city
             mandate_vals["country_id"] = country_id.id if country_id else 0
-            mandate_id = self.env["twikey.mandate.details"].sudo().create(mandate_vals)
+            mandate_id = self.mandates.create(mandate_vals)
             partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
 
         # Allow register payments
         if partner_id and mandate_id:
-            providers = self.env['payment.acquirer'].sudo().search([("provider", "=", 'twikey')])
+            providers = self.paymentprovider.search([("code", "=", 'twikey')])
             if template_id:
                 _logger.debug("Finding linked providers for %s", template_id)
                 # find more specific
@@ -310,7 +314,7 @@ class OdooDocumentFeed(DocumentFeed):
 
     def cancelled_document(self, doc_number, reason, evt_time):
         try:
-            mandate_id = self.env["twikey.mandate.details"].search([("reference", "=", doc_number)])
+            mandate_id = self.mandates.search([("reference", "=", doc_number)])
             if mandate_id:
                 mandate_id.with_context(update_feed=True).write(
                     {"state": "cancelled", "description": "Cancelled with reason : " + reason["Rsn"]}

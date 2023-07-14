@@ -67,7 +67,7 @@ class TwikeyController(http.Controller):
                             mandate_id.with_context(update_feed=True).unlink()
                         elif reason == "expired":
                             if mandate_id.contract_temp_id.mandate_number_required:
-                                _logger.info("Not removing expired (mandate_number_required) twikey mandate " + mandate_number)
+                                _logger.info(f"Not removing expired (mandate_number_required) {mandate_number}")
                                 mandate_id.message_post(body=f"Ignoring expiry for Twikey mandate {mandate_number}")
                             else:
                                 _logger.info(f"Removing expired twikey mandate {mandate_number}")

@@ -199,10 +199,12 @@ class AccountInvoice(models.Model):
         for move in self:
             move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
 
-
 class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env):
         self.env = env
+        self.channel = env['mail.channel'].search([('name', '=', 'twikey')])
+        self.transaction = self.env['payment.transaction']
+        self.invoice = self.env["account.move"]
 
     def start(self, position, number_of_invoices):
         _logger.info(f"Got new {number_of_invoices} invoice update(s) from start={position}")
@@ -220,18 +222,18 @@ class OdooInvoiceFeed(InvoiceFeed):
             else:
                 payment_description = "Credit Card pmtinf={} e2e={}".format(pmtinf, e2e, )
         elif twikey_payment_method == "transfer":
-            payment_description = "Regular transfer rep-{} msg={}".format(last_payment["id"], last_payment["msg"])
+            payment_description = "Regular transfer rep-{} msg={}".format(last_payment.get("id"), last_payment.get("msg"))
         elif twikey_payment_method == "manual":
-            payment_description = "Manually set as paid msg={}".format(last_payment["msg"])
+            payment_description = "Manually set as paid msg={}".format(last_payment.get("msg"))
         else:
             payment_description = "Other"
         return payment_description
 
     def get_or_create_payment_transaction(self, txdict):
-        tx = self.env['payment.transaction'].search([("provider_ref", "=", txdict['provider_ref'])], limit=1)
+        tx = self.transaction.search([("provider_ref", "=", txdict['provider_ref'])], limit=1)
         if tx:
             return tx
-        return self.env['payment.transaction'].create(txdict)
+        return self.transaction.create(txdict)
 
     def invoice(self, twikey_invoice):
         id = twikey_invoice.get("id")
@@ -242,8 +244,8 @@ class OdooInvoiceFeed(InvoiceFeed):
             last_payment = twikey_invoice.get("lastpayment")[0]
 
         try:
-            if ref_id.isnumeric():
-                invoice_id = self.env["account.move"].browse(int(ref_id))
+            if ref_id and ref_id.isnumeric():
+                invoice_id = self.invoice.browse(int(ref_id))
                 if invoice_id.exists():
                     _logger.info("Processing invoice: " + str(twikey_invoice))
                     invoice_id.twikey_invoice_state = new_state
@@ -255,7 +257,9 @@ class OdooInvoiceFeed(InvoiceFeed):
                             provider = self.env['payment.provider'].search([('code', '=', 'twikey')])[0]
                             token_id = False
                             if "mndtId" in last_payment:
-                                token_id = self.env['payment.token'].search([('provider_code', '=', provider.code),('provider_ref', '=', last_payment["mndtId"])])
+                                search_mandate = [('provider_code', '=', provider.code),
+                                       ('provider_ref', '=', last_payment["mndtId"])]
+                                token_id = self.env['payment.token'].search(search_mandate)
                             tx = self.get_or_create_payment_transaction({
                                 'amount': twikey_invoice["amount"],
                                 'currency_id': invoice_id.currency_id.id,
@@ -276,7 +280,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                         # Getting here means either a regular expiry or a reversal
                         if last_payment:
                             provider_reference = last_payment["e2e"]
-                            tx = self.env['payment.transaction'].search([('provider_reference','=',id)])
+                            tx = self.transaction.search([('provider_reference','=',id)])
                             if tx:
                                 errorcode = "Failed with errorcode={}".format(last_payment["rc"])
                                 tx._set_error(errorcode)
@@ -294,7 +298,7 @@ class OdooInvoiceFeed(InvoiceFeed):
             else:
                 if last_payment:
                     payment_description = self.get_payment_description(last_payment)
-                    tx = self.env['payment.transaction'].search([("provider_reference","=",id)],limit=1)
+                    tx = self.transaction.search([("provider_reference","=",id)],limit=1)
                     if tx:
                         if new_state == "PAID":
                             tx._set_done(payment_description)
@@ -312,17 +316,17 @@ class OdooInvoiceFeed(InvoiceFeed):
         except TwikeyError as te:
             self.env.cr.rollback()
             errmsg = "Error while updating invoices :\n%s" % (te)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Twikey problem while updating invoices",body=errmsg,message_type="comment")
+            self.channel.message_post(subject="Twikey problem while updating invoices",body=errmsg,message_type="comment")
             _logger.error("Error while updating invoices from Twikey: %s" % te)
             return te
         except UserError as ue:
             errmsg = "Skipping error while handing invoice=%s :\n%s" % (ref_id,ue)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Odoo problem while updating invoices",body=errmsg,message_type="comment")
+            self.channel.message_post(subject="Odoo problem while updating invoices",body=errmsg,message_type="comment")
             _logger.exception("Skipping error while handling invoice with number=%s:\n%s", twikey_invoice.get("number"), ue)
             return False
         except Exception as ge:
             self.env.cr.rollback()
             errmsg = "Error while handing invoice=%s :\n%s" % (ref_id,ge)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="General problem while updating invoices",body=errmsg,message_type="comment")
+            self.channel.message_post(subject="General problem while updating invoices",body=errmsg,message_type="comment")
             _logger.exception("Error while handling invoice with number=%s:\n%s", twikey_invoice.get("number"), ge)
             return ge
