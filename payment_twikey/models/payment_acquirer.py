@@ -17,10 +17,10 @@ class PaymentAcquirer(models.Model):
         [
             ("bancontact", "bancontact"),
             ("sofort", "sofort"),
-            ("sms", "sms"),
-            ("itsme", "itsme"),
+            # ("sms", "sms"),
+            # ("itsme", "itsme"),
             ("emachtiging", "emachtiging"),
-            ("idin", "idin"),
+            # ("idin", "idin"),
             ("ideal", "ideal"),
             ("visa", "visa"),
             ("mastercard", "mastercard"),
