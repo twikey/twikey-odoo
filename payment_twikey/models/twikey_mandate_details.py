@@ -278,7 +278,8 @@ class OdooDocumentFeed(DocumentFeed):
                 _logger.debug("Finding linked providers for %s", template_id)
                 # find more specific
                 providers_for_profile = providers.filtered(
-                    lambda x: x.twikey_template_id and x.twikey_template_id == template_id.id)
+                    lambda x: x.twikey_template_id and x.twikey_template_id.id == template_id.id
+                )
                 if len(providers_for_profile) > 0:
                     providers = providers_for_profile
             for provider in providers:
