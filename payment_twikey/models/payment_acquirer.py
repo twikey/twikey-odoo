@@ -19,11 +19,12 @@ class PaymentProvider(models.Model):
             ("sofort", "sofort"),
             # ("sms", "sms"),
             # ("itsme", "itsme"),
-            ("emachtiging", "emachtiging"),
+            # ("emachtiging", "emachtiging"),
             # ("idin", "idin"),
             ("ideal", "ideal"),
             ("visa", "visa"),
             ("mastercard", "mastercard"),
+            ("paypal", "paypal"),
             ("amex", "amex"),
         ],
         help="This will be the method to use to sign mandate"
