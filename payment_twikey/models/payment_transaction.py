@@ -229,7 +229,7 @@ class PaymentTransaction(models.Model):
                 else:
                     today = datetime.date.today().isoformat()
                     invoice = {
-                        "customerByDocument": self.token_id.acquirer_ref,
+                        "customerByDocument": self.token_id.provider_ref,
                         "number": self.reference,
                         "title": self.reference,
                         "amount": self.amount,
@@ -239,7 +239,6 @@ class PaymentTransaction(models.Model):
                         "duedate": today,
                     }
                     twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
-                    self.acquirer_reference = twikey_invoice.get("id")
 
                 self.provider_reference = twikey_invoice.get("id")
                 state = twikey_invoice.get("state")
