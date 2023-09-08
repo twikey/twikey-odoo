@@ -204,7 +204,7 @@ class OdooInvoiceFeed(InvoiceFeed):
         self.env = env
         self.channel = env['mail.channel'].search([('name', '=', 'twikey')])
         self.transaction = self.env['payment.transaction']
-        self.invoice = self.env["account.move"]
+        self.account_move = self.env["account.move"]
 
     def start(self, position, number_of_invoices):
         _logger.info(f"Got new {number_of_invoices} invoice update(s) from start={position}")
@@ -245,7 +245,7 @@ class OdooInvoiceFeed(InvoiceFeed):
 
         try:
             if ref_id and ref_id.isnumeric():
-                invoice_id = self.invoice.browse(int(ref_id))
+                invoice_id = self.account_move.browse(int(ref_id))
                 if invoice_id.exists():
                     _logger.info("Processing invoice: " + str(twikey_invoice))
                     invoice_id.twikey_invoice_state = new_state
@@ -307,7 +307,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                         elif new_state in ["BOOKED", "EXPIRED"]:
                             errorcode = "Failed with errorcode={}".format(last_payment["rc"])
                             tx._set_error(errorcode)
-                            refund = tx._create_refund_transaction(acquirer_reference=id)
+                            refund = tx._create_refund_transaction(provider_reference=id)
                             refund._set_done(errorcode)
                             refund._reconcile_after_done()
                             refund._finalize_post_processing()

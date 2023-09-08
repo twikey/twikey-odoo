@@ -142,7 +142,7 @@ class PaymentTransaction(models.Model):
 
         payment_status = notification_data.get('status')
         if not payment_status:
-            _logger.warning("No status update for reference %s, setting to pending", self.reference)
+            _logger.info("No status update for reference %s, setting to pending", self.reference)
             self._set_pending()
             return
 

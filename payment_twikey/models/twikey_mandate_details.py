@@ -284,8 +284,8 @@ class OdooDocumentFeed(DocumentFeed):
                     providers = providers_for_profile
             for provider in providers:
                 if provider.token_from_mandate(partner_id, mandate_id):
-                    _logger.debug("Activating token for : %s", mandate_id.reference)
-                    partner_id.message_post(body=f"Twikey token {mandate_number} was added")
+                    _logger.debug("Activating token for ref=%s", mandate_id.reference)
+                    partner_id.message_post(body=f"Twikey token {mandate_id.reference} was added")
 
         # Allow regular refunds
         if partner_id and iban:
@@ -303,7 +303,7 @@ class OdooDocumentFeed(DocumentFeed):
 
     def new_document(self, doc, evt_time):
         try:
-            self.new_update_document(doc, False, False, False)
+            self.new_update_document(doc, False, doc.get("MndtId"), False)
         except Exception as e:
             _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s", doc.get("MndtId"), e)
 
