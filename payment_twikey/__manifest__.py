@@ -27,7 +27,6 @@
 
         "wizard/wizard_cancel_reason.xml",
         "wizard/twikey_contract_template_wizard.xml",
-        "wizard/sale_make_invoice_advance.xml",
         "views/mandate_details.xml",
         "views/account_move.xml",
         "report/report_account_invoice.xml",

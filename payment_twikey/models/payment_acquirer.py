@@ -30,6 +30,16 @@ class PaymentProvider(models.Model):
         help="This will be the method to use to sign mandate"
     )
 
+    def _compute_view_configuration_fields(self):
+        super()._compute_view_configuration_fields()
+        self.filtered(lambda p: p.code == 'twikey').update({
+            'show_credentials_page': False,
+            'show_pre_msg': False,
+            'show_done_msg': False,
+            'show_cancel_msg': False,
+        })
+
+
     def _compute_feature_support_fields(self):
         """ Override of `payment` to enable additional features. """
         super()._compute_feature_support_fields()

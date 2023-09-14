@@ -4,7 +4,6 @@ import requests
 
 
 class Document(object):
-
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -125,7 +124,6 @@ class Document(object):
 
 
 class DocumentFeed:
-
     def start(self, position, number_of_updates):
         """
         Allow storing the start of the feed

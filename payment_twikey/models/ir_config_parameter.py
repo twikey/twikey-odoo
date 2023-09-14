@@ -6,6 +6,7 @@ from .. import twikey
 _logger = logging.getLogger(__name__)
 
 class IrConfigParameter(models.Model):
+
     _inherit = "ir.config_parameter"
 
     @tools.ormcache("company")
@@ -26,3 +27,4 @@ class IrConfigParameter(models.Model):
         else:
             _logger.warning(f"No Twikey configuration for found in company {company}")
             raise exceptions.UserError(_("No company was set to get the Twikey credentials!"))
+

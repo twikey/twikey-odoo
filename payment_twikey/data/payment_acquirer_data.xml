@@ -5,10 +5,8 @@
             <field name="code">twikey</field>
             <field name="name">Twikey</field>
             <field name="display_as">Payment via Twikey</field>
-            <field name="show_credentials_page">False</field>
             <field name="image_128" type="base64" file="payment_twikey/static/description/icon.png"/>
             <field name="redirect_form_view_id" ref="redirect_form"/>
-            <field name="allow_tokenization">True</field>
         </record>
 
         <record id="channel_twikey" model="mail.channel" >

@@ -106,7 +106,7 @@ class TwikeyMandateDetails(models.Model):
                 elif mandate.state == "pending":
                     try:
                         twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-                        if twikey_client:
+                        if twikey_client and mandate.reference:
                             twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
                     except TwikeyError as e:
                         if e.error_code != 'err_no_contract':  # Ignore as not avail in Twikey

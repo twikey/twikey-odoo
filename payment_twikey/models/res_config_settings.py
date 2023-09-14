@@ -11,8 +11,13 @@ _logger = logging.getLogger(__name__)
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
-    twikey_api_key = fields.Char(related="company_id.twikey_api_key", help="Add Api Key from Twikey", readonly=False)
-    twikey_base_url = fields.Char(related="company_id.twikey_base_url", readonly=False)
+    twikey_base_url = fields.Char(string="API url",related="company_id.twikey_base_url", readonly=False)
+    twikey_api_key = fields.Char(string="API key",related="company_id.twikey_api_key", help="Add Api Key from Twikey", readonly=False)
+
+    twikey_send_invoice = fields.Boolean(string="Send all invoices", related="company_id.twikey_send_invoice", readonly=False, default=True)
+    twikey_auto_collect = fields.Boolean(string="Auto-Collect", related="company_id.twikey_auto_collect", readonly=False, default=True)
+    twikey_include_purchase = fields.Boolean(string="Send purchase invoices", related="company_id.twikey_include_purchase", readonly=False)
+    twikey_send_pdf = fields.Boolean(string="Include PDF", related="company_id.twikey_send_pdf", readonly=False)
 
     def twikey_refresh_credentials(self):
         try:

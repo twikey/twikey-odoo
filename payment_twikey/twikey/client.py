@@ -1,12 +1,14 @@
+import datetime
+import json
+import logging
+
 import requests
 
 from .document import Document
-from .transaction import Transaction
-from .paylink import Paylink
 from .invoice import Invoice
-import logging
-import datetime
-import json
+from .paylink import Paylink
+from .transaction import Transaction
+from .refund import Refund
 
 
 class TwikeyClient(object):
@@ -22,6 +24,7 @@ class TwikeyClient(object):
     transaction = None
     paylink = None
     invoice = None
+    refund = None
 
     def __init__(
         self,
@@ -39,6 +42,7 @@ class TwikeyClient(object):
         self.transaction = Transaction(self)
         self.paylink = Paylink(self)
         self.invoice = Invoice(self)
+        self.refund = Refund(self)
         self.logger = logging.getLogger(__name__)
 
     def instance_url(self, url=""):
@@ -172,3 +176,12 @@ class TwikeyError(Exception):
         if self.extra:
             return "[{}] code={}, msg={} extra={}".format(self.ctx, self.error_code, self.error, self.extra)
         return "[{}] code={}, msg={}".format(self.ctx, self.error_code, self.error)
+
+    def get_code(self):
+        return self.error_code
+
+    def get_error(self):
+        return self.error
+
+    def get_extra(self):
+        return self.extra
