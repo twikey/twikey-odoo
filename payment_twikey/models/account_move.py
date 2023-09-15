@@ -78,6 +78,10 @@ class AccountInvoice(models.Model):
         """ Actual sending of twikey """
         for invoice in self:
 
+            if invoice.amount_residual == 0:
+                invoice.message_post(body="Skipping sending to Twikey as no open amount.")
+                continue
+
             invoice_uuid = str(uuid.uuid4())
 
             report_file = False
