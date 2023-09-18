@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       subversion:
-        description: 'x.x.x of 16.0.x.x.x-dev'
-        default: '1.0.0'
-        required: true
+        description: 'Select the tag you want to release'
+        default: ''
+        required: false
         type: string
 
 jobs:
@@ -20,24 +20,18 @@ jobs:
           echo "sha_short=$(echo ${{github.sha}} | cut -b -6)" >> $GITHUB_STATE
           echo "::set-output name=sha_short::$(echo ${{github.sha}} | cut -b -6)"
 
-      - name: Git
-        run: |
-          echo Version is: ${{ steps.version.outputs.sha_short}}
-          echo REF is: ${{ github.ref_name }}
       - name: Build package
         run: |
-          sed -i "s/-subver/.${{ inputs.subversion }}/"  payment_twikey/__manifest__.py
+          sed -i "s/16.0-subver/.${{ github.ref_name }}/"  payment_twikey/__manifest__.py
           sed -i "s/-dev/-${{ steps.version.outputs.sha_short}}/"  payment_twikey/__manifest__.py
           tar -zcvf twikey-odoo-${{ github.ref_name }}.tgz payment_twikey
 
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GPT }}
         with:
           artifacts: twikey-odoo-${{ github.ref_name }}.tgz
-          name: Release ${{ github.ref_name }}.${{ inputs.subversion }}
+          name: Release ${{ github.ref_name }}
           body: |
             Description of the release.
           draft: true

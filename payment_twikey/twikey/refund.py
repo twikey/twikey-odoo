@@ -37,7 +37,7 @@ class Refund(object):
                 raise self.client.raise_error("Create beneficiary", response)
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise self.client.raise_error_from_request("Create paylink", e)
+            raise self.client.raise_error_from_request("Create beneficiary", e)
 
     def create(self, customerNumber, transactionDetails):
         """
@@ -76,10 +76,11 @@ class Refund(object):
                 timeout=15,
             )
             if "ApiErrorCode" in response.headers:
-                raise self.client.raise_error("Create paylink", response)
-            return response.json()
+                raise self.client.raise_error("Create refund", response)
+            data = response.json()
+            return data["Entries"][0] # only 1 entry so return it
         except requests.exceptions.RequestException as e:
-            raise self.client.raise_error_from_request("Create paylink", e)
+            raise self.client.raise_error_from_request("Create refund", e)
 
     def feed(self, refund_feed):
         url = self.client.instance_url("/transfer")

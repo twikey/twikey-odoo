@@ -18,46 +18,43 @@ class TwikeyController(http.Controller):
         """Twikey webhook will trigger either the document feed to get updates of documents persisted in Odoo
         Payments from the bank will trigger the invoice feed allowing invoices to be handled too.
         If in an eCommerce setting, the trigger of a payment to a link will cause the transaction to be updated"""
+        company = None
         if post.get("company_id"):
             company = request.env["res.company"].sudo().browse(post["company_id"])
             if company.exists():
                 api_key = company.twikey_api_key
             else:
-                _logger.warning("Twikey: no company found %s", pprint.pformat(post))
+                _logger.warning("Twikey: no company found %s", pprint.pformat(object=post, compact=True))
                 return Response(response="not yet configured", status=403)
         else:
             api_key = request.env.company.twikey_api_key
-        return self.handle_webhook(api_key,**post)
+        return self.handle_webhook(company,api_key,**post)
 
-    def handle_webhook(self, api_key, **post):
+    def handle_webhook(self, company, api_key, **post):
         if not api_key:
-            _logger.warning("Twikey: not yet configured %s", pprint.pformat(post))
-            return Response(response="not yet configured", status=403)
+            _logger.warning("Twikey: not yet configured %s", pprint.pformat(object=post, compact=True))
+            return Response(response="not yet configured", status=204)
 
         payload = url_unquote(request.httprequest.query_string)
         received_sign = request.httprequest.headers.get("X-Signature")
 
         if not post or not Webhook.verify_signature(payload, received_sign, api_key):
-            _logger.warning("Twikey: failed signature verification %s", pprint.pformat(post))
+            _logger.warning("Twikey: failed signature verification %s", pprint.pformat(object=post, compact=True))
             return Response(response="invalid signature", status=403)
 
-        _logger.info("Twikey: entering webhook with post data %s", pprint.pformat(post))
+        _logger.info("Twikey: entering webhook with post data %s", pprint.pformat(object=post, compact=True))
         webhooktype = post.get("type")
         if webhooktype == "payment":
             if post.get("id"):
                 request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
             else:
-                request.env["account.move"].sudo().update_invoice_feed()
+                request.env["account.move"].sudo().update_invoice_feed(company)
             return Response(status=204)
         elif webhooktype == "contract":
             mandate_number = post.get("mandateNumber")
             if mandate_number:
                 # Removal of a prepared mandate doesn't show up in the feed
-                mandate_id = (
-                    request.env["twikey.mandate.details"]
-                    .sudo()
-                    .search([("reference", "=", mandate_number)])
-                )
+                mandate_id = request.env["twikey.mandate.details"].sudo().search([("reference", "=", mandate_number)])
                 if mandate_id:
                     event = post.get("event")
                     if event == "Invite":
@@ -77,9 +74,9 @@ class TwikeyController(http.Controller):
                     else:
                         if event not in ["Sign", "Update"]:
                             _logger.info("Unknown twikey mandate event of type "+event)
-                        request.env["twikey.mandate.details"].sudo().update_feed()
+                        request.env["twikey.mandate.details"].sudo().update_feed(company)
                 else:
-                    request.env["twikey.mandate.details"].sudo().update_feed()
+                    request.env["twikey.mandate.details"].sudo().update_feed(company)
             return Response(status=204)
         elif webhooktype == "event" and post.get("msg") == "dummytest":
             _logger.info("Twikey Webhook test successful!")
@@ -93,6 +90,6 @@ class TwikeyController(http.Controller):
         :param dict data: The notification data (only `id`) and the transaction reference (`ref`)
                           embedded in the return URL
         """
-        _logger.info("handling redirection from Twikey with data: %s", pprint.pformat(data))
+        _logger.info("handling redirection from Twikey with data: %s", pprint.pformat(object=data, compact=True))
         request.env['payment.transaction'].sudo()._handle_notification_data('twikey', data)
         return request.redirect('/payment/status')

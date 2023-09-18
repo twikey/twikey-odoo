@@ -54,12 +54,14 @@ class TwikeyMandateDetails(models.Model):
         action["res_id"] = wizard.id
         return action
 
-    def update_feed(self):
+    def update_feed(self, company = None):
+        if not company:
+            company = self.env.company
         try:
-            _logger.debug(f"Fetching Twikey updates from {self.env.company.mandate_feed_pos}")
-            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+            _logger.debug(f"Fetching Twikey updates from {company.mandate_feed_pos}")
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=company)
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env), self.env.company.mandate_feed_pos)
+                twikey_client.document.feed(OdooDocumentFeed(self.env, company), company.mandate_feed_pos)
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % e
@@ -132,8 +134,9 @@ class TwikeyMandateDetails(models.Model):
 
 
 class OdooDocumentFeed(DocumentFeed):
-    def __init__(self, env):
+    def __init__(self, env, company):
         self.env = env
+        self.company = company
         self.res_country = self.env["res.country"]
         self.res_lang = self.env["res.lang"]
         self.res_partner = self.env["res.partner"]
@@ -269,7 +272,7 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["city"] = city
             mandate_vals["country_id"] = country_id.id if country_id else 0
             mandate_id = self.mandates.create(mandate_vals)
-            partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
+            partner_id.message_post(body=f"Twikey mandate {mandate_number} was activated")
 
         # Allow register payments
         if partner_id and mandate_id:
@@ -291,13 +294,20 @@ class OdooDocumentFeed(DocumentFeed):
         if partner_id and iban:
             customer_bank_id = partner_id.bank_ids.filtered(lambda x: sanitise_iban(x.acc_number) == iban)
             if not customer_bank_id:
+                bank = self.env["res.bank"].search([('bic', '=', bic)], limit=1)
+                if not bank:
+                    bank = self.env["res.bank"].create({"name":bic, "bic":bic})
                 _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
-                self.env["res.partner.bank"].create({"partner_id": partner_id.id, "acc_number": iban})
+                self.env["res.partner.bank"].create({
+                    "partner_id": partner_id.id,
+                    "bank_id": bank.id,
+                    "acc_number": iban
+                })
                 partner_id.message_post(body=f"Twikey account of {partner_id.name} was added")
 
     def start(self, position, number_of_updates):
         _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
-        self.env.company.update({
+        self.company.update({
             "mandate_feed_pos": position
         })
 

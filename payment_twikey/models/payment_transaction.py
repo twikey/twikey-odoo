@@ -18,6 +18,9 @@ class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
     def _get_specific_rendering_values(self, processing_values):
+        """
+        Return a dict of provider-specific values used to render the redirect form.
+        """
         res = super()._get_specific_rendering_values(processing_values)
         if self.provider_code != 'twikey':
             return res
@@ -72,11 +75,11 @@ class PaymentTransaction(models.Model):
             raise ValidationError("Twikey: " + e.error)
 
     def _twikey_prepare_payment_request_payload(self, customer, base_url, template, method):
-        """ Create the payload for the payment request based on the transaction values.
+        """
+        Create the payload for the payment request based on the transaction values.
         :return: The request payload
         :rtype: dict
         """
-
         payload = get_twikey_customer(customer)
         payload["redirectUrl"] = urls.url_join(base_url, f'/twikey/status?ref={self.reference}'),
         payload['title'] = self.reference,
@@ -169,6 +172,12 @@ class PaymentTransaction(models.Model):
             self._set_error("Twikey: " + _("Received data with invalid payment status: %s", payment_status))
 
     def _get_post_processing_values(self):
+        """ Return a dict of values used to display the status of the transaction.
+
+        For a provider to handle transaction status display, it must override this method and
+        return a dict of values. Provider-specific values take precedence over those of the dict of
+        generic post-processing values.
+        """
         values = super()._get_post_processing_values()
         if self.provider_code != 'twikey':
             return values
