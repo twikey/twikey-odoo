@@ -4,7 +4,6 @@
        <field name="name">res.partner.view.twikey.form.inherit</field>
        <field name="model">res.partner</field>
        <field name="inherit_id" ref="base.view_partner_form" />
-        <field name="priority">10</field>
        <field name="arch" type="xml">
            <xpath expr="//form//sheet" position="before">
                <header>
@@ -27,6 +26,7 @@
         <field name="name">Invite mandate</field>
         <field name="model_id" ref="base.model_res_partner"/>
         <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">tree,form</field>
         <field name="state">code</field>
         <field name="code">
             if records:

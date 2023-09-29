@@ -6,7 +6,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.document import DocumentFeed
-from ..utils import field_name_from_attribute
+from ..utils import sanitise_iban, field_name_from_attribute
 
 _logger = logging.getLogger(__name__)
 
@@ -54,12 +54,14 @@ class TwikeyMandateDetails(models.Model):
         action["res_id"] = wizard.id
         return action
 
-    def update_feed(self):
+    def update_feed(self, company = None):
+        if not company:
+            company = self.env.company
         try:
-            _logger.debug(f"Fetching Twikey updates from {self.env.company.mandate_feed_pos}")
-            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+            _logger.debug(f"Fetching Twikey updates from {company.mandate_feed_pos}")
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=company)
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env), self.env.company.mandate_feed_pos)
+                twikey_client.document.feed(OdooDocumentFeed(self.env, company), company.mandate_feed_pos)
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % e
@@ -96,27 +98,6 @@ class TwikeyMandateDetails(models.Model):
         except TwikeyError as e:
             raise UserError from e
 
-    def unlink(self):
-        for mandate in self:
-            context = mandate._context
-            if not context.get("update_feed"):
-                mandate.update_feed()
-                if mandate.state in ["signed", "cancelled"]:
-                    raise UserError(_("This mandate is in already signed or cancelled. It can not be deleted."))
-                elif mandate.state == "pending":
-                    try:
-                        twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-                        if twikey_client:
-                            twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
-                    except TwikeyError as e:
-                        if e.error_code != 'err_no_contract':  # Ignore as not avail in Twikey
-                            raise UserError(_("This mandate could not be cancelled: %s") % e.error)
-                    return super(TwikeyMandateDetails, mandate).unlink()
-                else:
-                    return super(TwikeyMandateDetails, mandate).unlink()
-            else:
-                return super(TwikeyMandateDetails, mandate).unlink()
-
     def is_signed(self):
         return self.state == 'signed'
 
@@ -132,8 +113,9 @@ class TwikeyMandateDetails(models.Model):
 
 
 class OdooDocumentFeed(DocumentFeed):
-    def __init__(self, env):
+    def __init__(self, env, company):
         self.env = env
+        self.company = company
         self.res_country = self.env["res.country"]
         self.res_lang = self.env["res.lang"]
         self.res_partner = self.env["res.partner"]
@@ -269,7 +251,7 @@ class OdooDocumentFeed(DocumentFeed):
             mandate_vals["city"] = city
             mandate_vals["country_id"] = country_id.id if country_id else 0
             mandate_id = self.mandates.create(mandate_vals)
-            partner_id.message_post(body=f"Twikey mandate {mandate_number} was added")
+            partner_id.message_post(body=f"Twikey mandate {mandate_number} was activated")
 
         # Allow register payments
         if partner_id and mandate_id:
@@ -284,18 +266,36 @@ class OdooDocumentFeed(DocumentFeed):
                     providers = providers_for_profile
             for provider in providers:
                 if provider.token_from_mandate(partner_id, mandate_id):
-                    _logger.debug("Activating token for : %s", mandate_id.reference)
-                    partner_id.message_post(body=f"Twikey token {mandate_number} was added")
+                    _logger.debug("Activating token for ref=%s", mandate_id.reference)
+                    partner_id.message_post(body=f"Twikey token {mandate_id.reference} was added")
+
+        # Allow regular refunds
+        if partner_id and iban:
+            customer_bank_id = self.env["res.partner.bank"].search([('acc_number', '=', iban)], limit=1)
+            if not customer_bank_id:
+                bank = self.env["res.bank"].search([('bic', '=', bic)], limit=1)
+                if not bank:
+                    bank = self.env["res.bank"].create({"name":bic, "bic":bic})
+                _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
+                try:
+                    self.env["res.partner.bank"].create({
+                        "partner_id": partner_id.id,
+                        "bank_id": bank.id,
+                        "acc_number": iban
+                    })
+                    partner_id.message_post(body=f"Twikey account of {partner_id.name} was added")
+                except Exception as duplicate:
+                    partner_id.message_post(body=f"Twikey account of {partner_id.name} was not added as probable duplicate")
 
     def start(self, position, number_of_updates):
         _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
-        self.env.company.update({
+        self.company.update({
             "mandate_feed_pos": position
         })
 
     def new_document(self, doc, evt_time):
         try:
-            self.new_update_document(doc, False, False, False)
+            self.new_update_document(doc, False, doc.get("MndtId"), False)
         except Exception as e:
             _logger.exception("encountered an error in newDocument with mandate_number=%s:\n%s", doc.get("MndtId"), e)
 

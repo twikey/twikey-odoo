@@ -18,6 +18,9 @@ class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
     def _get_specific_rendering_values(self, processing_values):
+        """
+        Return a dict of provider-specific values used to render the redirect form.
+        """
         res = super()._get_specific_rendering_values(processing_values)
         if self.provider != 'twikey':
             return res
@@ -72,11 +75,11 @@ class PaymentTransaction(models.Model):
             raise ValidationError("Twikey: " + e.error)
 
     def _twikey_prepare_payment_request_payload(self, customer, base_url, template, method):
-        """ Create the payload for the payment request based on the transaction values.
+        """
+        Create the payload for the payment request based on the transaction values.
         :return: The request payload
         :rtype: dict
         """
-
         payload = get_twikey_customer(customer)
         payload["redirectUrl"] = urls.url_join(base_url, f'/twikey/status?ref={self.reference}'),
         payload['title'] = self.reference,
@@ -120,9 +123,9 @@ class PaymentTransaction(models.Model):
 
         return payload
 
-    def _get_tx_from_feedback_data(self, provider_code, notification_data):
-        tx = self.sudo().search([('reference', '=', notification_data.get('ref')), ('provider', '=', provider_code)])
-        if provider_code != 'twikey' or len(tx) == 1:
+    def _get_tx_from_feedback_data(self, provider, notification_data):
+        tx = self.sudo().search([('reference', '=', notification_data.get('ref')), ('provider', '=', provider)])
+        if provider != 'twikey' or len(tx) == 1:
             return tx
         if not tx:
             raise ValidationError("Twikey: " + _("No transaction found matching reference %s.", notification_data.get('ref')))
@@ -140,7 +143,7 @@ class PaymentTransaction(models.Model):
 
         payment_status = notification_data.get('status')
         if not payment_status:
-            _logger.warning("No status update for reference %s, setting to pending", self.reference)
+            _logger.info("No status update for reference %s, setting to pending", self.reference)
             self._set_pending()
             return
 
@@ -163,10 +166,16 @@ class PaymentTransaction(models.Model):
         elif payment_status in ['expired', 'canceled', 'failed']:
             self._set_canceled("Twikey: " + _("Canceled payment with status: %s", payment_status))
         else:
-            _logger.info("received data with invalid payment status (%s) for transaction with reference %s", payment_status, self.reference)
+            _logger.info("received data with invalid payment status (%s) for transaction with reference %s",payment_status, self.reference)
             self._set_error("Twikey: " + _("Received data with invalid payment status: %s", payment_status))
 
     def _get_post_processing_values(self):
+        """ Return a dict of values used to display the status of the transaction.
+
+        For a provider to handle transaction status display, it must override this method and
+        return a dict of values. Provider-specific values take precedence over those of the dict of
+        generic post-processing values.
+        """
         values = super()._get_post_processing_values()
         if self.provider != 'twikey':
             return values
@@ -204,7 +213,7 @@ class PaymentTransaction(models.Model):
                 if self._context.get('active_model') == 'account.move':
                     invoice_id = self.env['account.move'].browse(self._context.get('active_ids', []))
                     invoice = {
-                        "customerByDocument": self.token_id.provider_ref,
+                        "customerByDocument": self.token_id.acquirer_ref,
                         "number": invoice_id.name,
                         "title": self.reference,
                         "amount": self.amount,
@@ -237,7 +246,6 @@ class PaymentTransaction(models.Model):
                         "duedate": today,
                     }
                     twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
-                    self.acquirer_reference = twikey_invoice.get("id")
 
                 self.acquirer_reference = twikey_invoice.get("id")
                 state = twikey_invoice.get("state")

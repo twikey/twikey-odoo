@@ -1,5 +1,6 @@
-import requests
 import logging
+
+import requests
 
 
 class Invoice(object):
@@ -105,7 +106,6 @@ class Invoice(object):
 
 
 class InvoiceFeed:
-
     def start(self, position, lenght):
         """
         Allow storing the start of the feed

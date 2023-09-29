@@ -7,8 +7,9 @@ class PaymentToken(models.Model):
     _inherit = 'payment.token'
     expiry = fields.Date(string="Expiry", readonly=True)
     type = fields.Selection(
-        {
+        [
             ("SDD", "SDD"),
             ("CC", "CC"),
-        }, readonly=True
+        ]
+        , readonly=True
     )

@@ -1,12 +1,14 @@
+import datetime
+import json
+import logging
+
 import requests
 
 from .document import Document
-from .transaction import Transaction
-from .paylink import Paylink
 from .invoice import Invoice
-import logging
-import datetime
-import json
+from .paylink import Paylink
+from .transaction import Transaction
+from .refund import Refund
 
 
 class TwikeyClient(object):
@@ -22,12 +24,13 @@ class TwikeyClient(object):
     transaction = None
     paylink = None
     invoice = None
+    refund = None
 
     def __init__(
         self,
         api_key,
         base_url="https://api.twikey.com",
-        user_agent="twikey-odoo/v0.1.0",
+        user_agent="twikey-python/v0.1.0",
         private_key=None,
     ) -> None:
         self.user_agent = user_agent
@@ -39,6 +42,7 @@ class TwikeyClient(object):
         self.transaction = Transaction(self)
         self.paylink = Paylink(self)
         self.invoice = Invoice(self)
+        self.refund = Refund(self)
         self.logger = logging.getLogger(__name__)
 
     def instance_url(self, url=""):
@@ -65,15 +69,13 @@ class TwikeyClient(object):
 
     def refreshTokenIfRequired(self):
         if self.lastLogin:
-            self.logger.debug(
-                "Last authenticated with {} with {}".format(self.lastLogin, self.api_token)
-            )
+            self.logger.debug("Last authenticated with {} with {}".format(self.lastLogin, self.api_token))
 
         if not self.api_base:
-            raise TwikeyError(ctx="Config", error_code = "Api-Url", error = "No base url defined - %s" % self.api_base)
+            raise TwikeyError(ctx="Config", error_code="Api-Url", error="No base url defined - %s" % self.api_base)
 
         if not self.api_key:
-            raise TwikeyError(ctx="Config", error_code = "Api-Key", error = "No key defined - %s" % self.api_base)
+            raise TwikeyError(ctx="Config", error_code="Api-Key", error="No key defined - %s" % self.api_base)
 
         now = datetime.datetime.now()
         if self.lastLogin is None or (now - self.lastLogin).seconds > 23 * 3600:
@@ -154,7 +156,7 @@ class TwikeyClient(object):
         response_text = json.loads(response.text)
         if "code" in response_text:
             if "err" in response_text["code"]:
-                raise TwikeyError(ctx = "Logout",error_code = "Logout", error = response_text["message"])
+                raise TwikeyError(ctx="Logout",error_code="Logout", error=response_text["message"])
 
         self.api_token = None
         self.lastLogin = None
@@ -163,7 +165,7 @@ class TwikeyClient(object):
 class TwikeyError(Exception):
     """Twikey error."""
 
-    def __init__(self, ctx, error_code, error, extra = False, *args, **kwargs):  # real signature unknown
+    def __init__(self, ctx, error_code, error, extra=False, *args, **kwargs):  # real signature unknown
         super().__init__(args, kwargs)
         self.ctx = ctx
         self.error_code = error_code
@@ -174,3 +176,12 @@ class TwikeyError(Exception):
         if self.extra:
             return "[{}] code={}, msg={} extra={}".format(self.ctx, self.error_code, self.error, self.extra)
         return "[{}] code={}, msg={}".format(self.ctx, self.error_code, self.error)
+
+    def get_code(self):
+        return self.error_code
+
+    def get_error(self):
+        return self.error
+
+    def get_extra(self):
+        return self.extra

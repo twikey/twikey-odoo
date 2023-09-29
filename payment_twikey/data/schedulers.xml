@@ -32,7 +32,19 @@
         <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
         <field name="code">model.update_invoice_feed()</field>
-        <field name="interval_number">6</field>
+        <field name="interval_number">8</field>
+        <field name="interval_type">hours</field>
+        <field name="numbercall">-1</field>
+        <field name="active" eval="True" />
+        <field name="doall" eval="False" />
+    </record>
+
+    <record id="twikey_invoice_sender" model="ir.cron">
+        <field name="name">Twikey: Invoice Sender</field>
+        <field name="model_id" ref="model_account_move" />
+        <field name="state">code</field>
+        <field name="code">model.send_invoices()</field>
+        <field name="interval_number">1</field>
         <field name="interval_type">hours</field>
         <field name="numbercall">-1</field>
         <field name="active" eval="True" />

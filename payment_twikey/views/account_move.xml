@@ -1,22 +1,49 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-   <record id="view_move_form" model="ir.ui.view">
-       <field name="name">account.move.view.twikey.form.inherit</field>
-       <field name="model">account.move</field>
-       <field name="inherit_id" ref="account.view_move_form" />
-       <field name="arch" type="xml">
+    <record id="view_move_form" model="ir.ui.view">
+        <field name="name">account.move.view.twikey.form.inherit</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form" />
+        <field name="arch" type="xml">
+            <header>
+                <button name="btn_send_to_twikey"
+                        string="Send to Twikey"
+                        type="object"
+                        class="btn-info"
+                        attrs="{'invisible': [('send_to_twikey', '=', True)]}"/>
+            </header>
             <xpath expr="//page[@name='other_info']" position="after">
                 <field name="is_twikey_eligable" invisible="1"/>
+                <field name="twikey_invoice_identifier" invisible="1"/>
                 <page id="twikey_info" name="twikey_info" string="Twikey Info" attrs="{'invisible': [('is_twikey_eligable', '=', False)]}">
                     <group>
-                        <field name="send_to_twikey"     attrs="{'readonly': [('state', '!=', 'draft')]}"/>
-                        <field name="auto_collect_invoice"      attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
-                        <field name="twikey_url" widget="url"   attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
-                        <field name="twikey_template_id"        attrs="{'invisible': [('send_to_twikey', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
-                        <field name="twikey_invoice_state"      attrs="{'invisible': [('send_to_twikey', '=', False)]}"/>
+                        <field name="send_to_twikey"        attrs="{'invisible': [('twikey_invoice_identifier', '!=', False)]}"/>
+                        <field name="id_and_link_html"      attrs="{'invisible': [('twikey_invoice_identifier', '=', False)]}" widget="html"/>
+                        <field name="twikey_template_id"    attrs="{'invisible': [('twikey_invoice_identifier', '=', False)], 'readonly': [('state', '!=', 'draft')]}"/>
+                        <field name="twikey_invoice_state"  attrs="{'invisible': [('twikey_invoice_identifier', '=', False)]}"
+                               widget="badge"
+                               decoration-info="twikey_invoice_state == 'Pending'"
+                               decoration-success="twikey_invoice_state == 'Paid'"
+                               readonly="True"/>
                     </group>
                 </page>
             </xpath>
-       </field>
-   </record>
+        </field>
+    </record>
+
+    <record id="model_account_move_send_to_twikey" model="ir.actions.server">
+        <field name="name">Send to Twikey</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">tree,form,list</field>
+        <field name="state">code</field>
+        <field name="code">records.btn_send_to_twikey()</field>
+    </record>
+
+    <menuitem
+            id="menu_action_twikey"
+            action="model_account_move_send_to_twikey"
+            parent="contacts.res_partner_menu_config"
+            sequence="1"
+    />
 </odoo>

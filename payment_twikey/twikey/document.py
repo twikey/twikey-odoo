@@ -4,7 +4,6 @@ import requests
 
 
 class Document(object):
-
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -23,7 +22,6 @@ class Document(object):
             return json_response
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Invite", e)
-
 
     def sign(self, data):  # pylint: disable=W8106
         url = self.client.instance_url("/sign")
@@ -106,7 +104,7 @@ class Document(object):
                 if error:
                     self.logger.debug("Error while handing invoice, stopping")
                     break
-                response = requests.get(url=url,headers=self.client.headers(),timeout=15,)
+                response = requests.get(url=url, headers=self.client.headers(), timeout=15, )
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed", response)
                 feed_response = response.json()
@@ -124,8 +122,8 @@ class Document(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Update customer", e)
 
-class DocumentFeed:
 
+class DocumentFeed:
     def start(self, position, number_of_updates):
         """
         Allow storing the start of the feed

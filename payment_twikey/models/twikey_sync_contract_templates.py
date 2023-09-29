@@ -77,7 +77,6 @@ class SyncContractTemplates(models.AbstractModel):
                     }
                 )
             )
-
             return ir_fields
 
     def process_new_mandate_field_views(self, mandate_field_list, template_id):
