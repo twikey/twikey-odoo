@@ -88,13 +88,13 @@ class AccountInvoice(models.Model):
                     customer_bank_id = partner_id.bank_ids.filtered((lambda p: p.allow_out_payment))
                     if len(customer_bank_id) > 0:
                         iban = customer_bank_id[0].sanitized_acc_number
-                        if customer_bank_id[0].aba_routing != "1":
+                        if customer_bank_id[0].sequence != 20:
                             payload = get_twikey_customer(partner_id)
                             payload["iban"] = iban
                             if customer_bank_id[0].bank_id and customer_bank_id[0].bank_id.bic:
                                 payload["bic"] = customer_bank_id[0].bank_id.bic
                             twikeyClient.refund.create_beneficiary_account(payload)
-                            customer_bank_id[0].write({"aba_routing":"1"})
+                            customer_bank_id[0].write({"sequence":20})
                             partner_id.message_post(body=f"Twikey beneficiary account to {iban} was added")
 
                         refund = twikeyClient.refund.create(partner_id.id,{
@@ -347,7 +347,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                             if "mndtId" in last_payment:
                                 search_mandate = [('provider_code', '=', provider.code),
                                        ('provider_ref', '=', last_payment["mndtId"])]
-                                token_id = self.env['payment.token'].search(search_mandate)
+                                token_id = self.env['payment.token'].search(search_mandate,limit=1)
                             tx = self.get_or_create_payment_transaction({
                                 'amount': twikey_invoice["amount"],
                                 'currency_id': invoice_id.currency_id.id,
@@ -372,7 +372,11 @@ class OdooInvoiceFeed(InvoiceFeed):
                             if tx:
                                 errorcode = "Failed with errorcode={}".format(last_payment["rc"])
                                 tx._set_error(errorcode)
-                                refund = tx._create_refund_transaction(provider_reference=id)
+                                refund = tx._create_refund_transaction(amount_to_refund= tx.amount,
+                                   provider_reference=id,
+                                   invoice_ids = invoice_id.ids
+                                )
+                                # tx._set_error(errorcode) wont work as done can't be reverted
                                 refund._set_done(errorcode)
                                 refund._reconcile_after_done()
                                 refund._finalize_post_processing()

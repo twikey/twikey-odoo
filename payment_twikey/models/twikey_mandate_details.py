@@ -98,27 +98,6 @@ class TwikeyMandateDetails(models.Model):
         except TwikeyError as e:
             raise UserError from e
 
-    def unlink(self):
-        for mandate in self:
-            context = mandate._context
-            if not context.get("update_feed"):
-                mandate.update_feed()
-                if mandate.state in ["signed", "cancelled"]:
-                    raise UserError(_("This mandate is in already signed or cancelled. It can not be deleted."))
-                elif mandate.state == "pending":
-                    try:
-                        twikey_client = mandate.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
-                        if twikey_client and mandate.reference:
-                            twikey_client.document.cancel(mandate.reference, "Deleted from odoo")
-                    except TwikeyError as e:
-                        if e.error_code != 'err_no_contract':  # Ignore as not avail in Twikey
-                            raise UserError(_("This mandate could not be cancelled: %s") % e.error)
-                    return super(TwikeyMandateDetails, mandate).unlink()
-                else:
-                    return super(TwikeyMandateDetails, mandate).unlink()
-            else:
-                return super(TwikeyMandateDetails, mandate).unlink()
-
     def is_signed(self):
         return self.state == 'signed'
 
@@ -292,18 +271,21 @@ class OdooDocumentFeed(DocumentFeed):
 
         # Allow regular refunds
         if partner_id and iban:
-            customer_bank_id = partner_id.bank_ids.filtered(lambda x: sanitise_iban(x.acc_number) == iban)
+            customer_bank_id = self.env["res.partner.bank"].search([('acc_number', '=', iban)], limit=1)
             if not customer_bank_id:
                 bank = self.env["res.bank"].search([('bic', '=', bic)], limit=1)
                 if not bank:
                     bank = self.env["res.bank"].create({"name":bic, "bic":bic})
                 _logger.info("Linked customer: " + str(partner_id.name) + " and iban: " + str(iban))
-                self.env["res.partner.bank"].create({
-                    "partner_id": partner_id.id,
-                    "bank_id": bank.id,
-                    "acc_number": iban
-                })
-                partner_id.message_post(body=f"Twikey account of {partner_id.name} was added")
+                try:
+                    self.env["res.partner.bank"].create({
+                        "partner_id": partner_id.id,
+                        "bank_id": bank.id,
+                        "acc_number": iban
+                    })
+                    partner_id.message_post(body=f"Twikey account of {partner_id.name} was added")
+                except Exception as duplicate:
+                    partner_id.message_post(body=f"Twikey account of {partner_id.name} was not added as probable duplicate")
 
     def start(self, position, number_of_updates):
         _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
