@@ -22,7 +22,7 @@ class IrConfigParameter(models.Model):
 
             server_ver = service.common.exp_version()['server_version']
             module = self.env['ir.module.module'].sudo().search([('name', '=', 'payment_twikey')])
-            twikey_ver = module and module.installed_version or ''
+            twikey_ver = module and module.installed_version or 'unsupported'
             return twikey.client.TwikeyClient(api_key, base_url, f'odoo/{server_ver} twikey/{twikey_ver}')
         else:
             _logger.warning(f"No Twikey configuration for found in company {company}")

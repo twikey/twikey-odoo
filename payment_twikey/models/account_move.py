@@ -118,6 +118,7 @@ class AccountInvoice(models.Model):
                 continue
 
             if invoice.amount_residual == 0:
+                invoice.with_context(update_feed=True).write({"send_to_twikey": False})
                 invoice.message_post(body="Skipping sending to Twikey as no open amount.")
                 continue
 
