@@ -14,7 +14,6 @@
     ],
     "data": [
         "data/schedulers.xml",
-        "data/mail_template.xml",
         "data/product_data.xml",
         "security/ir.model.access.csv",
         "views/res_config_settings_views.xml",
