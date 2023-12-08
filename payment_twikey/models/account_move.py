@@ -39,7 +39,7 @@ class AccountInvoice(models.Model):
 
     twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice",
                              store=True, compute="_compute_twikey_url",)
-    id_and_link_html = fields.Html(string="Twikey Invoice ID",compute='_compute_link_html')
+    id_and_link_html = fields.Html(string="Twikey Invoice URL (html)",compute='_compute_link_html')
 
     is_twikey_eligable = fields.Boolean(
         string="Invoice or Creditnote",
@@ -65,7 +65,7 @@ class AccountInvoice(models.Model):
         if twikey_client:
             # sometimes action_post gets called without an invoice record, in this case we don't try to
             # send anything to Twikey
-            to_be_send = self.search([('send_to_twikey', '=', True),('twikey_invoice_identifier','=',False),('state','=','posted')])
+            to_be_send = self.search([('company_id', '=', self.env.company.id), ('send_to_twikey', '=', True),('twikey_invoice_identifier','=',False),('state','=','posted')])
             if len(to_be_send) > 0:
                 # ensure logged in otherwise company of url might not be filled in
                 twikey_client.refreshTokenIfRequired()
@@ -214,12 +214,15 @@ class AccountInvoice(models.Model):
     def create(self, vals_list):
         """Set a default value for 'send_to_twikey' according to the standard rules."""
 
-        twikey_send_invoice = self.env.company.twikey_send_invoice
-        twikey_auto_collect = self.env.company.twikey_auto_collect
-        twikey_send_pdf = self.env.company.twikey_send_pdf
-        twikey_include_purchase = self.env.company.twikey_include_purchase
-
         for val in vals_list:
+            if val.get("company_id"):
+                company = self.env["res.company"].browse(val["company_id"])
+            else:
+                company = self.env.company
+            twikey_send_invoice = company.twikey_send_invoice
+            twikey_auto_collect = company.twikey_auto_collect
+            twikey_send_pdf = company.twikey_send_pdf
+            twikey_include_purchase = company.twikey_include_purchase
             if not val.get(F_SEND_TO_TWIKEY):
                 val[F_SEND_TO_TWIKEY] =  twikey_send_invoice
             if not val.get(F_AUTO_COLLECT_INVOICE):
@@ -262,7 +265,7 @@ class AccountInvoice(models.Model):
         Only certain types of account moves can be sent to Twikey.
         """
         for move in self:
-            if self.env.company.twikey_include_purchase:
+            if move.company_id.twikey_include_purchase:
                 move.is_twikey_eligable = move.move_type in ["in_invoice", "out_invoice", "out_refund"]
             else:
                 move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
@@ -273,19 +276,20 @@ class AccountInvoice(models.Model):
         Calculate the url of the invoice in Twikey.
         """
         try:
-            twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
-            for move in self:
-                if move.twikey_invoice_identifier:
-                    move.twikey_url = twikey_client.invoice.geturl(move.twikey_invoice_identifier)
+            for move in self.filtered("twikey_invoice_identifier"):
+                twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=move.company_id)
+                move.twikey_url = twikey_client.invoice.geturl(move.twikey_invoice_identifier)
         except Exception as e:
             _logger.exception(e)
 
     @api.depends('twikey_invoice_identifier')
     def _compute_link_html(self):
-        twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
         for record in self:
             # Generate the HTML link
-            record.id_and_link_html = f'<a href="{record.twikey_url}" target="twikey">{record.twikey_invoice_identifier}</a>'
+            record.id_and_link_html = (
+                f'<a href="{record.twikey_url}" target="twikey">{record.twikey_invoice_identifier}</a>'
+                if record.twikey_invoice_identifier else False
+            )
 
 class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env, company):
