@@ -65,7 +65,7 @@ class TwikeyMandateDetails(models.Model):
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % e
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
+                self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
 
     def write(self, values):
         self.ensure_one()

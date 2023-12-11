@@ -53,10 +53,11 @@ class AccountInvoice(models.Model):
             if not record.is_twikey_eligable:
                 return get_error_msg(f"Invoice {record.name} cannot be send to Twikey")
             record.send_to_twikey = True
+            record.message_post(body=f"Queued for delivery to Twikey")
         no_invoices = len(self)
         msg = f"Queued {no_invoices} invoices for delivery"
         _logger.info(msg)
-        self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Prepare for sending", body = msg)
+        self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Prepare for sending", body = msg)
         return get_success_msg(msg)
 
     def send_invoices(self):
@@ -174,11 +175,13 @@ class AccountInvoice(models.Model):
                     "twikey_invoice_identifier": invoice_uuid,
                     "twikey_invoice_state": twikey_invoice.get("state")
                 }
+
+                invoice.message_post(body=f"Delivered to Twikey")
                 invoice.with_context(update_feed=True).write(new_state)
             except TwikeyError as e:
                 errmsg = "Exception raised while sending %s to Twikey :\n%s" % (invoice.name, e)
                 invoice.message_post(body=f"Exception raised while sending : {e}")
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+                self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
                 _logger.error(errmsg)
                 return get_error_msg(str(e), 'Exception raised while creating a new Invoice')
 
@@ -195,7 +198,7 @@ class AccountInvoice(models.Model):
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+                self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
         except psycopg2.OperationalError:
             _logger.debug("Operation already ongoing")
 
@@ -208,7 +211,7 @@ class AccountInvoice(models.Model):
         except TwikeyError as ue:
             errmsg = "Error while updating invoice in Twikey: %s" % ue
             _logger.error(errmsg)
-            self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Invoices", body=errmsg, )
+            self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices", body=errmsg, )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -291,7 +294,7 @@ class OdooInvoiceFeed(InvoiceFeed):
     def __init__(self, env, company):
         self.env = env
         self.company = company
-        self.channel = env['mail.channel'].search([('name', '=', 'twikey')])
+        self.channel = env['mail.channel'].search([('name', '=', 'twikey')]).sudo()
         self.transaction = self.env['payment.transaction']
         self.account_move = self.env["account.move"]
 
