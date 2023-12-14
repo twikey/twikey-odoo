@@ -53,6 +53,7 @@ class AccountInvoice(models.Model):
             if not record.is_twikey_eligable:
                 return get_error_msg(f"Invoice {record.name} cannot be send to Twikey")
             record.send_to_twikey = True
+            record.message_post(body=f"Queued for delivery to Twikey")
         no_invoices = len(self)
         msg = f"Queued {no_invoices} invoices for delivery"
         _logger.info(msg)
@@ -174,6 +175,8 @@ class AccountInvoice(models.Model):
                     "twikey_invoice_identifier": invoice_uuid,
                     "twikey_invoice_state": twikey_invoice.get("state")
                 }
+
+                invoice.message_post(body=f"Delivered to Twikey")
                 invoice.with_context(update_feed=True).write(new_state)
             except TwikeyError as e:
                 errmsg = "Exception raised while sending %s to Twikey :\n%s" % (invoice.name, e)

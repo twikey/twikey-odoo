@@ -27,7 +27,7 @@ class TwikeyController(http.Controller):
                 _logger.warning("Twikey: no company found %s", pprint.pformat(object=post, compact=True))
                 return Response(response="not yet configured", status=403)
         else:
-            api_key = request.env.company.twikey_api_key
+            api_key = request.env.company.sudo().twikey_api_key
         return self.handle_webhook(company,api_key,**post)
 
     def handle_webhook(self, company, api_key, **post):
