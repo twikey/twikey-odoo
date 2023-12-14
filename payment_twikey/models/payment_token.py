@@ -24,20 +24,24 @@ class PaymentToken(models.Model):
         :return: The padded token name.
         :rtype: str
         """
-        self.ensure_one()
-
-        padding_length = max_length - len(self.payment_details or '')
-        if not self.payment_details:
-            create_date_str = self.create_date.strftime('%Y/%m/%d')
-            display_name = _("Payment details saved on %(date)s", date=create_date_str)
-        elif len(self.payment_details) > 8 and re.match('[a-zA-Z]{2}[0-9]{2}.*\d{4}',self.payment_details):
-            iban = self.payment_details
-            masked = iban[:4] + "•"*(len(iban)-8) + iban[-4:]
-            display_name = _("Via account %(masked)s", masked=masked)
-        elif self.type == 'CC':
-            display_name = _("Via card ending in %(last)s", last=self.payment_details)
-        elif padding_length > 0:  # Not enough room for padding.
-            display_name = self.payment_details
-        else:  # Not enough room for neither padding nor the payment details.
-            display_name = self.payment_details[-max_length:] if max_length > 0 else ''
+        display_name = super()._build_display_name(
+            self,
+            *args,
+            max_length=max_length,
+            should_pad=should_pad,
+            **kwargs,
+        )
+        if self.payment_details and self.provider_id == self.env.ref(
+            "payment_twikey.payment_provider_twikey"
+        ):
+            if len(self.payment_details) > 8 and re.match(
+                r"[a-zA-Z]{2}[0-9]{2}.*\d{4}", self.payment_details
+            ):
+                iban = self.payment_details
+                masked = iban[:4] + "•" * (len(iban) - 8) + iban[-4:]
+                display_name = _("Via account %(masked)s", masked=masked)
+            elif self.type == "CC":
+                display_name = _(
+                    "Via card ending in %(last)s", last=self.payment_details
+                )
         return display_name
