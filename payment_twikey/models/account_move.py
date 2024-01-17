@@ -59,20 +59,34 @@ class AccountInvoice(models.Model):
         self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Prepare for sending", body = msg)
         return get_success_msg(msg)
 
-    def send_invoices(self):
-        """ Collect all invoices to be sent to twikey """
-        twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
-        if twikey_client:
+    @api.model
+    def send_invoices(self, cron=False):
+        """Collect all invoices to be sent to twikey.
+
+        :param cron: when set to true (as configured in the scheduled task),
+        send invoices from all companies with a configured API key. Otherwise,
+        only send invoices from the current company of the user.
+        """
+        if cron:
+            companies = self.env["res.company"].search([])
+        else:
+            companies = self.env.company
+        for company in companies:
+            twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=company))
+            if not twikey_client:
+                continue
             # sometimes action_post gets called without an invoice record, in this case we don't try to
             # send anything to Twikey
-            to_be_send = self.search([('company_id', '=', self.env.company.id), ('send_to_twikey', '=', True),('twikey_invoice_identifier','=',False),('state','=','posted')])
+            to_be_send = self.search([
+                ('company_id', '=', company.id),
+                ('send_to_twikey', '=', True),
+                ('twikey_invoice_identifier','=',False),
+                ('state','=','posted'),
+            ])
             if len(to_be_send) > 0:
                 # ensure logged in otherwise company of url might not be filled in
                 twikey_client.refreshTokenIfRequired()
-
-            to_be_send.transfer_to_twikey(twikey_client)
-        else:
-            _logger.info("Not sending to Twikey as not configured")
+                to_be_send.transfer_to_twikey(twikey_client)
 
     def transfer_to_twikey(self, twikeyClient):
         """ Actual sending of twikey """

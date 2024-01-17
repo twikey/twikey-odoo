@@ -40,9 +40,16 @@
         <field name="code">records.btn_send_to_twikey()</field>
     </record>
 
+    <record id="action_send_invoices_to_twikey" model="ir.actions.server">
+        <field name="name">Send Invoices to Twikey</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="state">code</field>
+        <field name="code">model.send_invoices()</field>
+    </record>
+
     <menuitem
             id="menu_action_twikey"
-            action="model_account_move_send_to_twikey"
+            action="action_send_invoices_to_twikey"
             parent="contacts.res_partner_menu_config"
             sequence="1"
     />

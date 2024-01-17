@@ -18,6 +18,7 @@ class TestModelAccountMove(TwikeyOdooCase):
         self.assertTrue(self.invoice2.send_to_twikey)
 
         def transfer_to_twikey(invoices, client):
+            """Ensure only invoice1 is sent."""
             self.assertEqual(invoices, self.invoice1)
             self.assertEqual(client.api_key, invoices.company_id.twikey_api_key)
 
@@ -28,7 +29,39 @@ class TestModelAccountMove(TwikeyOdooCase):
             with patch(
                 "odoo.addons.payment_twikey.twikey.client.TwikeyClient.refreshTokenIfRequired"
             ):
-                self.env["account.move"].with_company(self.company1).send_invoices()
+                self.env.ref(
+                    "payment_twikey.action_send_invoices_to_twikey"
+                ).with_company(self.company1).run()
+
+    def test_send_invoices_cron(self):
+        """In cron mode, invoices are sent for all companies."""
+        self.assertTrue(self.invoice1.is_twikey_eligable)
+        self.assertTrue(self.invoice2.is_twikey_eligable)
+        self.invoice1.btn_send_to_twikey()
+        self.invoice2.btn_send_to_twikey()
+        self.assertTrue(self.invoice1.send_to_twikey)
+        self.assertTrue(self.invoice2.send_to_twikey)
+
+        sent_invoices = []
+
+        def transfer_to_twikey(invoices, client):
+            """Collect sent invoices for later inspection."""
+            invoices.env.context["sent_invoices"].append(invoices)
+
+        with patch(
+            "odoo.addons.payment_twikey.models.account_move.AccountInvoice.transfer_to_twikey",
+            new=transfer_to_twikey,
+        ):
+            with patch(
+                "odoo.addons.payment_twikey.twikey.client.TwikeyClient.refreshTokenIfRequired"
+            ):
+                self.env.ref(
+                    "payment_twikey.twikey_invoice_sender"
+                ).with_context(sent_invoices=sent_invoices).ir_actions_server_id.run()
+
+        self.assertEqual(len(sent_invoices), 2)
+        self.assertIn(self.invoice1, sent_invoices)
+        self.assertIn(self.invoice2, sent_invoices)
 
     def test_invoice_create(self):
         """Invoices are assigned the parameters according to their company.

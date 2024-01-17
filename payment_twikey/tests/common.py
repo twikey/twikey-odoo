@@ -13,6 +13,12 @@ class TwikeyOdooCase(AccountTestInvoicingCommon):
         cls.company1.twikey_base_url = "https://example.com/api/v2"
         cls.company2.twikey_api_key = "key2"
         cls.company2.twikey_base_url = "https://example.com/api/v2"
+        cls.env = cls.env(
+            context=dict(
+                cls.env.context,
+                allowed_company_ids=[cls.company1.id, cls.company2.id]
+            )
+        )
         cls.invoice1 = cls.env["account.move"].create(
             {
                 "move_type": "out_invoice",
