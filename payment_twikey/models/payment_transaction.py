@@ -201,10 +201,11 @@ class PaymentTransaction(models.Model):
         :return: None
         :raise UserError: If the transaction is not linked to a token.
         """
+        super()._send_payment_request()
         if self.provider_code != 'twikey':
             return
 
-        # Prepare the payment request to Flutterwave.
+        # Prepare the payment request to Twikey.
         if not self.token_id:
             raise UserError("Twikey: " + _("The transaction is not linked to a token."))
 
