@@ -21,11 +21,11 @@ def get_twikey_customer(partner):
         "zip": partner.zip if partner.zip else "",
         "country": partner.country_id.code if partner.country_id else "",
     }
+
     # if owner is company treat is as such
-    if owner.company_type == "company" and owner.name:
-        customer["companyName"] = owner.name
-        if owner.vat:
-            customer["coc"] = owner.vat
+    if owner.vat:
+        customer["companyName"] = owner.company_name if owner.company_name else owner.name
+        customer["coc"] = owner.vat
 
     if partner.mobile:
         customer["mobile"] = partner.mobile
