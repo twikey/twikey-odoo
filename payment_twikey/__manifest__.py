@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     "name": "Payment Provider: Twikey",
-    "version": "16.0-subver-dev",
+    "version": "17.0.0.0",
     "category": "Accounting/Payment Providers",
     "summary": "focus on recurring payments",
     'author': "Twikey N.V.",
@@ -23,7 +23,7 @@
 
         'views/payment_twikey_templates.xml',
         'views/payment_views.xml',
-        'data/payment_acquirer_data.xml',
+        'data/payment_provider_data.xml',
 
         "wizard/wizard_cancel_reason.xml",
         "wizard/twikey_contract_template_wizard.xml",

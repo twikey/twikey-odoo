@@ -6,9 +6,9 @@
         <field name="inherit_id" ref="payment.payment_provider_form"/>
         <field name="arch" type="xml">
             <group name="provider_config" position="inside">
-                <group name="twikey_config" string="Twikey Config" attrs="{'invisible': [('code', '!=', 'twikey')]}">
-                    <field name="twikey_template_id" string="Profile to use" attrs="{'invisible': [('code', '!=', 'twikey')]}" />
-                    <field name="twikey_method" string="Method" attrs="{'invisible': [('code', '!=', 'twikey')]}" />
+                <group name="twikey_config" string="Twikey Config" invisible="('code', '!=', 'twikey')">
+                    <field name="twikey_template_id" string="Profile to use" invisible="('code', '!=', 'twikey')" />
+                    <field name="twikey_method" string="Method" invisible="('code', '!=', 'twikey')" />
                 </group>
             </group>
         </field>

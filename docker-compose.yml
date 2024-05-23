@@ -1,7 +1,7 @@
 version: "2"
 services:
   app:
-    image: odoo:16
+    image: odoo:17
     depends_on:
       - db
     restart: always
@@ -14,7 +14,7 @@ services:
       - PASSWORD=odoo
     volumes:
       - odoo-web-data16:/var/lib/odoo
-      - ./odoo.conf:/etc/odoo/odoo.conf
+#      - ./odoo.conf:/etc/odoo/odoo.conf
       - ./payment_twikey:/mnt/extra-addons/payment_twikey
   db:
     image: postgres:alpine
