@@ -60,7 +60,7 @@ class AccountInvoice(models.Model):
         self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Prepare for sending", body = msg)
         return get_success_msg(msg)
 
-    def send_invoices(self):
+    def send_invoices(self, cron = False):
         """ Collect all invoices to be sent to twikey """
         twikey_client = (self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company))
         if twikey_client:
