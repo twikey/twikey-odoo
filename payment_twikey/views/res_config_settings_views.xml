@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.twikey.form.inherit.base.setup</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.res_config_settings_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='integration']" position="inside">
+                <div class="col-12 col-lg-6 o_setting_box">
+                    <div class="o_setting_right_pane">
+                        <label string="Twikey" for="twikey_api_key" />
+                        <div class="text-muted">
+                            Automate your payments
+                        </div>
+                        <div>
+                            <div class="content-group mt16">
+                                <label for="twikey_base_url" class="col-2 o_light_label" />
+                                <field name="twikey_base_url" />
+                            </div>
+                            <div class="content-group">
+                                <label for="twikey_api_key" class="col-2 o_light_label" />
+                                <field name="twikey_api_key" />
+                            </div>
+
+                            <div class="content-group mt16">
+                                <div class="o_setting_left_pane">
+                                    <field name="twikey_auto_collect"/>
+                                </div>
+                                <div class="o_setting_right_pane">
+                                    <label for="twikey_auto_collect"/>
+                                    <div class="text-muted">
+                                        Should Twikey try to collect invoices directly via a recurring payment method
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="content-group mt16">
+                                <div class="o_setting_left_pane">
+                                    <field name="twikey_send_invoice"/>
+                                </div>
+                                <div class="o_setting_right_pane">
+                                    <label for="twikey_send_invoice"/>
+                                    <div class="text-muted">
+                                        Send all invoice by default to Twikey
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="content-group mt16">
+                                <div class="o_setting_left_pane">
+                                    <field name="twikey_include_purchase"/>
+                                </div>
+                                <div class="o_setting_right_pane">
+                                    <label for="twikey_include_purchase"/>
+                                    <div class="text-muted">
+                                        Also send purchase invoice to Twikey for payment
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="content-group mt16">
+                                <div class="o_setting_left_pane">
+                                    <field name="twikey_send_pdf"/>
+                                </div>
+                                <div class="o_setting_right_pane">
+                                    <label for="twikey_send_pdf"/>
+                                    <div class="text-muted">
+                                        Include the PDF of the invoice to Twikey (charges may apply)
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt8">
+                                <button name="test_twikey_connection"
+                                    string="Test Connection"
+                                    type="object"
+                                    class="oe_link"
+                                    icon="fa-arrow-right"
+                                />
+                            </div>
+                            <div class="mt-2">
+                                <button name="twikey_sync_contract_template"
+                                    string="Sync Twikey Profiles"
+                                    type="object"
+                                    class="oe_link"
+                                    icon="fa-arrow-right"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
