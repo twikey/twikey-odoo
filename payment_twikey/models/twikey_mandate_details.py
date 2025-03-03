@@ -6,7 +6,7 @@ from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
 from ..twikey.document import DocumentFeed
-from ..utils import sanitise_iban, field_name_from_attribute
+from ..utils import field_name_from_attribute
 
 _logger = logging.getLogger(__name__)
 
@@ -58,14 +58,14 @@ class TwikeyMandateDetails(models.Model):
         if not company:
             company = self.env.company
         try:
-            _logger.debug(f"Fetching Twikey updates from {company.mandate_feed_pos}")
+            _logger.debug(f"Fetching Twikey updates from {company.sudo().mandate_feed_pos}")
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=company)
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env, company), company.mandate_feed_pos)
+                twikey_client.document.feed(OdooDocumentFeed(self.env, company), company.sudo().mandate_feed_pos)
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % e
-                self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
+                self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
 
     def write(self, values):
         self.ensure_one()
@@ -289,7 +289,7 @@ class OdooDocumentFeed(DocumentFeed):
 
     def start(self, position, number_of_updates):
         _logger.info(f"Got new {number_of_updates} document update(s) from start={position}")
-        self.company.update({
+        self.company.sudo().update({
             "mandate_feed_pos": position
         })
 

@@ -10,6 +10,6 @@ class ResPartner(models.Model):
         wizard = self.env["twikey.contract.template.wizard"].create({
                 "partner_ids": self.ids,
         })
-        action = self.env.ref("payment_twikey.contract_template_wizard_action").sudo().read()[0]
+        action = self.env.ref("payment_twikey.contract_template_wizard_action").read()[0]
         action["res_id"] = wizard.id
         return action

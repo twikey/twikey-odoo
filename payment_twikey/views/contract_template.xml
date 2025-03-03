@@ -7,20 +7,20 @@
             <form>
                 <sheet>
                     <div class="oe_title">
-                        <h1>
+                        <h1 name="twikey_name">
                             <field name="name" placeholder="Twikey Profile" />
                         </h1>
                     </div>
-                    <group>
-                        <group>
+                    <group name="main_group">
+                        <group name="main_group_1">
                             <field name="template_id_twikey" />
                         </group>
-                        <group>
+                        <group name="main_group_2">
                             <field name="type" />
                         </group>
                     </group>
                     <notebook>
-                        <page>
+                        <page name="twikey_attributes">
                             <field name="twikey_attribute_ids">
                                 <tree editable="bottom">
                                     <field name="name" />
@@ -29,15 +29,12 @@
                                 <form>
                                     <sheet>
                                         <div class="oe_title">
-                                            <h1>
-                                                <field
-                                                    name="name"
-                                                    placeholder="Twikey Profile Attributes"
-                                                />
+                                            <h1 name="twikey_attribute_name">
+                                                <field name="name" placeholder="Twikey Profile Attributes"/>
                                             </h1>
                                         </div>
-                                        <group>
-                                            <group>
+                                        <group name="main_group">
+                                            <group name="main_group_1">
                                                 <field name="contract_template_id" invisible="1" />
                                                 <field name="type" />
                                             </group>
@@ -56,11 +53,11 @@
         <field name="name">contract.template.view.twikey.tree</field>
         <field name="model">twikey.contract.template</field>
         <field name="arch" type="xml">
-            <tree js_class="twikey_contract_template">
+            <list js_class="twikey_contract_template">
                 <field name="name" />
                 <field name="template_id_twikey" />
                 <field name="type" />
-            </tree>
+            </list>
         </field>
     </record>
 

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     "name": "Payment Provider: Twikey",
-    "version": "17.0",
+    "version": "18.0.0.0",
     "category": "Accounting/Payment Providers",
     "summary": "focus on recurring payments",
     'author': "Twikey N.V.",
@@ -13,23 +13,26 @@
         "sale",
     ],
     "data": [
+        "views/payment_twikey_templates.xml",
+        # Data
         "data/schedulers.xml",
         "data/mail_template.xml",
         "data/product_data.xml",
+        'data/payment_acquirer_data.xml',
+        # Reports
+        "report/report_account_invoice.xml",
+        # Security
         "security/ir.model.access.csv",
+        # Views
         "views/res_config_settings_views.xml",
         "views/res_partner_view.xml",
         "views/contract_template.xml",
-
-        'views/payment_twikey_templates.xml',
         'views/payment_views.xml',
-        'data/payment_acquirer_data.xml',
-
-        "wizard/wizard_cancel_reason.xml",
-        "wizard/twikey_contract_template_wizard.xml",
         "views/mandate_details.xml",
         "views/account_move.xml",
-        "report/report_account_invoice.xml",
+        #Wizard
+        "wizard/wizard_cancel_reason.xml",
+        "wizard/twikey_contract_template_wizard.xml",
     ],
     'application': False,
     'post_init_hook': 'post_init_hook',

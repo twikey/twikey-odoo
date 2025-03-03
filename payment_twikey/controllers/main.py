@@ -5,7 +5,6 @@ from werkzeug.urls import url_unquote
 
 from odoo import http
 from odoo.http import Response, request
-from odoo.exceptions import ValidationError
 
 from ..twikey.webhook import Webhook
 
@@ -23,7 +22,7 @@ class TwikeyController(http.Controller):
         if post.get("company_id"):
             company = request.env["res.company"].sudo().browse(post["company_id"])
             if company.exists():
-                api_key = company.twikey_api_key
+                api_key = company.sudo().twikey_api_key
             else:
                 _logger.warning("Twikey: no company found %s", pprint.pformat(object=post, compact=True))
                 return Response(response="not yet configured", status=403)
@@ -47,12 +46,7 @@ class TwikeyController(http.Controller):
         webhooktype = post.get("type")
         if webhooktype == "payment":
             if post.get("id"):
-                try:
-                    request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
-                except ValidationError as e:  # Acknowledge the notification to avoid getting spammed
-                    _logger.warning("Twikey: unable to handle payment of %s", pprint.pformat(object=post, compact=True))
-                    request.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]) \
-                        .message_post(subject="Transaction Error", body=e.args[0])
+                request.env['payment.transaction'].sudo()._handle_notification_data('twikey', post)
             else:
                 request.env["account.move"].sudo().update_invoice_feed(company)
             return Response(status=204)

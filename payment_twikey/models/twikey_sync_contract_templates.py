@@ -53,7 +53,7 @@ class SyncContractTemplates(models.AbstractModel):
                     "mandate_number_required": not response.get("mandateNumberRequired"),
                 }
             )
-            self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]) \
+            self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]) \
                 .message_post(subject="Configuration", body=f"Added template {name} (#{ct})")
 
         return template_id
@@ -87,18 +87,19 @@ class SyncContractTemplates(models.AbstractModel):
         )
         if template_id.mandate_number_required:
             mandate_arch_base += f"""\t<field name="reference" 
-                            required="contract_temp_id != {template_id.id}"
-                            invisible="contract_temp_id != {template_id.id}"
-                            readonly="state != 'pending'"
-                            "/>\n"""
+                            attrs="{{
+                                'required':[('contract_temp_id', '!=', {template_id.id})],
+                                'invisible':[('contract_temp_id', '!=', {template_id.id})],
+                                'readonly': [('state', '!=', 'pending')]
+                            }}"/>\n"""
 
         for mandate in mandate_field_list:
             if mandate.required:
                 mandate_arch_base += f"""\t<field name="{mandate.name}" 
-                    invisible="contract_temp_id != {template_id.id}" required="contract_temp_id = {template_id.id}"/>\n"""
+                    attrs="{{'invisible': [('contract_temp_id', '!=', {template_id.id})], 'required': [('contract_temp_id', '=', {template_id.id})]}}"/>\n"""
             else:
                 mandate_arch_base += f"""\t<field name="{mandate.name}" 
-                    invisible="contract_temp_id != {template_id.id}"/>\n"""
+                    attrs="{{'invisible':[('contract_temp_id', '!=', {template_id.id})]}}"/>\n"""
 
         mandate_arch_base += _("</field>" "</data>")
 
@@ -127,13 +128,14 @@ class SyncContractTemplates(models.AbstractModel):
 
         if template_id.mandate_number_required:
             arch_base += f"""\t<field name="reference" 
-                            required="template_id = {template_id.id}" invisible="template_id != {template_id.id}'"/>\n"""
+                            attrs="{{'required': [('template_id', '=', {template_id.id})], 'invisible':[('template_id', '!=', {template_id.id})]}}"/>\n"""
+
         for field in fields_list:
             if field.required:
                 arch_base += f"""\t<field name="{field.name}" 
-                    required="template_id = {template_id.id}" invisible="template_id != {template_id.id}"/>\n"""
+                    attrs="{{'invisible':[('template_id', '!=', {template_id.id})], 'required': [('template_id', '=', {template_id.id})]}}"/>\n"""
             else:
-                arch_base += f"""\t<field name="{field.name}" invisible="template_id != {template_id.id}"/>\n"""
+                arch_base += f"""\t<field name="{field.name}" attrs="{{'invisible': [('template_id', '!=', {template_id.id})]}}"/>\n"""
 
         arch_base += _("</field>" "</data>")
         existing_views = self.env["ir.ui.view"].sudo().search([("name", "=", name), ("inherit_id", "=", inherit_id.id)])

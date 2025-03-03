@@ -66,23 +66,14 @@ class PaymentProvider(models.Model):
 
         active = mandate_id.is_signed()
         if existing_token:
-            values = {}
-            if not existing_token.payment_method_id:
-                payment_method_id = self.env.ref("payment.payment_method_sepa_direct_debit")
-                values.update({'payment_method_id': payment_method_id.id})
-
-            values.update({
+            existing_token.update({
                 'payment_details': payment_details,
                 'active': active,
                 'expiry': expiry,
             })
-            existing_token.update(values)
             return False
         else:
-            payment_method_id = self.env.ref("payment.payment_method_sepa_direct_debit")
-
             self.env['payment.token'].create({
-                'payment_method_id': payment_method_id.id,
                 'payment_details': payment_details,
                 'provider_id': self.id,
                 'partner_id': partner_id.id,

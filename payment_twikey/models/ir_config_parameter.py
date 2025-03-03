@@ -15,8 +15,8 @@ class IrConfigParameter(models.Model):
         Cache automatically cleared because of the ir.config_parameter model
         """
         if company:
-            api_key = company.twikey_api_key
-            base_url = company.twikey_base_url
+            api_key = company.sudo().twikey_api_key
+            base_url = company.sudo().twikey_base_url
             if not api_key or not base_url:
                 return False
 
