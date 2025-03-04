@@ -28,7 +28,7 @@ class TwikeyController(http.Controller):
                 return Response(response="not yet configured", status=403)
         else:
             api_key = request.env.company.sudo().twikey_api_key
-        return self.handle_webhook(company,api_key,**post)
+        return self.handle_webhook(company, api_key, **post)
 
     def handle_webhook(self, company, api_key, **post):
         if not api_key:

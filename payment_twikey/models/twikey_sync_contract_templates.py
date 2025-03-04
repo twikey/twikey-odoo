@@ -53,7 +53,7 @@ class SyncContractTemplates(models.AbstractModel):
                     "mandate_number_required": not response.get("mandateNumberRequired"),
                 }
             )
-            self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]) \
+            self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]) \
                 .message_post(subject="Configuration", body=f"Added template {name} (#{ct})")
 
         return template_id

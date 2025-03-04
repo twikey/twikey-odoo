@@ -17,28 +17,15 @@ class PaymentProvider(models.Model):
         [
             ("bancontact", "bancontact"),
             ("sofort", "sofort"),
-            # ("sms", "sms"),
-            # ("itsme", "itsme"),
-            # ("emachtiging", "emachtiging"),
-            # ("idin", "idin"),
             ("ideal", "ideal"),
             ("visa", "visa"),
             ("mastercard", "mastercard"),
             ("paypal", "paypal"),
             ("amex", "amex"),
         ],
+        string="Twikey Method",
         help="This will be the method to use to sign mandate"
     )
-
-    def _compute_view_configuration_fields(self):
-        super()._compute_view_configuration_fields()
-        self.filtered(lambda p: p.code == 'twikey').update({
-            'show_credentials_page': False,
-            'show_pre_msg': False,
-            'show_done_msg': False,
-            'show_cancel_msg': False,
-        })
-
 
     def _compute_feature_support_fields(self):
         """ Override of `payment` to enable additional features. """
@@ -47,7 +34,6 @@ class PaymentProvider(models.Model):
             'support_refund': 'partial',
             'support_tokenization': True,
         })
-        self.filtered(lambda p: p.code == 'twikey').show_credentials_page = False
 
     def token_from_mandate(self, partner_id, mandate_id):
         if mandate_id.is_creditcard():

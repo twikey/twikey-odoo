@@ -3,8 +3,10 @@
 from odoo import _, fields, models
 import re
 
+
 class PaymentToken(models.Model):
     _inherit = 'payment.token'
+
     expiry = fields.Date(string="Expiry", readonly=True)
     type = fields.Selection(
         [
@@ -25,7 +27,8 @@ class PaymentToken(models.Model):
         :rtype: str
         """
         self.ensure_one()
-
+        if self.provider_code != 'twikey':
+            return super()._build_display_name(*args, should_pad=should_pad, **kwargs)
         padding_length = max_length - len(self.payment_details or '')
         if not self.payment_details:
             create_date_str = self.create_date.strftime('%Y/%m/%d')

@@ -64,7 +64,7 @@ class ResConfigSettings(models.TransientModel):
             return get_error_msg(msg, True)
 
     def __send_to_channel(self, msg):
-        self.env['mail.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=msg,)
+        self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=msg,)
 
     def twikey_sync_contract_template(self):
         if self.env["twikey.sync.contract.templates"].twikey_sync_contract_templates():

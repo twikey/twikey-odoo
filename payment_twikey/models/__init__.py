@@ -4,9 +4,10 @@ from . import res_partner
 from . import twikey_mandate_details
 from . import account_move
 from . import twikey_contract_template
+from . import twikey_contract_template_attribute
 from . import sale_order
 from . import ir_config_parameter
 from . import twikey_sync_contract_templates
-from . import payment_acquirer
+from . import payment_provider
 from . import payment_token
 from . import payment_transaction

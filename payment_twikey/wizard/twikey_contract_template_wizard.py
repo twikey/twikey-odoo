@@ -93,7 +93,7 @@ class TwikeyContractTemplateWizard(models.Model):
 
             except TwikeyError as e:
                 errmsg = "Exception raised while creating a new Mandate:\n%s" % e
-                self.env['mail.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
+                self.env['discuss.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
                 _logger.error(errmsg)
                 return get_error_msg(str(e), 'Exception raised while creating a new Mandate', sticky=True)
 

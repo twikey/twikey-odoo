@@ -7,3 +7,5 @@ from .paylink import PaylinkFeed
 from .invoice import InvoiceFeed
 from .refund import RefundFeed
 from .client import TwikeyError
+from .odoo_invoice_feed import OdooInvoiceFeed
+from .odoo_document_feed import OdooDocumentFeed
