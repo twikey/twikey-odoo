@@ -7,7 +7,11 @@ class ContractTemplateAttribute(models.Model):
 
     name = fields.Char(string="Twikey Profile Attribute", readonly=True)
     contract_template_id = fields.Many2one(
-        "twikey.contract.template", string="Twikey Profile", required=True, ondelete="cascade", readonly=True
+        "twikey.contract.template",
+        string="Twikey Profile",
+        required=True,
+        ondelete="cascade",
+        readonly=True,
     )
     type = fields.Selection(
         [
@@ -16,5 +20,6 @@ class ContractTemplateAttribute(models.Model):
             ("boolean", "Boolean"),
             ("float", "Amount"),
             ("selection", "Select"),
-        ], readonly=True
+        ],
+        readonly=True,
     )

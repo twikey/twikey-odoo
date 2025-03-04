@@ -1,7 +1,7 @@
 import requests
 
 
-class Refund(object):
+class Refund:
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -78,7 +78,7 @@ class Refund(object):
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Create refund", response)
             data = response.json()
-            return data["Entries"][0] # only 1 entry so return it
+            return data["Entries"][0]  # only 1 entry so return it
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Create refund", e)
 

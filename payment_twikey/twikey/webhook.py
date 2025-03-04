@@ -2,7 +2,7 @@ from hashlib import sha256
 from hmac import HMAC, compare_digest
 
 
-class Webhook(object):
+class Webhook:
     """Sample usage
 
     app = Flask(__name__)

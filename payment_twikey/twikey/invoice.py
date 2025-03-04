@@ -3,7 +3,7 @@ import logging
 import requests
 
 
-class Invoice(object):
+class Invoice:
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -36,7 +36,7 @@ class Invoice(object):
             raise self.client.raise_error_from_request("Create invoice", e)
 
     def update(self, invoice_id, data):
-        url = self.client.instance_url("/invoice/"+invoice_id)
+        url = self.client.instance_url("/invoice/" + invoice_id)
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
@@ -50,7 +50,7 @@ class Invoice(object):
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Update invoice", e)
 
-    #include=meta&include=lastpayment
+    # include=meta&include=lastpayment
     def feed(self, invoice_feed, start_position=False, *includes):
         _includes = ""
         for include in includes:
@@ -73,9 +73,13 @@ class Invoice(object):
             while len(feed_response["Invoices"]) > 0:
                 number_of_invoices = len(feed_response["Invoices"])
                 last_invoice = response.headers["X-LAST"]
-                self.logger.debug("Feed handling : %d invoices from %s till %s" %
-                                  (number_of_invoices, start_position, last_invoice))
-                invoice_feed.start(response.headers["X-LAST"], len(feed_response["Invoices"]))
+                self.logger.debug(
+                    "Feed handling : %d invoices from %s till %s"
+                    % (number_of_invoices, start_position, last_invoice)
+                )
+                invoice_feed.start(
+                    response.headers["X-LAST"], len(feed_response["Invoices"])
+                )
                 error = False
                 for invoice in feed_response["Invoices"]:
                     self.logger.debug("Feed handling : %s" % invoice)
@@ -85,7 +89,11 @@ class Invoice(object):
                 if error:
                     self.logger.debug("Error while handing invoice, stopping")
                     break
-                response = requests.get(url=url, headers=self.client.headers(), timeout=15, )
+                response = requests.get(
+                    url=url,
+                    headers=self.client.headers(),
+                    timeout=15,
+                )
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed invoice", response)
                 feed_response = response.json()
@@ -94,7 +102,7 @@ class Invoice(object):
             raise self.client.raise_error_from_request("Invoice feed", e)
 
     def geturl(self, invoice_id):
-        if '.beta.' in self.client.api_base:
+        if ".beta." in self.client.api_base:
             return "https://app.beta.twikey.com/%s/%s" % (
                 self.client.merchant_id,
                 invoice_id,

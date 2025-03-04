@@ -11,3 +11,5 @@ from . import twikey_sync_contract_templates
 from . import payment_provider
 from . import payment_token
 from . import payment_transaction
+from .odoo_invoice_feed import OdooInvoiceFeed
+from .odoo_document_feed import OdooDocumentFeed

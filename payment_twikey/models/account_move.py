@@ -2,12 +2,11 @@ import base64
 import logging
 import uuid
 
-from odoo import _, api, fields, models, Command
-from odoo.exceptions import UserError
+from odoo import _, api, fields, models
 import psycopg2
 
 from ..twikey.client import TwikeyError
-from ..twikey.odoo_invoice_feed import OdooInvoiceFeed
+from .odoo_invoice_feed import OdooInvoiceFeed
 from ..utils import get_twikey_customer, get_error_msg, get_success_msg
 
 F_INCLUDE_PDF_INVOICE = "include_pdf_invoice"
@@ -20,8 +19,16 @@ _logger = logging.getLogger(__name__)
 class AccountInvoice(models.Model):
     _inherit = "account.move"
 
-    twikey_invoice_identifier = fields.Char(string="Twikey Invoice ID", help="Invoice ID of Twikey.", readonly=True, index=True, copy=False)
-    twikey_template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile")
+    twikey_invoice_identifier = fields.Char(
+        string="Twikey Invoice ID",
+        help="Invoice ID of Twikey.",
+        readonly=True,
+        index=True,
+        copy=False,
+    )
+    twikey_template_id = fields.Many2one(
+        "twikey.contract.template", string="Twikey Profile"
+    )
     twikey_invoice_state = fields.Selection(
         selection=[
             ("BOOKED", "Booked"),
@@ -34,12 +41,20 @@ class AccountInvoice(models.Model):
     )
 
     send_to_twikey = fields.Boolean(string="Send to Twikey", readonly=False)
-    auto_collect_invoice = fields.Boolean(string="Collect the invoice if possible", readonly=False)
-    include_pdf_invoice = fields.Boolean("Include pdf for invoices", help="Also send the invoice pdf to Twikey")
+    auto_collect_invoice = fields.Boolean(
+        string="Collect the invoice if possible", readonly=False
+    )
+    include_pdf_invoice = fields.Boolean(
+        "Include pdf for invoices", help="Also send the invoice pdf to Twikey"
+    )
 
-    twikey_url = fields.Char(string="Twikey Invoice URL", help="URL of the Twikey Invoice",
-                             store=True, compute="_compute_twikey_url",)
-    id_and_link_html = fields.Html(string="HTML link ID",compute='_compute_link_html')
+    twikey_url = fields.Char(
+        string="Twikey Invoice URL",
+        help="URL of the Twikey Invoice",
+        store=True,
+        compute="_compute_twikey_url",
+    )
+    id_and_link_html = fields.Html(string="HTML link ID", compute="_compute_link_html")
 
     is_twikey_eligable = fields.Boolean(
         string="Invoice or Creditnote",
@@ -57,20 +72,32 @@ class AccountInvoice(models.Model):
             if not record.is_twikey_eligable:
                 return get_error_msg(f"Invoice {record.name} cannot be send to Twikey")
             record.send_to_twikey = True
-            record.message_post(body=f"Queued for delivery to Twikey")
+            record.message_post(body="Queued for delivery to Twikey")
         no_invoices = len(self)
         msg = f"Queued {no_invoices} invoices for delivery"
         _logger.info(msg)
-        self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Prepare for sending", body=msg)
+        self.env["discuss.channel"].sudo().search(
+            [("name", "=", "twikey")]
+        ).message_post(subject="Prepare for sending", body=msg)
         return get_success_msg(msg)
 
     def send_invoices(self, cron=False):
-        """ Collect all invoices to be sent to twikey """
-        twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+        """Collect all invoices to be sent to twikey"""
+        twikey_client = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_twikey_client(company=self.env.company)
+        )
         if twikey_client:
             # sometimes action_post gets called without an invoice record, in this case we don't try to
             # send anything to Twikey
-            to_be_send = self.search([('send_to_twikey', '=', True), ('twikey_invoice_identifier','=',False), ('state','=','posted')])
+            to_be_send = self.search(
+                [
+                    ("send_to_twikey", "=", True),
+                    ("twikey_invoice_identifier", "=", False),
+                    ("state", "=", "posted"),
+                ]
+            )
             if len(to_be_send) > 0:
                 # ensure logged in otherwise company of url might not be filled in
                 twikey_client.refreshTokenIfRequired()
@@ -80,51 +107,83 @@ class AccountInvoice(models.Model):
             _logger.info("Not sending to Twikey as not configured")
 
     def transfer_to_twikey(self, twikeyClient):
-        """ Actual sending of twikey """
+        """Actual sending of twikey"""
         for invoice in self:
             # Handle as refund
             if invoice.is_purchase_document():
                 if invoice.amount_total == 0:
-                    invoice.message_post(body="Skipping sending to Twikey as no open amount.")
-                    invoice.with_context(update_feed=True).write({"send_to_twikey": False})
+                    invoice.message_post(
+                        body="Skipping sending to Twikey as no open amount."
+                    )
+                    invoice.with_context(update_feed=True).write(
+                        {"send_to_twikey": False}
+                    )
                 else:
                     partner_id = invoice.partner_id
-                    customer_banks = partner_id.bank_ids.filtered((lambda p: p.allow_out_payment))
+                    customer_banks = partner_id.bank_ids.filtered(
+                        lambda p: p.allow_out_payment
+                    )
                     if len(customer_banks) > 0:
                         iban = customer_banks[0].sanitized_acc_number
                         if customer_banks[0].sequence != 20:
                             payload = get_twikey_customer(partner_id)
                             payload["iban"] = iban
-                            if customer_banks[0].bank_id and customer_banks[0].bank_id.bic:
+                            if (
+                                customer_banks[0].bank_id
+                                and customer_banks[0].bank_id.bic
+                            ):
                                 payload["bic"] = customer_banks[0].bank_id.bic
                             twikeyClient.refund.create_beneficiary_account(payload)
-                            customer_banks[0].write({"sequence":20})
-                            partner_id.message_post(body=f"Twikey beneficiary account to {iban} was added")
+                            customer_banks[0].write({"sequence": 20})
+                            partner_id.message_post(
+                                body=f"Twikey beneficiary account to {iban} was added"
+                            )
 
-                        refund = twikeyClient.refund.create(partner_id.id,{
-                            "iban": iban,
-                            "message": invoice.payment_reference,
-                            "amount":  invoice.amount_total,
-                            "ref": invoice.name,
-                        })
+                        refund = twikeyClient.refund.create(
+                            partner_id.id,
+                            {
+                                "iban": iban,
+                                "message": invoice.payment_reference,
+                                "amount": invoice.amount_total,
+                                "ref": invoice.name,
+                            },
+                        )
 
                         # make payment
-                        payment = self.env['account.payment.register'].with_context(
-                            {"dont_redirect_to_payments":True},
-                            active_model='account.move', active_ids=invoice.ids,).create({'payment_date': invoice.date,})
+                        payment = (
+                            self.env["account.payment.register"]
+                            .with_context(
+                                {"dont_redirect_to_payments": True},
+                                active_model="account.move",
+                                active_ids=invoice.ids,
+                            )
+                            .create(
+                                {
+                                    "payment_date": invoice.date,
+                                }
+                            )
+                        )
                         payment.action_create_payments()
 
-                        invoice.with_context(update_feed=True).write({
-                            "twikey_invoice_identifier": refund["id"],
-                        })
+                        invoice.with_context(update_feed=True).write(
+                            {
+                                "twikey_invoice_identifier": refund["id"],
+                            }
+                        )
                     else:
-                        invoice.message_post(body="Skipping sending to Twikey as no accounts allowing out_payments.")
-                        invoice.with_context(update_feed=True).write({"send_to_twikey": False})
+                        invoice.message_post(
+                            body="Skipping sending to Twikey as no accounts allowing out_payments."
+                        )
+                        invoice.with_context(update_feed=True).write(
+                            {"send_to_twikey": False}
+                        )
                 continue
 
             if invoice.amount_residual == 0:
                 invoice.with_context(update_feed=True).write({"send_to_twikey": False})
-                invoice.message_post(body="Skipping sending to Twikey as no open amount.")
+                invoice.message_post(
+                    body="Skipping sending to Twikey as no open amount."
+                )
                 continue
 
             invoice_uuid = str(uuid.uuid4())
@@ -156,7 +215,11 @@ class AccountInvoice(models.Model):
                     "ct": invoice.twikey_template_id.template_id_twikey,
                     "amount": amount,
                     "date": invoice.invoice_date.isoformat(),
-                    "duedate": invoice.invoice_date_due.isoformat() if invoice.invoice_date_due else today,
+                    "duedate": (
+                        invoice.invoice_date_due.isoformat()
+                        if invoice.invoice_date_due
+                        else today
+                    ),
                     "remittance": remittance,
                     "ref": invoice.id,
                     "locale": twikey_customer["l"] if twikey_customer else "en",
@@ -177,45 +240,86 @@ class AccountInvoice(models.Model):
                 twikey_invoice = twikeyClient.invoice.create(data, "Odoo")
                 new_state = {
                     "twikey_invoice_identifier": invoice_uuid,
-                    "twikey_invoice_state": twikey_invoice.get("state")
+                    "twikey_invoice_state": twikey_invoice.get("state"),
                 }
 
-                invoice.message_post(body=f"Delivered to Twikey")
+                invoice.message_post(body="Delivered to Twikey")
                 invoice.with_context(update_feed=True).write(new_state)
             except TwikeyError as e:
-                errmsg = "Exception raised while sending %s to Twikey :\n%s" % (invoice.name, e)
+                errmsg = "Exception raised while sending %s to Twikey :\n%s" % (
+                    invoice.name,
+                    e,
+                )
                 invoice.message_post(body=f"Exception raised while sending : {e}")
-                self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+                self.env["discuss.channel"].sudo().search(
+                    [("name", "=", "twikey")]
+                ).message_post(
+                    subject="Invoices",
+                    body=errmsg,
+                )
                 _logger.error(errmsg)
-                return get_error_msg(str(e), 'Exception raised while creating a new Invoice')
+                return get_error_msg(
+                    str(e), "Exception raised while creating a new Invoice"
+                )
 
-    def update_invoice_feed(self, company = None):
+    def update_invoice_feed(self, company=None):
         if not company:
             company = self.env.company
         try:
             # set lock on res_company to avoid duplicate calls
-            self._cr.execute(f"""SELECT id FROM res_company WHERE id = %s FOR UPDATE NOWAIT""", [company.id], log_exceptions=False)
-            _logger.debug(f"Fetching Twikey updates from {company.sudo().invoice_feed_pos}")
-            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=company)
+            self._cr.execute(
+                """SELECT id FROM res_company WHERE id = %s FOR UPDATE NOWAIT""",
+                [company.id],
+                log_exceptions=False,
+            )
+            _logger.debug(
+                f"Fetching Twikey updates from {company.sudo().invoice_feed_pos}"
+            )
+            twikey_client = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_twikey_client(company=company)
+            )
             if twikey_client:
-                twikey_client.invoice.feed(OdooInvoiceFeed(self.env, company), company.sudo().invoice_feed_pos, "meta", "lastpayment")
+                twikey_client.invoice.feed(
+                    OdooInvoiceFeed(self.env, company),
+                    company.sudo().invoice_feed_pos,
+                    "meta",
+                    "lastpayment",
+                )
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % (e)
-                self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices",body=errmsg,)
+                self.env["discuss.channel"].sudo().search(
+                    [("name", "=", "twikey")]
+                ).message_post(
+                    subject="Invoices",
+                    body=errmsg,
+                )
         except psycopg2.OperationalError:
             _logger.debug("Operation already ongoing")
 
     def update_twikey_state(self, state):
         try:
             _logger.debug("Updating Twikey of %s to %s" % (self, state))
-            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            twikey_client = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_twikey_client(company=self.env.company)
+            )
             if twikey_client:
-                twikey_client.invoice.update(self.twikey_invoice_identifier, {"status": state})
+                twikey_client.invoice.update(
+                    self.twikey_invoice_identifier, {"status": state}
+                )
         except TwikeyError as ue:
             errmsg = "Error while updating invoice in Twikey: %s" % ue
             _logger.error(errmsg)
-            self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Invoices", body=errmsg, )
+            self.env["discuss.channel"].sudo().search(
+                [("name", "=", "twikey")]
+            ).message_post(
+                subject="Invoices",
+                body=errmsg,
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -228,14 +332,17 @@ class AccountInvoice(models.Model):
 
         for val in vals_list:
             if not val.get(F_SEND_TO_TWIKEY):
-                val[F_SEND_TO_TWIKEY] =  twikey_send_invoice
+                val[F_SEND_TO_TWIKEY] = twikey_send_invoice
             if not val.get(F_AUTO_COLLECT_INVOICE):
                 val[F_AUTO_COLLECT_INVOICE] = twikey_auto_collect
             if not val.get(F_INCLUDE_PDF_INVOICE):
                 val[F_INCLUDE_PDF_INVOICE] = twikey_send_pdf
 
             if val.get("move_type"):
-                if val.get(F_SEND_TO_TWIKEY) and val.get("move_type") in ["out_invoice", "out_refund"]:
+                if val.get(F_SEND_TO_TWIKEY) and val.get("move_type") in [
+                    "out_invoice",
+                    "out_refund",
+                ]:
                     val[F_SEND_TO_TWIKEY] = twikey_send_invoice
                 elif val.get("move_type") == "in_invoice":
                     val[F_SEND_TO_TWIKEY] = twikey_include_purchase
@@ -250,7 +357,7 @@ class AccountInvoice(models.Model):
         Set a default value for 'send_to_twikey' according to the standard rules. This
         is only done if move_type is changed into a type that doesn't have to be sent.
         """
-        res = super(AccountInvoice, self).write(values)
+        res = super().write(values)
         if self.env.context.get("update_feed", False):
             return res
 
@@ -269,9 +376,16 @@ class AccountInvoice(models.Model):
         """
         for move in self:
             if move.company_id.sudo().twikey_include_purchase:
-                move.is_twikey_eligable = move.move_type in ["in_invoice", "out_invoice", "out_refund"]
+                move.is_twikey_eligable = move.move_type in [
+                    "in_invoice",
+                    "out_invoice",
+                    "out_refund",
+                ]
             else:
-                move.is_twikey_eligable = move.move_type in ["out_invoice", "out_refund"]
+                move.is_twikey_eligable = move.move_type in [
+                    "out_invoice",
+                    "out_refund",
+                ]
 
     @api.depends("twikey_invoice_identifier")
     def _compute_twikey_url(self):
@@ -279,15 +393,24 @@ class AccountInvoice(models.Model):
         Calculate the url of the invoice in Twikey.
         """
         try:
-            twikey_client = self.env["ir.config_parameter"].sudo().get_twikey_client(company=self.env.company)
+            twikey_client = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_twikey_client(company=self.env.company)
+            )
             for move in self:
                 if move.twikey_invoice_identifier:
-                    move.twikey_url = twikey_client.invoice.geturl(move.twikey_invoice_identifier)
+                    move.twikey_url = twikey_client.invoice.geturl(
+                        move.twikey_invoice_identifier
+                    )
         except Exception as e:
             _logger.exception(e)
 
-    @api.depends('twikey_invoice_identifier')
+    @api.depends("twikey_invoice_identifier")
     def _compute_link_html(self):
         for record in self:
             # Generate the HTML link
-            record.id_and_link_html = f'<a href="{record.twikey_url}" target="twikey">{record.twikey_invoice_identifier}</a>'
+            record.id_and_link_html = (
+                f'<a href="{record.twikey_url}" '
+                f'target="twikey">{record.twikey_invoice_identifier}</a>'
+            )

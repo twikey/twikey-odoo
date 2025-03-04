@@ -3,7 +3,12 @@ import logging
 from odoo import fields, models
 
 from ..twikey.client import TwikeyError
-from ..utils import get_error_msg, get_success_msg, get_twikey_customer, field_name_from_attribute
+from ..utils import (
+    get_error_msg,
+    get_success_msg,
+    get_twikey_customer,
+    field_name_from_attribute,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -24,7 +29,9 @@ class TwikeyContractTemplateWizard(models.Model):
     _description = "Wizard for Select Twikey Profile"
 
     name = fields.Char()
-    template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile id")
+    template_id = fields.Many2one(
+        "twikey.contract.template", string="Twikey Profile id"
+    )
     reference = fields.Char(string="Mandate number")
     twikey_attribute_ids = fields.One2many(
         related="template_id.twikey_attribute_ids", readonly=False
@@ -41,7 +48,9 @@ class TwikeyContractTemplateWizard(models.Model):
                 payload["sendInvite"] = True
 
             sp_lst = [
-                field_name_from_attribute(attr.name,self.template_id.template_id_twikey)
+                field_name_from_attribute(
+                    attr.name, self.template_id.template_id_twikey
+                )
                 for attr in self.template_id.twikey_attribute_ids
             ]
 
@@ -56,8 +65,12 @@ class TwikeyContractTemplateWizard(models.Model):
                 get_fields[0].pop("template_id")
                 new_keys = []
                 for key, value in get_fields[0].items():
-                    model_id = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
-                    field_id = self.env["ir.model.fields"].search([("name", "=", key), ("model_id", "=", model_id.id)])
+                    model_id = self.env["ir.model"].search(
+                        [("model", "=", "twikey.contract.template.wizard")]
+                    )
+                    field_id = self.env["ir.model.fields"].search(
+                        [("name", "=", key), ("model_id", "=", model_id.id)]
+                    )
                     if field_id.ttype != "boolean" and not value:
                         get_fields[0].update({key: ""})
                     key_split = key.split("_")
@@ -67,7 +80,9 @@ class TwikeyContractTemplateWizard(models.Model):
                 payload.update(final_dict)
             try:
                 _logger.debug("New mandate creation data: {}".format(payload))
-                twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+                twikey_client = self.env["ir.config_parameter"].get_twikey_client(
+                    company=self.env.company
+                )
                 if twikey_client:
                     twikey_client.refreshTokenIfRequired()
                     resp_obj = twikey_client.document.create(payload)
@@ -83,9 +98,15 @@ class TwikeyContractTemplateWizard(models.Model):
                                 "reference": resp_obj.get("mndtId"),
                                 "url": resp_obj.get("url"),
                                 "zip": partner_id.zip if partner_id.zip else False,
-                                "address": partner_id.street if partner_id.street else False,
+                                "address": (
+                                    partner_id.street if partner_id.street else False
+                                ),
                                 "city": partner_id.city if partner_id.city else False,
-                                "country_id": partner_id.country_id.id if partner_id.country_id else False,
+                                "country_id": (
+                                    partner_id.country_id.id
+                                    if partner_id.country_id
+                                    else False
+                                ),
                             }
                         )
                     )
@@ -93,8 +114,15 @@ class TwikeyContractTemplateWizard(models.Model):
 
             except TwikeyError as e:
                 errmsg = "Exception raised while creating a new Mandate:\n%s" % e
-                self.env['discuss.channel'].search([('name', '=', 'twikey')]).message_post(subject="Configuration",body=errmsg,)
+                self.env["discuss.channel"].search(
+                    [("name", "=", "twikey")]
+                ).message_post(
+                    subject="Configuration",
+                    body=errmsg,
+                )
                 _logger.error(errmsg)
-                return get_error_msg(str(e), 'Exception raised while creating a new Mandate', sticky=True)
+                return get_error_msg(
+                    str(e), "Exception raised while creating a new Mandate", sticky=True
+                )
 
         return get_success_msg("Mandate invitation(s) created successfully.")

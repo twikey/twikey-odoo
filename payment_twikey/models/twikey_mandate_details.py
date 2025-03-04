@@ -5,7 +5,7 @@ from odoo import _, fields, models
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
-from ..twikey.odoo_document_feed import OdooDocumentFeed
+from .odoo_document_feed import OdooDocumentFeed
 from ..utils import field_name_from_attribute
 
 _logger = logging.getLogger(__name__)
@@ -36,8 +36,9 @@ class TwikeyMandateDetails(models.Model):
     reference = fields.Char(string="Mandate Reference", index=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract_temp_id = fields.Many2one(comodel_name="twikey.contract.template", string="Twikey Profile",
-                                       readonly=True)
+    contract_temp_id = fields.Many2one(
+        comodel_name="twikey.contract.template", string="Twikey Profile", readonly=True
+    )
     description = fields.Text()
     lang = fields.Selection(_lang_get, string="Language")
     url = fields.Char(string="URL", readonly=True)
@@ -54,30 +55,44 @@ class TwikeyMandateDetails(models.Model):
         action["res_id"] = wizard.id
         return action
 
-    def update_feed(self, company = None):
+    def update_feed(self, company=None):
         if not company:
             company = self.env.company
         try:
-            _logger.debug(f"Fetching Twikey updates from {company.sudo().mandate_feed_pos}")
-            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=company)
+            _logger.debug(
+                f"Fetching Twikey updates from {company.sudo().mandate_feed_pos}"
+            )
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(
+                company=company
+            )
             if twikey_client:
-                twikey_client.document.feed(OdooDocumentFeed(self.env, company), company.sudo().mandate_feed_pos)
+                twikey_client.document.feed(
+                    OdooDocumentFeed(self.env, company), company.sudo().mandate_feed_pos
+                )
         except TwikeyError as e:
             if e.error_code != "err_call_in_progress":  # ignore parallel calls
                 errmsg = "Exception raised while fetching updates:\n%s" % e
-                self.env['discuss.channel'].sudo().search([('name', '=', 'twikey')]).message_post(subject="Mandates", body=errmsg)
+                self.env["discuss.channel"].sudo().search(
+                    [("name", "=", "twikey")]
+                ).message_post(subject="Mandates", body=errmsg)
 
     def write(self, values):
         self.ensure_one()
-        res = super(TwikeyMandateDetails, self).write(values)
+        res = super().write(values)
 
         try:
-            twikey_client = self.env["ir.config_parameter"].get_twikey_client(company=self.env.company)
+            twikey_client = self.env["ir.config_parameter"].get_twikey_client(
+                company=self.env.company
+            )
             if twikey_client:
                 if not self._context.get("update_feed"):
                     data = {}
                     if self.state != "signed":
-                        data["mndtId"] = values.get("reference") if values.get("reference") else self.reference
+                        data["mndtId"] = (
+                            values.get("reference")
+                            if values.get("reference")
+                            else self.reference
+                        )
                         if "iban" in values:
                             data["iban"] = values.get("iban") or ""
                         if "bic" in values:
@@ -93,20 +108,20 @@ class TwikeyMandateDetails(models.Model):
                             if data != {}:
                                 twikey_client.document.update(data)
                         except (Exception, requests.exceptions.RequestException) as e:
-                            raise UserError(_('Error sending update: %s') % (str(e)))
+                            raise UserError(_("Error sending update: %s") % (str(e)))
             return res
         except TwikeyError as e:
             raise UserError from e
 
     def is_signed(self):
-        return self.state == 'signed'
+        return self.state == "signed"
 
     def is_creditcard(self):
         return self.contract_temp_id and self.contract_temp_id.type == "CREDITCARD"
 
     def get_attribute(self, name):
         ct = self.contract_temp_id.ct()
-        return self.contract_temp_id and self[field_name_from_attribute(name,ct)]
+        return self.contract_temp_id and self[field_name_from_attribute(name, ct)]
 
     def is_mandatenumber_required(self):
         return self.contract_temp_id and self.contract_temp_id.mandate_number_required

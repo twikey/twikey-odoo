@@ -1,6 +1,7 @@
 from odoo.addons.payment import utils as payment_utils
 import re
 
+
 def get_twikey_customer(partner):
     if not partner:
         return {}
@@ -24,7 +25,9 @@ def get_twikey_customer(partner):
 
     # if owner is company treat is as such
     if owner.vat:
-        customer["companyName"] = owner.company_name if owner.company_name else owner.name
+        customer["companyName"] = (
+            owner.company_name if owner.company_name else owner.name
+        )
         customer["coc"] = owner.vat
 
     if partner.mobile:
@@ -34,38 +37,42 @@ def get_twikey_customer(partner):
 
     return customer
 
-def get_error_msg(msg, title='Twikey', sticky = False):
+
+def get_error_msg(msg, title="Twikey", sticky=False):
     return {
-        'type': 'ir.actions.client',
-        'tag': 'display_notification',
-        'params': {
-            'type': 'danger',
-            'title': title,
-            'message': msg,
-            'next': {'type': 'ir.actions.act_window_close'},
-            'sticky': sticky,
-        }
+        "type": "ir.actions.client",
+        "tag": "display_notification",
+        "params": {
+            "type": "danger",
+            "title": title,
+            "message": msg,
+            "next": {"type": "ir.actions.act_window_close"},
+            "sticky": sticky,
+        },
     }
 
-def get_success_msg(msg, title='Twikey', sticky = False):
+
+def get_success_msg(msg, title="Twikey", sticky=False):
     return {
-        'type': 'ir.actions.client',
-        'tag': 'display_notification',
-        'params': {
-            'type': 'success',
-            'title': title,
-            'message': msg,
-            'next': {'type': 'ir.actions.act_window_close'},
-            'sticky': sticky,
-        }
+        "type": "ir.actions.client",
+        "tag": "display_notification",
+        "params": {
+            "type": "success",
+            "title": title,
+            "message": msg,
+            "next": {"type": "ir.actions.act_window_close"},
+            "sticky": sticky,
+        },
     }
+
 
 def field_name_from_attribute(attribute, profile_id):
     # Odoo doesn't like double underscores nor dots
     attribute = attribute.replace(".", "_")
-    if attribute[0] == '_':
+    if attribute[0] == "_":
         return "x" + attribute + "_" + str(profile_id)
     return "x_" + attribute + "_" + str(profile_id)
 
+
 def sanitise_iban(iban):
-    return re.sub(r'\W+', '', iban).upper()
+    return re.sub(r"\W+", "", iban).upper()

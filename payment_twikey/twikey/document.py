@@ -3,7 +3,7 @@ import logging
 import requests
 
 
-class Document(object):
+class Document:
     def __init__(self, client) -> None:
         super().__init__()
         self.client = client
@@ -14,7 +14,9 @@ class Document(object):
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
-            response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
+            response = requests.post(
+                url=url, data=data, headers=self.client.headers(), timeout=15
+            )
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Invite", response)
             json_response = response.json()
@@ -28,7 +30,9 @@ class Document(object):
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
-            response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
+            response = requests.post(
+                url=url, data=data, headers=self.client.headers(), timeout=15
+            )
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Sign", response)
             json_response = response.json()
@@ -42,7 +46,9 @@ class Document(object):
         data = data or {}
         try:
             self.client.refreshTokenIfRequired()
-            response = requests.post(url=url, data=data, headers=self.client.headers(), timeout=15)
+            response = requests.post(
+                url=url, data=data, headers=self.client.headers(), timeout=15
+            )
             self.logger.debug("Updated mandate : {} response={}".format(data, response))
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Update", response)
@@ -50,18 +56,26 @@ class Document(object):
             raise self.client.raise_error_from_request("Update", e)
 
     def cancel(self, mandate_number, reason):
-        url = self.client.instance_url("/mandate?mndtId=" + mandate_number + "&rsn=" + reason)
+        url = self.client.instance_url(
+            "/mandate?mndtId=" + mandate_number + "&rsn=" + reason
+        )
         try:
             self.client.refreshTokenIfRequired()
-            response = requests.delete(url=url, headers=self.client.headers(), timeout=15)
-            self.logger.debug("Cancel mandate : %s status=%d" % (mandate_number, response.status_code))
+            response = requests.delete(
+                url=url, headers=self.client.headers(), timeout=15
+            )
+            self.logger.debug(
+                "Cancel mandate : %s status=%d" % (mandate_number, response.status_code)
+            )
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Cancel", response)
         except requests.exceptions.RequestException as e:
             raise self.client.raise_error_from_request("Cancel", e)
 
     def feed(self, document_feed, start_position=False):
-        url = self.client.instance_url("/mandate?include=id&include=mandate&include=person")
+        url = self.client.instance_url(
+            "/mandate?include=id&include=mandate&include=person"
+        )
         try:
             self.client.refreshTokenIfRequired()
             initheaders = self.client.headers()
@@ -76,9 +90,17 @@ class Document(object):
                 raise self.client.raise_error("Feed", response)
             feed_response = response.json()
             while len(feed_response["Messages"]) > 0:
-                self.logger.debug("Feed handling : %d from %s till %s" % (
-                    len(feed_response["Messages"]), start_position, response.headers["X-LAST"]))
-                document_feed.start(response.headers["X-LAST"], len(feed_response["Messages"]))
+                self.logger.debug(
+                    "Feed handling : %d from %s till %s"
+                    % (
+                        len(feed_response["Messages"]),
+                        start_position,
+                        response.headers["X-LAST"],
+                    )
+                )
+                document_feed.start(
+                    response.headers["X-LAST"], len(feed_response["Messages"])
+                )
                 error = False
                 for msg in feed_response["Messages"]:
                     if "AmdmntRsn" in msg:
@@ -87,7 +109,9 @@ class Document(object):
                         mndt_ = msg["Mndt"]
                         rsn_ = msg["AmdmntRsn"]
                         at_ = msg["EvtTime"]
-                        error = document_feed.updated_document(mndt_id_, mndt_, rsn_, at_)
+                        error = document_feed.updated_document(
+                            mndt_id_, mndt_, rsn_, at_
+                        )
                     elif "CxlRsn" in msg:
                         mndt_ = msg["OrgnlMndtId"]
                         rsn_ = msg["CxlRsn"]
@@ -104,7 +128,11 @@ class Document(object):
                 if error:
                     self.logger.debug("Error while handing invoice, stopping")
                     break
-                response = requests.get(url=url, headers=self.client.headers(), timeout=15, )
+                response = requests.get(
+                    url=url,
+                    headers=self.client.headers(),
+                    timeout=15,
+                )
                 if "ApiErrorCode" in response.headers:
                     raise self.client.raise_error("Feed", response)
                 feed_response = response.json()
@@ -116,7 +144,9 @@ class Document(object):
         url = self.client.instance_url("/customer/" + str(customer_id))
         try:
             self.client.refreshTokenIfRequired()
-            response = requests.patch(url=url, params=data, headers=self.client.headers(), timeout=15)
+            response = requests.patch(
+                url=url, params=data, headers=self.client.headers(), timeout=15
+            )
             if "ApiErrorCode" in response.headers:
                 raise self.client.raise_error("Cancel", response)
         except requests.exceptions.RequestException as e:
