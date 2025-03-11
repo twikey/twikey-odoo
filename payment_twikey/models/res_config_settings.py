@@ -1,6 +1,6 @@
 import logging
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 
 from ..twikey.client import TwikeyError
 from ..utils import get_error_msg, get_success_msg
@@ -11,6 +11,9 @@ _logger = logging.getLogger(__name__)
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
+    activate_twikey = fields.Boolean(
+        string="Activate Twikey", related="company_id.activate_twikey", readonly=False
+    )
     twikey_base_url = fields.Char(
         string=" Twikey API url", related="company_id.twikey_base_url", readonly=False
     )
@@ -42,6 +45,16 @@ class ResConfigSettings(models.TransientModel):
     twikey_send_pdf = fields.Boolean(
         string="Include PDF", related="company_id.twikey_send_pdf", readonly=False
     )
+
+    @api.onchange("activate_twikey")
+    def _onchange_reset_twikey_parameters(self):
+        if not self.activate_twikey:
+            self.twikey_base_url = False
+            self.twikey_api_key = False
+            self.twikey_send_invoice = False
+            self.twikey_auto_collect = False
+            self.twikey_include_purchase = False
+            self.twikey_send_pdf = False
 
     def get_values(self):
         res = super().get_values()

@@ -4,6 +4,7 @@ from odoo import fields, models
 class ResCompany(models.Model):
     _inherit = "res.company"
 
+    activate_twikey = fields.Boolean(groups="base.group_system")
     twikey_base_url = fields.Char(groups="base.group_system")
     twikey_api_key = fields.Char(groups="base.group_system")
 

@@ -105,20 +105,18 @@ class SyncContractTemplates(models.AbstractModel):
         )
         if template_id.mandate_number_required:
             mandate_arch_base += f"""\t<field name="reference"
-                            attrs="{{
-                                'required':[('contract_temp_id', '!=', {template_id.id})],
-                                'invisible':[('contract_temp_id', '!=', {template_id.id})],
-                                'readonly': [('state', '!=', 'pending')]
-                            }}"/>\n"""
+                                required="contract_temp_id != {template_id.id}"
+                                invisible="contract_temp_id != {template_id.id}"
+                                readonly="state != 'pending'"/>\n"""
 
         for mandate in mandate_field_list:
             if mandate.required:
                 mandate_arch_base += f"""\t<field name="{mandate.name}"
-                    attrs="{{'invisible': [('contract_temp_id', '!=', {template_id.id})],
-                    'required': [('contract_temp_id', '=', {template_id.id})]}}"/>\n"""
+                required="contract_temp_id != {template_id.id}"
+                invisible="contract_temp_id != {template_id.id}"/>\n"""
             else:
                 mandate_arch_base += f"""\t<field name="{mandate.name}"
-                    attrs="{{'invisible':[('contract_temp_id', '!=', {template_id.id})]}}"/>\n"""
+                    invisible="contract_temp_id != {template_id.id}"/>\n"""
 
         mandate_arch_base += _("</field>" "</data>")
 
@@ -155,17 +153,17 @@ class SyncContractTemplates(models.AbstractModel):
 
         if template_id.mandate_number_required:
             arch_base += f"""\t<field name="reference"
-                            attrs="{{'required': [('template_id', '=', {template_id.id})],
-                            'invisible':[('template_id', '!=', {template_id.id})]}}"/>\n"""
+                            required="template_id = {template_id.id}"
+                            invisible="template_id != {template_id.id}"/>\n"""
 
         for field in fields_list:
             if field.required:
                 arch_base += f"""\t<field name="{field.name}"
-                    attrs="{{'invisible':[('template_id', '!=', {template_id.id})],
-                    'required': [('template_id', '=', {template_id.id})]}}"/>\n"""
+                            required="template_id = {template_id.id}"
+                            invisible="template_id != {template_id.id}"/>\n"""
             else:
                 arch_base += f"""\t<field name="{field.name}"
-                attrs="{{'invisible': [('template_id', '!=', {template_id.id})]}}"/>\n"""
+                invisible="template_id != {template_id.id}"/>\n"""
 
         arch_base += _("</field>" "</data>")
         existing_views = (

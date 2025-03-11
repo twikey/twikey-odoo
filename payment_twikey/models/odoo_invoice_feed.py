@@ -1,7 +1,8 @@
 import logging
 from ..twikey.client import TwikeyError
 from ..twikey.invoice import InvoiceFeed
-from odoo.exceptions import Command, UserError
+from odoo import Command
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 

@@ -102,11 +102,11 @@ class AccountInvoice(models.Model):
                 # ensure logged in otherwise company of url might not be filled in
                 twikey_client.refreshTokenIfRequired()
 
-            to_be_send.transfer_to_twikey(twikey_client)
+            to_be_send.transfer_to_twikey(twikey_client, cron=cron)
         else:
             _logger.info("Not sending to Twikey as not configured")
 
-    def transfer_to_twikey(self, twikeyClient):
+    def transfer_to_twikey(self, twikeyClient, cron=False):
         """Actual sending of twikey"""
         for invoice in self:
             # Handle as refund
@@ -258,9 +258,10 @@ class AccountInvoice(models.Model):
                     body=errmsg,
                 )
                 _logger.error(errmsg)
-                return get_error_msg(
-                    str(e), "Exception raised while creating a new Invoice"
-                )
+                if not cron:
+                    return get_error_msg(
+                        str(e), "Exception raised while creating a new Invoice"
+                    )
 
     def update_invoice_feed(self, company=None):
         if not company:

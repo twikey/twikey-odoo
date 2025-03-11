@@ -12,8 +12,8 @@ def get_twikey_customer(partner):
 
     first_name, last_name = payment_utils.split_partner_name(partner.name)
     customer = {
-        "firstname": first_name,
-        "lastname": last_name,
+        "firstname": first_name or "_",
+        "lastname": last_name or "_",
         "l": partner.lang if partner.lang else "en",
         "locale": partner.lang if partner.lang else "en",
         "customerNumber": owner.id,
