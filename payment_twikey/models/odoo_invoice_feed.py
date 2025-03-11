@@ -52,6 +52,22 @@ class OdooInvoiceFeed(InvoiceFeed):
             payment_description = "Other"
         return payment_description
 
+    def get_payment_method(self, twikey_invoice):
+        meta = twikey_invoice.get("meta")
+        payment_method = self.env["payment.method"]
+        if meta:
+            payment_method_code = meta.get("paymentMethod")
+            payment_method = self.env["payment.method"].search(
+                [("code", "=", payment_method_code)], limit=1
+            )
+        if not payment_method:
+            payment_method = self.env["payment.method"].search(
+                [("code", "=", "unknown")], limit=1
+            )
+        if not payment_method:
+            payment_method = self.env["payment.method"].search([], limit=1)
+        return payment_method
+
     def get_or_create_payment_transaction(self, txdict):
         tx = self.transaction.search(
             [("provider_reference", "=", txdict["provider_reference"])], limit=1
@@ -96,6 +112,7 @@ class OdooInvoiceFeed(InvoiceFeed):
                                 token_id = self.env["payment.token"].search(
                                     search_mandate, limit=1
                                 )
+                            payment_method = self.get_payment_method(twikey_invoice)
                             tx = self.get_or_create_payment_transaction(
                                 {
                                     "amount": twikey_invoice["amount"],
@@ -106,12 +123,12 @@ class OdooInvoiceFeed(InvoiceFeed):
                                     "provider_reference": id,
                                     "operation": "offline",
                                     "partner_id": invoice_id.partner_id.id,
+                                    "payment_method_id": payment_method.id,
                                 }
                             )
                             tx.invoice_ids = [Command.set(invoice_id.ids)]
-                            tx._set_done(payment_description)
-                            tx._reconcile_after_done()
-                            tx._finalize_post_processing()
+                            tx._set_done(state_message=payment_description)
+                            tx._post_process()
                         else:
                             invoice_id.message_post(
                                 body=f"Unable to register payment as no last "
@@ -129,15 +146,14 @@ class OdooInvoiceFeed(InvoiceFeed):
                                     last_payment["rc"]
                                 )
                                 tx._set_error(errorcode)
-                                refund = tx._create_refund_transaction(
+                                refund = tx._send_refund_request(
                                     amount_to_refund=tx.amount,
                                     provider_reference=id,
                                     invoice_ids=invoice_id.ids,
                                 )
                                 # tx._set_error(errorcode) wont work as done can't be reverted
-                                refund._set_done(errorcode)
-                                refund._reconcile_after_done()
-                                refund._finalize_post_processing()
+                                refund._set_done(state_message=errorcode)
+                                refund._post_process()
                             else:
                                 _logger.warning(
                                     f"payment.transaction with reference={provider_reference} not found"
@@ -160,20 +176,16 @@ class OdooInvoiceFeed(InvoiceFeed):
                     )
                     if tx:
                         if new_state == "PAID":
-                            tx._set_done(payment_description)
-                            tx._reconcile_after_done()
-                            tx._finalize_post_processing()
+                            tx._set_done(state_message=payment_description)
+                            tx._post_process()
                         elif new_state in ["BOOKED", "EXPIRED"]:
                             errorcode = "Failed with errorcode={}".format(
                                 last_payment["rc"]
                             )
                             tx._set_error(errorcode)
-                            refund = tx._create_refund_transaction(
-                                provider_reference=id
-                            )
-                            refund._set_done(errorcode)
-                            refund._reconcile_after_done()
-                            refund._finalize_post_processing()
+                            refund = tx._send_refund_request(provider_reference=id)
+                            refund._set_done(state_message=errorcode)
+                            refund._post_process()
                     else:
                         _logger.warning(f"Invalid invoice-ref={ref_id} ignoring")
         except TwikeyError as te:
