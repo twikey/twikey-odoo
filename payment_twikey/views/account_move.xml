@@ -10,7 +10,7 @@
                         string="Send to Twikey"
                         type="object"
                         class="btn-info"
-                        invisible="send_to_twikey"/>
+                        invisible="send_to_twikey or not is_twikey_eligable"/>
             </header>
             <xpath expr="//page[@name='other_info']" position="after">
                 <field name="is_twikey_eligable" invisible="1"/>

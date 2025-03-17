@@ -67,6 +67,12 @@ class ResConfigSettings(models.TransientModel):
         )
         return res
 
+    @api.model
+    def twikey_refresh_credentials_by_cron(self):
+        companies = self.env["res.company"].search([("activate_twikey", "=", True)])
+        for company in companies:
+            self.with_company(company).twikey_refresh_credentials()
+
     def twikey_refresh_credentials(self):
         try:
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(

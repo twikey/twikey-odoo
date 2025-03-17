@@ -5,6 +5,7 @@ import uuid
 from odoo import _, api, fields, models
 import psycopg2
 
+from src.odoo.odoo.exceptions import UserError
 from ..twikey.client import TwikeyError
 from .odoo_invoice_feed import OdooInvoiceFeed
 from ..utils import get_twikey_customer, get_error_msg, get_success_msg
@@ -69,6 +70,11 @@ class AccountInvoice(models.Model):
         They will be sent later on by a job.
         """
         for record in self:
+            company = record.company
+            if not company.sudo().activate_twikey:
+                raise UserError(
+                    _("Twikey is not activated for company %s") % company.name
+                )
             if not record.is_twikey_eligable:
                 return get_error_msg(f"Invoice {record.name} cannot be send to Twikey")
             record.send_to_twikey = True
@@ -80,6 +86,12 @@ class AccountInvoice(models.Model):
             [("name", "=", "twikey")]
         ).message_post(subject="Prepare for sending", body=msg)
         return get_success_msg(msg)
+
+    @api.model
+    def send_invoices_by_cron(self):
+        companies = self.env["res.company"].search([("activate_twikey", "=", True)])
+        for company in companies:
+            self.with_company(company).send_invoices(cron=True)
 
     def send_invoices(self, cron=False):
         """Collect all invoices to be sent to twikey"""
@@ -263,6 +275,12 @@ class AccountInvoice(models.Model):
                         str(e), "Exception raised while creating a new Invoice"
                     )
 
+    @api.model
+    def update_invoice_feed_by_cron(self):
+        companies = self.env["res.company"].search([("activate_twikey", "=", True)])
+        for company in companies:
+            self.update_invoice_feed(company)
+
     def update_invoice_feed(self, company=None):
         if not company:
             company = self.env.company
@@ -326,31 +344,30 @@ class AccountInvoice(models.Model):
     def create(self, vals_list):
         """Set a default value for 'send_to_twikey' according to the standard rules."""
 
-        twikey_send_invoice = self.env.company.sudo().twikey_send_invoice
-        twikey_auto_collect = self.env.company.sudo().twikey_auto_collect
-        twikey_send_pdf = self.env.company.sudo().twikey_send_pdf
-        twikey_include_purchase = self.env.company.sudo().twikey_include_purchase
+        if self.env.company.sudo().activate_twikey:
+            twikey_send_invoice = self.env.company.sudo().twikey_send_invoice
+            twikey_auto_collect = self.env.company.sudo().twikey_auto_collect
+            twikey_send_pdf = self.env.company.sudo().twikey_send_pdf
+            twikey_include_purchase = self.env.company.sudo().twikey_include_purchase
 
-        for val in vals_list:
-            if not val.get(F_SEND_TO_TWIKEY):
-                val[F_SEND_TO_TWIKEY] = twikey_send_invoice
-            if not val.get(F_AUTO_COLLECT_INVOICE):
-                val[F_AUTO_COLLECT_INVOICE] = twikey_auto_collect
-            if not val.get(F_INCLUDE_PDF_INVOICE):
-                val[F_INCLUDE_PDF_INVOICE] = twikey_send_pdf
-
-            if val.get("move_type"):
-                if val.get(F_SEND_TO_TWIKEY) and val.get("move_type") in [
-                    "out_invoice",
-                    "out_refund",
-                ]:
+            for val in vals_list:
+                if not val.get(F_SEND_TO_TWIKEY):
                     val[F_SEND_TO_TWIKEY] = twikey_send_invoice
-                elif val.get("move_type") == "in_invoice":
-                    val[F_SEND_TO_TWIKEY] = twikey_include_purchase
-                else:
-                    val[F_SEND_TO_TWIKEY] = False
+                if not val.get(F_AUTO_COLLECT_INVOICE):
+                    val[F_AUTO_COLLECT_INVOICE] = twikey_auto_collect
+                if not val.get(F_INCLUDE_PDF_INVOICE):
+                    val[F_INCLUDE_PDF_INVOICE] = twikey_send_pdf
 
-            # _logger.info("Creating invoice : {}".format(val))
+                if val.get("move_type"):
+                    if val.get(F_SEND_TO_TWIKEY) and val.get("move_type") in [
+                        "out_invoice",
+                        "out_refund",
+                    ]:
+                        val[F_SEND_TO_TWIKEY] = twikey_send_invoice
+                    elif val.get("move_type") == "in_invoice":
+                        val[F_SEND_TO_TWIKEY] = twikey_include_purchase
+                    else:
+                        val[F_SEND_TO_TWIKEY] = False
         return super().create(vals_list)
 
     def write(self, values):
@@ -359,15 +376,16 @@ class AccountInvoice(models.Model):
         is only done if move_type is changed into a type that doesn't have to be sent.
         """
         res = super().write(values)
-        if self.env.context.get("update_feed", False):
-            return res
-
-        for record in self:
-            if record.twikey_invoice_identifier and values.get("state"):
-                if values.get("state") == "paid":
-                    record.update_twikey_state("paid")
-                elif values.get("state") == "cancel":
-                    record.update_twikey_state("archived")
+        if (
+            not self.env.context.get("update_feed", False)
+            and self.env.company.sudo().activate_twikey
+        ):
+            for record in self:
+                if record.twikey_invoice_identifier and values.get("state"):
+                    if values.get("state") == "paid":
+                        record.update_twikey_state("paid")
+                    elif values.get("state") == "cancel":
+                        record.update_twikey_state("archived")
         return res
 
     @api.depends("move_type")
@@ -376,7 +394,10 @@ class AccountInvoice(models.Model):
         Only certain types of account moves can be sent to Twikey.
         """
         for move in self:
-            if move.company_id.sudo().twikey_include_purchase:
+            company = move.company_id or self.env.company
+            if not company.sudo().activate_twikey:
+                move.is_twikey_eligable = False
+            elif move.company_id.sudo().twikey_include_purchase:
                 move.is_twikey_eligable = move.move_type in [
                     "in_invoice",
                     "out_invoice",
@@ -393,25 +414,29 @@ class AccountInvoice(models.Model):
         """
         Calculate the url of the invoice in Twikey.
         """
-        try:
-            twikey_client = (
-                self.env["ir.config_parameter"]
-                .sudo()
-                .get_twikey_client(company=self.env.company)
-            )
-            for move in self:
-                if move.twikey_invoice_identifier:
-                    move.twikey_url = twikey_client.invoice.geturl(
-                        move.twikey_invoice_identifier
-                    )
-        except Exception as e:
-            _logger.exception(e)
+        if self.env.company.sudo().activate_twikey:
+            try:
+                twikey_client = (
+                    self.env["ir.config_parameter"]
+                    .sudo()
+                    .get_twikey_client(company=self.env.company)
+                )
+                for move in self:
+                    if move.twikey_invoice_identifier:
+                        move.twikey_url = twikey_client.invoice.geturl(
+                            move.twikey_invoice_identifier
+                        )
+            except Exception as e:
+                _logger.exception(e)
 
     @api.depends("twikey_invoice_identifier")
     def _compute_link_html(self):
-        for record in self:
-            # Generate the HTML link
-            record.id_and_link_html = (
-                f'<a href="{record.twikey_url}" '
-                f'target="twikey">{record.twikey_invoice_identifier}</a>'
-            )
+        if self.env.company.sudo().activate_twikey:
+            for record in self:
+                # Generate the HTML link
+                record.id_and_link_html = (
+                    f'<a href="{record.twikey_url}" '
+                    f'target="twikey">{record.twikey_invoice_identifier}</a>'
+                )
+        else:
+            self.id_and_link_html = False

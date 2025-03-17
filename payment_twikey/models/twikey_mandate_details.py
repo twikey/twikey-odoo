@@ -1,7 +1,7 @@
 import logging
 
 import requests
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from ..twikey.client import TwikeyError
@@ -54,6 +54,12 @@ class TwikeyMandateDetails(models.Model):
         action = self.env.ref("payment_twikey.mandate_cancel_reason_action").read()[0]
         action["res_id"] = wizard.id
         return action
+
+    @api.model
+    def update_feed_by_cron(self):
+        companies = self.env["res.company"].search([("activate_twikey", "=", True)])
+        for company in companies:
+            self.update_feed(company)
 
     def update_feed(self, company=None):
         if not company:
