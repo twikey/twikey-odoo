@@ -5,7 +5,7 @@ import uuid
 from odoo import _, api, fields, models
 import psycopg2
 
-from src.odoo.odoo.exceptions import UserError
+from odoo.exceptions import UserError
 from ..twikey.client import TwikeyError
 from .odoo_invoice_feed import OdooInvoiceFeed
 from ..utils import get_twikey_customer, get_error_msg, get_success_msg
