@@ -17,7 +17,7 @@
                 <field name="twikey_invoice_identifier" invisible="1"/>
                 <page id="twikey_info" name="twikey_info" string="Twikey Info" invisible="not is_twikey_eligable">
                     <group>
-                        <field name="send_to_twikey"        invisible="twikey_invoice_identifier"/>
+                        <field name="send_to_twikey"        invisible="twikey_invoice_identifier or not is_twikey_eligable"/>
                         <field name="id_and_link_html"      invisible="not twikey_invoice_identifier" widget="html"/>
                         <field name="twikey_template_id"    invisible="not twikey_invoice_identifier" readonly="state != 'draft'"/>
                         <field name="twikey_invoice_state"  invisible="not twikey_invoice_identifier"

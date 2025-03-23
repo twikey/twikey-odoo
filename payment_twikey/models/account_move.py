@@ -38,10 +38,11 @@ class AccountInvoice(models.Model):
             ("EXPIRED", "Expired"),
             ("ARCHIVED", "Archived"),
         ],
+        copy=False,
         readonly=True,
     )
 
-    send_to_twikey = fields.Boolean(string="Send to Twikey", readonly=False)
+    send_to_twikey = fields.Boolean(string="Send to Twikey", readonly=False, copy=False)
     auto_collect_invoice = fields.Boolean(
         string="Collect the invoice if possible", readonly=False
     )
@@ -70,7 +71,7 @@ class AccountInvoice(models.Model):
         They will be sent later on by a job.
         """
         for record in self:
-            company = record.company
+            company = record.company_id
             if not company.sudo().activate_twikey:
                 raise UserError(
                     _("Twikey is not activated for company %s") % company.name
