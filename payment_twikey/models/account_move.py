@@ -109,6 +109,7 @@ class AccountInvoice(models.Model):
                     ("send_to_twikey", "=", True),
                     ("twikey_invoice_identifier", "=", False),
                     ("state", "=", "posted"),
+                    ("company_id", "=", self.env.company.id),
                 ]
             )
             if len(to_be_send) > 0:
