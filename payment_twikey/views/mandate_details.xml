@@ -11,34 +11,34 @@
                         string="Cancel"
                         type="object"
                         class="oe_highlight"
-                        invisible="state not in 'signed'"
+                        invisible="state != 'signed'"
                     />
                     <field name="state" widget="statusbar" nolabel="1" />
                 </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="partner_id" placeholder="Customer" readonly="state not in 'pending'"/>
+                            <field name="partner_id" placeholder="Customer" readonly="state != 'pending'"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="reference" readonly="state not in 'pending'"/>
-                            <field name="contract_temp_id" readonly="state not in 'pending'"/>
-                            <field name="url" widget="url" invisible="state not in 'pending' or not url"/>
+                            <field name="reference" readonly="state != 'pending'"/>
+                            <field name="contract_temp_id" readonly="state != 'pending'"/>
+                            <field name="url" widget="url" invisible="state != 'pending' or not url"/>
                         </group>
                         <group>
-                            <field name="iban" readonly="state not in 'pending'"/>
-                            <field name="bic" readonly="state not in 'pending'" />
-                            <field name="lang" readonly="state not in 'pending'"/>
+                            <field name="iban" readonly="state != 'pending'" />
+                            <field name="bic" readonly="state != 'pending'" />
+                            <field name="lang" readonly="state != 'pending'" />
                         </group>
                     </group>
-                    <field name="description" placeholder="Description" readonly="state not in 'pending'"/>
+                    <field name="description" placeholder="Description" readonly="state != 'pending'"/>
                 </sheet>
                 <div class="oe_chatter">
-                    <field name="message_follower_ids" />
-                    <field name="activity_ids" />
-                    <field name="message_ids" />
+                    <field name="message_follower_ids" widget="mail_followers" />
+                    <field name="activity_ids" widget="mail_activity" />
+                    <field name="message_ids" widget="mail_thread" />
                 </div>
             </form>
         </field>
@@ -48,20 +48,20 @@
         <field name="name">twikey.mandate.details.view.twikey.tree</field>
         <field name="model">twikey.mandate.details</field>
         <field name="arch" type="xml">
-            <tree create="false" delete="false">
+            <list create="false" delete="false">
                 <field name="partner_id" />
                 <field name="reference" />
                 <field name="contract_temp_id" />
                 <field name="lang" />
                 <field name="state" />
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="mandate_details_action" model="ir.actions.act_window">
         <field name="name">Mandate</field>
         <field name="res_model">twikey.mandate.details</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem

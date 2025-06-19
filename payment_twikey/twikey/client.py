@@ -11,7 +11,7 @@ from .transaction import Transaction
 from .refund import Refund
 
 
-class TwikeyClient(object):
+class TwikeyClient:
     lastLogin = None
     api_key = None
     api_token = None  # Once authenticated
@@ -65,17 +65,31 @@ class TwikeyClient(object):
 
         _hash = hmac.new(secret, counter, hashlib.sha256).digest()
         offset = ord(_hash[19]) & 0xF
-        return (struct.unpack(">I", _hash[offset:offset + 4])[0] & 0x7FFFFFFF) % 100000000
+        return (
+            struct.unpack(">I", _hash[offset : offset + 4])[0] & 0x7FFFFFFF
+        ) % 100000000
 
     def refreshTokenIfRequired(self):
         if self.lastLogin:
-            self.logger.debug("Last authenticated with {} with {}".format(self.lastLogin, self.api_token))
+            self.logger.debug(
+                "Last authenticated with {} with {}".format(
+                    self.lastLogin, self.api_token
+                )
+            )
 
         if not self.api_base:
-            raise TwikeyError(ctx="Config", error_code="Api-Url", error="No base url defined - %s" % self.api_base)
+            raise TwikeyError(
+                ctx="Config",
+                error_code="Api-Url",
+                error="No base url defined - %s" % self.api_base,
+            )
 
         if not self.api_key:
-            raise TwikeyError(ctx="Config", error_code="Api-Key", error="No key defined - %s" % self.api_base)
+            raise TwikeyError(
+                ctx="Config",
+                error_code="Api-Key",
+                error="No key defined - %s" % self.api_base,
+            )
 
         now = datetime.datetime.now()
         if self.lastLogin is None or (now - self.lastLogin).seconds > 23 * 3600:
@@ -83,7 +97,11 @@ class TwikeyClient(object):
             if self.private_key:
                 payload["otp"] = self.get_totp(self.vendorPrefix, self.private_key)
 
-            self.logger.debug("Authenticating with {} using {}...".format(self.api_base, self.api_key[0:10]))
+            self.logger.debug(
+                "Authenticating with {} using {}...".format(
+                    self.api_base, self.api_key[0:10]
+                )
+            )
             response = requests.post(
                 self.instance_url(),
                 data=payload,
@@ -96,12 +114,21 @@ class TwikeyClient(object):
                 self.logger.error(error_json)
                 error_code = response.headers["ApiErrorCode"]
                 error_json_message = "Error authenticating : %s" % error_json["message"]
-                raise TwikeyError(ctx="Config", error_code=error_code, error=error_json_message)
+                raise TwikeyError(
+                    ctx="Config", error_code=error_code, error=error_json_message
+                )
 
             if "X-Rate-Limit-Retry-After-Seconds" in response.headers:
-                retry_after_seconds = response.headers["X-Rate-Limit-Retry-After-Seconds"]
-                error_message = "Too many login's, please try again after %s sec." % retry_after_seconds
-                raise TwikeyError(ctx="Config", error_code="Rate limit", error=error_message)
+                retry_after_seconds = response.headers[
+                    "X-Rate-Limit-Retry-After-Seconds"
+                ]
+                error_message = (
+                    "Too many login's, please try again after %s sec."
+                    % retry_after_seconds
+                )
+                raise TwikeyError(
+                    ctx="Config", error_code="Rate limit", error=error_message
+                )
 
             if "Authorization" in response.headers:
                 self.api_token = response.headers["Authorization"]
@@ -109,9 +136,13 @@ class TwikeyClient(object):
                 self.lastLogin = datetime.datetime.now()
             else:
                 error_message = "Invalid response : %s" % str(response)
-                raise TwikeyError(ctx="Config", error_code="Authentication", error=error_message)
+                raise TwikeyError(
+                    ctx="Config", error_code="Authentication", error=error_message
+                )
         else:
-            self.logger.debug("Reusing token {} valid till {}".format(self.api_token, self.lastLogin))
+            self.logger.debug(
+                "Reusing token {} valid till {}".format(self.api_token, self.lastLogin)
+            )
 
     def headers(self, content_type="application/x-www-form-urlencoded"):
         return {
@@ -123,7 +154,11 @@ class TwikeyClient(object):
 
     def templates(self):
         try:
-            response = requests.get(self.instance_url("/template"),headers=self.headers(),timeout=15,)
+            response = requests.get(
+                self.instance_url("/template"),
+                headers=self.headers(),
+                timeout=15,
+            )
             if "ApiErrorCode" in response.headers:
                 raise self.raise_error("Feed", response)
             if response.status_code == 200:
@@ -138,13 +173,17 @@ class TwikeyClient(object):
         try:
             error_json = response.json()
             extra = error_json["extra"] if "extra" in error_json else False
-            return TwikeyError(context, error_json["code"], error_json["message"], extra)
+            return TwikeyError(
+                context, error_json["code"], error_json["message"], extra
+            )
         except requests.exceptions.JSONDecodeError:
             return TwikeyError(context, response.url, response.text)
 
     def raise_error_from_request(self, context, request_exception):
         self.logger.error("Error in '%s' request %s " % (context, request_exception))
-        return TwikeyError(context, request_exception.__class__.__name__, request_exception)
+        return TwikeyError(
+            context, request_exception.__class__.__name__, request_exception
+        )
 
     def logout(self):
         self.logger.info("Logging out of Twikey")
@@ -156,7 +195,9 @@ class TwikeyClient(object):
         response_text = json.loads(response.text)
         if "code" in response_text:
             if "err" in response_text["code"]:
-                raise TwikeyError(ctx="Logout",error_code="Logout", error=response_text["message"])
+                raise TwikeyError(
+                    ctx="Logout", error_code="Logout", error=response_text["message"]
+                )
 
         self.api_token = None
         self.lastLogin = None
@@ -165,7 +206,9 @@ class TwikeyClient(object):
 class TwikeyError(Exception):
     """Twikey error."""
 
-    def __init__(self, ctx, error_code, error, extra=False, *args, **kwargs):  # real signature unknown
+    def __init__(
+        self, ctx, error_code, error, extra=False, *args, **kwargs
+    ):  # real signature unknown
         super().__init__(args, kwargs)
         self.ctx = ctx
         self.error_code = error_code
@@ -174,7 +217,9 @@ class TwikeyError(Exception):
 
     def __str__(self):
         if self.extra:
-            return "[{}] code={}, msg={} extra={}".format(self.ctx, self.error_code, self.error, self.extra)
+            return "[{}] code={}, msg={} extra={}".format(
+                self.ctx, self.error_code, self.error, self.extra
+            )
         return "[{}] code={}, msg={}".format(self.ctx, self.error_code, self.error)
 
     def get_code(self):

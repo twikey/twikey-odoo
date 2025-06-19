@@ -5,7 +5,7 @@ class SaleOrder(models.Model):
     _inherit = "sale.order"
 
     def _prepare_invoice(self):
-        res = super(SaleOrder, self)._prepare_invoice()
+        res = super()._prepare_invoice()
         if "twikey_template_id" in self._context:
             res["twikey_template_id"] = self._context.get("twikey_template_id")
         if "send_to_twikey" in self._context:

@@ -4,3 +4,5 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+.flake8
+.pre-commit-config.yaml
