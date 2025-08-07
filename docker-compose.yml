@@ -1,7 +1,7 @@
 version: "2"
 services:
   app:
-    image: odoo:17
+    image: odoo:18
     depends_on:
       - db
     restart: always
