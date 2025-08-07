@@ -104,19 +104,10 @@ class SyncContractTemplates(models.AbstractModel):
             '<?xml version="1.0"?>' "<data>" '<field name="url" position="after">\n'
         )
         if template_id.mandate_number_required:
-            mandate_arch_base += f"""\t<field name="reference"
-                                required="contract_temp_id != {template_id.id}"
-                                invisible="contract_temp_id != {template_id.id}"
-                                readonly="state != 'pending'"/>\n"""
+            mandate_arch_base += f"""\t<field name="reference" readonly="state != 'pending'"/>\n"""
 
         for mandate in mandate_field_list:
-            if mandate.required:
-                mandate_arch_base += f"""\t<field name="{mandate.name}"
-                required="contract_temp_id != {template_id.id}"
-                invisible="contract_temp_id != {template_id.id}"/>\n"""
-            else:
-                mandate_arch_base += f"""\t<field name="{mandate.name}"
-                    invisible="contract_temp_id != {template_id.id}"/>\n"""
+            mandate_arch_base += f"""\t<field name="{mandate.name}"/>\n"""
 
         mandate_arch_base += _("</field>" "</data>")
 
@@ -152,18 +143,10 @@ class SyncContractTemplates(models.AbstractModel):
         )
 
         if template_id.mandate_number_required:
-            arch_base += f"""\t<field name="reference"
-                            required="template_id = {template_id.id}"
-                            invisible="template_id != {template_id.id}"/>\n"""
+            arch_base += f"""\t<field name="reference"/>\n"""
 
         for field in fields_list:
-            if field.required:
-                arch_base += f"""\t<field name="{field.name}"
-                            required="template_id = {template_id.id}"
-                            invisible="template_id != {template_id.id}"/>\n"""
-            else:
-                arch_base += f"""\t<field name="{field.name}"
-                invisible="template_id != {template_id.id}"/>\n"""
+            arch_base += f"""\t<field name="{field.name}"/>\n"""
 
         arch_base += _("</field>" "</data>")
         existing_views = (

@@ -15,7 +15,7 @@
                </header>
            </xpath>
            <xpath expr="//notebook" position="inside">
-                <page name="mandate" string="Mandates">
+                <page name="mandate" string="Mandates" invisible="not is_company">
                     <field name="twikey_mandate_ids" />
                 </page>
            </xpath>

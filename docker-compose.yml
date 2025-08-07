@@ -13,7 +13,7 @@ services:
       - USER=odoo
       - PASSWORD=odoo
     volumes:
-      - odoo-web-data16:/var/lib/odoo
+      - odoo-web-data18:/var/lib/odoo
 #      - ./odoo.conf:/etc/odoo/odoo.conf
       - ./payment_twikey:/mnt/extra-addons/payment_twikey
   db:
@@ -25,4 +25,4 @@ services:
     ports:
       - 6432:5432
 volumes:
-  odoo-web-data16:
+  odoo-web-data18:
