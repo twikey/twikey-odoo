@@ -18,7 +18,7 @@
         "data/schedulers.xml",
         "data/mail_template.xml",
         "data/product_data.xml",
-        "data/payment_acquirer_data.xml",
+        "data/payment_provider_data.xml",
         # Reports
         "report/report_account_invoice.xml",
         # Security

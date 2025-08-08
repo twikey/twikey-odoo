@@ -80,6 +80,22 @@ class PaymentProvider(models.Model):
                     "active": active,
                     "expiry": expiry,
                     "type": type,
+                    "payment_method_code": 'card'
                 }
             )
             return True
+
+    def _get_default_payment_method_codes(self):
+        """ Override of `payment` to return the default payment method codes. """
+        import logging
+        _logger = logging.getLogger(__name__)
+
+        default_codes = super()._get_default_payment_method_codes()
+        _logger.info(f"Default codes from parent: {default_codes}")
+
+        if self.code != 'twikey':
+            return default_codes
+
+        twikey_codes = ['sepa_direct_debit']
+        _logger.info(f"Returning Twikey codes: {twikey_codes}")
+        return twikey_codes

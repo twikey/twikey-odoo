@@ -14,7 +14,7 @@
     </record>
 
     <record id="twikey_update_feed" model="ir.cron">
-        <field name="name">Twikey: Update Feed</field>
+        <field name="name">Twikey: Update Mandate Feed</field>
         <field name="model_id" ref="payment_twikey.model_twikey_mandate_details" />
         <field name="state">code</field>
         <field name="code">model.update_feed_by_cron()</field>
