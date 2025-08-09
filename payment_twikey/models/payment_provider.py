@@ -44,10 +44,12 @@ class PaymentProvider(models.Model):
             payment_details = mandate_id.get_attribute("_last")
             type = "CC"
             expiry = mandate_id.get_attribute("_expiry")
+            payment_method_id = self.env.ref('payment.payment_method_card').id
         else:
             payment_details = mandate_id.iban
             type = "SDD"
             expiry = False
+            payment_method_id = self.env.ref('payment.payment_method_sepa_direct_debit').id
 
         existing_token = (
             self.env["payment.token"]
@@ -80,6 +82,7 @@ class PaymentProvider(models.Model):
                     "active": active,
                     "expiry": expiry,
                     "type": type,
+                    "payment_method_id": payment_method_id,
                 }
             )
             return True
