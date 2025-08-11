@@ -152,10 +152,10 @@ class TwikeyClient:
             "User-Agent": self.user_agent,
         }
 
-    def templates(self):
+    def me(self) -> any:
         try:
             response = requests.get(
-                self.instance_url("/template"),
+                self.instance_url("/me?include=profiles"),
                 headers=self.headers(),
                 timeout=15,
             )

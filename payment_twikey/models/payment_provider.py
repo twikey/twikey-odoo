@@ -44,10 +44,12 @@ class PaymentProvider(models.Model):
             payment_details = mandate_id.get_attribute("_last")
             type = "CC"
             expiry = mandate_id.get_attribute("_expiry")
+            payment_method_id = self.env.ref('payment.payment_method_card').id
         else:
             payment_details = mandate_id.iban
             type = "SDD"
             expiry = False
+            payment_method_id = self.env.ref('payment.payment_method_sepa_direct_debit').id
 
         existing_token = (
             self.env["payment.token"]
@@ -80,22 +82,7 @@ class PaymentProvider(models.Model):
                     "active": active,
                     "expiry": expiry,
                     "type": type,
-                    "payment_method_code": 'card'
+                    "payment_method_id": payment_method_id,
                 }
             )
             return True
-
-    def _get_default_payment_method_codes(self):
-        """ Override of `payment` to return the default payment method codes. """
-        import logging
-        _logger = logging.getLogger(__name__)
-
-        default_codes = super()._get_default_payment_method_codes()
-        _logger.info(f"Default codes from parent: {default_codes}")
-
-        if self.code != 'twikey':
-            return default_codes
-
-        twikey_codes = ['sepa_direct_debit']
-        _logger.info(f"Returning Twikey codes: {twikey_codes}")
-        return twikey_codes

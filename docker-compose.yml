@@ -17,7 +17,7 @@ services:
 #      - ./odoo.conf:/etc/odoo/odoo.conf
       - ./payment_twikey:/mnt/extra-addons/payment_twikey
   db:
-    image: postgres:alpine
+    image: postgres:16-alpine
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=odoo

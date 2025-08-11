@@ -6,9 +6,9 @@ class ContractTemplateAttribute(models.Model):
     _description = "Attributes for Twikey Profile"
 
     name = fields.Char(string="Twikey Profile Attribute", readonly=True)
-    contract_template_id = fields.Many2one(
+    template_id = fields.Many2one(
         "twikey.contract.template",
-        string="Twikey Profile",
+        string="Profile",
         required=True,
         ondelete="cascade",
         readonly=True,

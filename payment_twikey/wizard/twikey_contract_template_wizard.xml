@@ -6,7 +6,12 @@
         <field name="arch" type="xml">
             <form>
                 <group>
-                   <field name="template_id" />
+                    <field name="template_id" />
+                    <field name="mail_template_id"
+                           options="{'no_create': True, 'no_edit': True}"
+                           context="{'default_model': 'account.move'}"/>
+                    <field name="mail_subject" placeholder="Subject..."/>
+                    <field name="mail_body" class="oe-bordered-editor" widget="html_mail"/>
                 </group>
                 <footer>
                     <button

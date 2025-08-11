@@ -39,7 +39,7 @@ class PaymentTransaction(models.Model):
             if twikey_client:
                 if self.provider_id.allow_tokenization and twikey_template:
                     payload = self._twikey_prepare_token_request_payload(
-                        customer, base_url, twikey_template.template_id_twikey, method
+                        customer, base_url, twikey_template.twikey_id, method
                     )
                     mndt = twikey_client.document.sign(payload)
                     # The provider reference is set now to allow fetching the payment status after redirection
@@ -49,7 +49,7 @@ class PaymentTransaction(models.Model):
                     # Store the mandate
                     self.env["twikey.mandate.details"].sudo().create(
                         {
-                            "contract_temp_id": twikey_template.id,
+                            "template_id": twikey_template.id,
                             "lang": customer.lang,
                             "partner_id": payload.get("customerNumber"),
                             "reference": self.provider_reference,
@@ -64,7 +64,7 @@ class PaymentTransaction(models.Model):
                     )
                 else:
                     payload = self._twikey_prepare_payment_request_payload(
-                        customer, base_url, twikey_template.template_id_twikey, method
+                        customer, base_url, twikey_template.twikey_id, method
                     )
                     paylink = twikey_client.paylink.create(payload)
                     # The provider reference is set now to allow fetching the payment status after redirection
@@ -285,7 +285,7 @@ class PaymentTransaction(models.Model):
                     }
                     twikey_invoice = twikey_client.invoice.create(invoice, "Odoo")
                     template_id = self.env["twikey.contract.template"].search(
-                        [("template_id_twikey", "=", twikey_invoice.get("ct"))], limit=1
+                        [("twikey_id", "=", twikey_invoice.get("ct"))], limit=1
                     )
                     invoice_id.with_context(update_feed=True).write(
                         {
