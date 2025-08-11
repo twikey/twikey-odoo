@@ -83,7 +83,7 @@ class OdooDocumentFeed(DocumentFeed):
         if "TemplateId" in field_dict:
             temp_id = field_dict["TemplateId"]
             template_id = self.template.search(
-                [("template_id_twikey", "=", temp_id)], limit=1
+                [("twikey_id", "=", temp_id)], limit=1
             )
 
         address, zip_code, city, country_id = self.prepare_address(debtor)
@@ -137,7 +137,7 @@ class OdooDocumentFeed(DocumentFeed):
             "partner_id": partner_id.id if partner_id else False,
             "state": new_state if updated_doc else "signed",
             "lang": lang_id.code if lang_id else False,
-            "contract_temp_id": template_id.id if template_id else False,
+            "template_id": template_id.id if template_id else False,
             "iban": iban if iban else False,
             "bic": bic if bic else False,
         }

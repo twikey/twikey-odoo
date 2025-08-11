@@ -26,40 +26,80 @@ class SyncContractTemplates(models.AbstractModel):
     _name = "twikey.sync.contract.templates"
     _description = "Profiles in Twikey"
 
-    def fetch_contract_templates(self):
+    def twikey_sync_contract_templates(self):
+        resp_obj = self.fetch_config()
+        if resp_obj:
+            twikey_temp_list = []
+            profiles_array = resp_obj.get("profiles", [])
+            for profile in profiles_array:
+                ct = profile.get("id")
+                twikey_temp_list.append(ct)
+
+                template_id = self.search_create_template(profile)
+                _logger.info(f"Handling #{ct} - {template_id.name}")
+                if profile.get("attributes"):
+                    fields_list, mandate_field_list = self.process_contract_attribute(template_id, profile)
+                    if fields_list:
+                        self.process_new_field_views(fields_list, template_id)
+
+                    if mandate_field_list:
+                        self.process_new_mandate_field_views(
+                            mandate_field_list, template_id
+                        )
+
+            temp_list = [
+                template.twikey_id
+                for template in self.env["twikey.contract.template"].search(
+                    [("active", "in", [True, False])]
+                )
+            ]
+
+            diff_list = []
+            for temp_diff in temp_list:
+                if temp_diff not in twikey_temp_list:
+                    diff_list.append(temp_diff)
+
+            if diff_list:
+                for to_delete in diff_list:
+                    template_ids = self.env["twikey.contract.template"].search(
+                        [
+                            ("twikey_id", "=", to_delete),
+                            ("active", "in", [True, False]),
+                        ]
+                    )
+                    if template_ids:
+                        template_ids.unlink()
+            return True
+        return False
+
+    def fetch_config(self) -> any:
         try:
             twikey_client = self.env["ir.config_parameter"].get_twikey_client(
                 company=self.env.company
             )
             if twikey_client:
                 twikey_client.refreshTokenIfRequired()
-                return twikey_client.templates()
+                return twikey_client.me()
             else:
                 return False
         except TwikeyError as e:
             raise UserError from e
 
-    def search_create_template(self, ct, response):
-        name = response.get("name")
+    def search_create_template(self, profile):
+        ct = profile.get("id")
+        name = profile.get("name")
 
-        template_id = self.env["twikey.contract.template"].search(
-            [("template_id_twikey", "=", ct), ("active", "in", [True, False])]
-        )
+        template_id = self.env["twikey.contract.template"].search([("twikey_id", "=", ct)])
         if not template_id:
             template_id = self.env["twikey.contract.template"].create(
                 {
-                    "template_id_twikey": ct,
+                    "twikey_id": ct,
                     "name": name,
-                    "active": response.get("active"),
-                    "type": response.get("type"),
-                    "mandate_number_required": not response.get(
-                        "mandateNumberRequired"
-                    ),
+                    "active": profile.get("active"),
+                    "type": profile.get("type"),
                 }
             )
-            self.env["discuss.channel"].sudo().search(
-                [("name", "=", "twikey")]
-            ).message_post(
+            self.env["discuss.channel"].sudo().search([("name", "=", "twikey")]).message_post(
                 subject="Configuration", body=f"Added template {name} (#{ct})"
             )
 
@@ -96,27 +136,22 @@ class SyncContractTemplates(models.AbstractModel):
             return ir_fields
 
     def process_new_mandate_field_views(self, mandate_field_list, template_id):
-        name = f"mandate.dynamic.fields.{template_id.template_id_twikey}"
+        name = f"mandate.dynamic.fields.{template_id.twikey_id}"
         inherit_mandate_id = self.env.ref(
             "payment_twikey.mandate_details_view_twikey_form"
         )
         mandate_arch_base = _(
             '<?xml version="1.0"?>' "<data>" '<field name="url" position="after">\n'
         )
-        if template_id.mandate_number_required:
-            mandate_arch_base += f"""\t<field name="reference"
-                                required="contract_temp_id != {template_id.id}"
-                                invisible="contract_temp_id != {template_id.id}"
-                                readonly="state != 'pending'"/>\n"""
 
         for mandate in mandate_field_list:
             if mandate.required:
                 mandate_arch_base += f"""\t<field name="{mandate.name}"
-                required="contract_temp_id != {template_id.id}"
-                invisible="contract_temp_id != {template_id.id}"/>\n"""
+                required="template_id != {template_id.id}"
+                invisible="template_id != {template_id.id}"/>\n"""
             else:
                 mandate_arch_base += f"""\t<field name="{mandate.name}"
-                    invisible="contract_temp_id != {template_id.id}"/>\n"""
+                    invisible="template_id != {template_id.id}"/>\n"""
 
         mandate_arch_base += _("</field>" "</data>")
 
@@ -141,29 +176,23 @@ class SyncContractTemplates(models.AbstractModel):
         )
 
     def process_new_field_views(self, fields_list, template_id):
-        name = f"attribute.dynamic.fields.{template_id.template_id_twikey}"
-        inherit_id = self.env.ref(
-            "payment_twikey.contract_template_wizard_view_twikey_form"
-        )
+        name = f"attribute.dynamic.fields.{template_id.twikey_id}"
+        inherit_id = self.env.ref("payment_twikey.contract_template_wizard_view_twikey_form")
         arch_base = _(
             '<?xml version="1.0"?>'
             "<data>"
             '<field name="template_id" position="after">\n'
         )
 
-        if template_id.mandate_number_required:
-            arch_base += f"""\t<field name="reference"
-                            required="template_id = {template_id.id}"
-                            invisible="template_id != {template_id.id}"/>\n"""
-
+        ct = template_id.id
         for field in fields_list:
             if field.required:
-                arch_base += f"""\t<field name="{field.name}"
-                            required="template_id = {template_id.id}"
-                            invisible="template_id != {template_id.id}"/>\n"""
+                arch_base += f"""\t<field name="{field.name}" 
+                    required="template_id=={ct}" 
+                    invisible="template_id != {ct}"/>\n"""
             else:
                 arch_base += f"""\t<field name="{field.name}"
-                invisible="template_id != {template_id.id}"/>\n"""
+                invisible="template_id != {ct}"/>\n"""
 
         arch_base += _("</field>" "</data>")
         existing_views = (
@@ -186,12 +215,12 @@ class SyncContractTemplates(models.AbstractModel):
             }
         )
 
-    def process_contract_attribute(self, template_id, response):
-        ct = response.get("id")
+    def process_contract_attribute(self, template_id, profile):
+        ct = profile.get("id")
         fields_list = []
         mandate_field_list = []
         stale_attributes = template_id.twikey_attribute_ids.mapped("name")
-        for attr in response.get("Attributes"):
+        for attr in profile.get("attributes"):
             twikey_attr_name = attr.get("name")
             field_type = attr.get("type")
             if template_id.is_creditcard() and twikey_attr_name not in [
@@ -209,110 +238,41 @@ class SyncContractTemplates(models.AbstractModel):
 
             field_name = field_name_from_attribute(twikey_attr_name, ct)
 
-            wizard_model_id = self.env["ir.model"].search(
-                [("model", "=", "twikey.contract.template.wizard")]
-            )
+            wizard_model = self.env["ir.model"].search([("model", "=", "twikey.contract.template.wizard")])
             ir_fields = self.create_search_fields(
-                field_name, wizard_model_id, field_type, select_list, attr
+                field_name, wizard_model, field_type, select_list, attr
             )
             if ir_fields is not None:
                 fields_list.append(ir_fields)
 
-            mandate_model_id = self.env["ir.model"].search(
-                [("model", "=", "twikey.mandate.details")]
-            )
+            mandate_model = self.env["ir.model"].search([("model", "=", "twikey.mandate.details")])
             ir_fields = self.create_search_fields(
-                field_name, mandate_model_id, field_type, select_list, attr
+                field_name, mandate_model, field_type, select_list, attr
             )
             if ir_fields is not None:
                 mandate_field_list.append(ir_fields)
 
             attribute_vals = {
-                "contract_template_id": template_id.id,
+                "template_id": template_id.id,
                 "name": twikey_attr_name,
                 "type": Field_Type[attr.get("type")],
             }
             if twikey_attr_name in stale_attributes:
                 stale_attributes.remove(twikey_attr_name)
             if template_id.twikey_attribute_ids:
-                if twikey_attr_name not in template_id.twikey_attribute_ids.mapped(
-                    "name"
-                ):
-                    template_id.write(
-                        {"twikey_attribute_ids": [(0, 0, attribute_vals)]}
-                    )
-                    self.env["twikey.contract.template.attribute"].create(
-                        attribute_vals
-                    )
+                if twikey_attr_name not in template_id.twikey_attribute_ids.mapped("name"):
+                    template_id.write({"twikey_attribute_ids": [(0, 0, attribute_vals)]})
+                    self.env["twikey.contract.template.attribute"].create(attribute_vals)
             else:
                 template_id.write({"twikey_attribute_ids": [(0, 0, attribute_vals)]})
 
         for removable_name in stale_attributes:
-            _logger.info(
-                f"Removing stale attribute {removable_name} from  "
-                f"#{template_id.template_id_twikey} - {template_id.name}"
-            )
+            _logger.info(f"Removing stale attr={removable_name} from #{ct} - {template_id.name}")
             self.env["twikey.contract.template.attribute"].search(
                 [
-                    ("contract_template_id", "=", template_id.template_id_twikey),
+                    ("template_id", "=", ct),
                     ("name", "=", removable_name),
                 ]
             ).unlink()
 
         return fields_list, mandate_field_list
-
-    def twikey_sync_contract_templates(self):
-        resp_obj = self.fetch_contract_templates()
-
-        if resp_obj:
-            twikey_temp_list = []
-            for response in resp_obj:
-                ct = response.get("id")
-                twikey_temp_list.append(ct)
-
-                template_id = self.search_create_template(ct, response)
-                _logger.info(
-                    f"Handling #{template_id.template_id_twikey} - {template_id.name}"
-                )
-                if response.get("Attributes"):
-
-                    fields_list, mandate_field_list = self.process_contract_attribute(
-                        template_id, response
-                    )
-
-                    if fields_list:
-                        self.process_new_field_views(fields_list, template_id)
-
-                    if mandate_field_list or template_id.mandate_number_required:
-                        self.process_new_mandate_field_views(
-                            mandate_field_list, template_id
-                        )
-
-                elif template_id.mandate_number_required:  # field for mandatory ref
-                    self.process_new_field_views([], template_id)
-                    self.process_new_mandate_field_views([], template_id)
-
-            temp_list = [
-                template.template_id_twikey
-                for template in self.env["twikey.contract.template"].search(
-                    [("active", "in", [True, False])]
-                )
-            ]
-
-            diff_list = []
-            for temp_diff in temp_list:
-                if temp_diff not in twikey_temp_list:
-                    diff_list.append(temp_diff)
-
-            if diff_list:
-                for to_delete in diff_list:
-                    template_ids = self.env["twikey.contract.template"].search(
-                        [
-                            ("template_id_twikey", "=", to_delete),
-                            ("active", "in", [True, False]),
-                        ]
-                    )
-                    if template_ids:
-                        template_ids.unlink()
-            return True
-        return False

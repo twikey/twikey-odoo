@@ -32,12 +32,11 @@ class TwikeyMandateDetails(models.Model):
         default="pending",
         required=True,
     )
-    creditor_id = fields.Many2one("res.partner", string="Creditor-ID")
     reference = fields.Char(string="Mandate Reference", index=True)
     iban = fields.Char(string="IBAN")
     bic = fields.Char(string="BIC")
-    contract_temp_id = fields.Many2one(
-        comodel_name="twikey.contract.template", string="Twikey Profile", readonly=True
+    template_id = fields.Many2one(
+        comodel_name="twikey.contract.template", string="Profile", readonly=True
     )
     description = fields.Text()
     lang = fields.Selection(_lang_get, string="Language")
@@ -123,11 +122,8 @@ class TwikeyMandateDetails(models.Model):
         return self.state == "signed"
 
     def is_creditcard(self):
-        return self.contract_temp_id and self.contract_temp_id.type == "CREDITCARD"
+        return self.template_id and self.template_id.type == "CREDITCARD"
 
     def get_attribute(self, name):
-        ct = self.contract_temp_id.ct()
-        return self.contract_temp_id and self[field_name_from_attribute(name, ct)]
-
-    def is_mandatenumber_required(self):
-        return self.contract_temp_id and self.contract_temp_id.mandate_number_required
+        ct = self.template_id.ct()
+        return self.template_id and self[field_name_from_attribute(name, ct)]

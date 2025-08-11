@@ -6,13 +6,13 @@ class TwikeyContractTemplate(models.Model):
     _description = "Twikey Profile"
 
     _sql_constraints = [
-        ("template_id_unique", "unique(template_id_twikey)", "Already Exist!")
+        ("twikey_id_unique", "unique(twikey_id)", "Already Exist!")
     ]
 
     name = fields.Char(string="Twikey Profile", required=True, readonly=True)
-    template_id_twikey = fields.Integer(string="Template ID", readonly=True, index=True)
+    twikey_id = fields.Integer(string="Profile Id", readonly=True, index=True)
+    twikey_prefix = fields.Integer(string="Profile Prefix", readonly=True, index=True)
     active = fields.Boolean(default=True, readonly=True)
-    mandate_number_required = fields.Boolean(default=True, readonly=True)
     type = fields.Selection(
         [
             ("CORE", "CORE"),
@@ -29,7 +29,7 @@ class TwikeyContractTemplate(models.Model):
     )
     twikey_attribute_ids = fields.One2many(
         "twikey.contract.template.attribute",
-        "contract_template_id",
+        "template_id",
         string="Attributes",
     )
 
@@ -37,4 +37,4 @@ class TwikeyContractTemplate(models.Model):
         return self.type == "CREDITCARD"
 
     def ct(self):
-        return self.template_id_twikey
+        return self.twikey_id

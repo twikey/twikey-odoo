@@ -2,6 +2,8 @@
 <odoo noupdate="1">
     <record id="account.email_template_edi_invoice" model="mail.template">
         <field name="name">Invoice: Send by email</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Your invoice</field>
         <field name="body_html" type="html">
             <div style="margin: 0px; padding: 0px;">
                 <p style="margin: 0px; padding: 0px; font-size: 13px;">
@@ -53,6 +55,35 @@
                 </p>
             </div>
         </field>
+    </record>
 
+    <record id="mandate_email_invite" model="mail.template">
+        <field name="name">Invitation: Automatic payment</field>
+        <field name="subject">Invitation: Automatic payment</field>
+        <field name="body_html" type="html">
+            <div style="margin: 0px; padding: 0px;">
+                <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                    Dear
+                    <t t-if="object.parent_id">
+                        <t t-out="object.name or ''">Brandon Freeman</t> (<t t-out="object.parent_id.name or ''">Azure Interior</t>),
+                    </t>
+                    <t t-else="">
+                        <t t-out="object.name or ''">Brandon Freeman</t>,
+                    </t>
+                    <br /><br />
+                    Here is your
+                    <t t-if="object.name">
+                        invite <span style="font-weight:bold;" t-out="object.name or ''">INV/2021/05/0005</span>
+                    </t>
+                    <t t-else="">
+                        invite
+                    </t>
+                    from <t t-out="object.company_id.name or ''">YourCompany</t>.
+
+                    <br /><br />
+                    Do not hesitate to contact us if you have any questions.
+                </p>
+            </div>
+        </field>
     </record>
 </odoo>

@@ -13,15 +13,29 @@ class ResPartner(models.Model):
         self.ensure_one()
         company = self.company_id or self.env.company
         if company.sudo().activate_twikey:
-            wizard = self.env["twikey.contract.template.wizard"].create(
-                {
-                    "partner_ids": self.ids,
+            if len(self) == 1:
+                return {
+                    'name': _("Invite customer"),
+                    'type': 'ir.actions.act_window',
+                    'view_mode': 'form',
+                    'res_model': 'twikey.contract.template.wizard',
+                    'target': 'new',
+                    'context': {
+                        'active_id': self.id,
+                        'active_model': 'res.partner',
+                    },
                 }
-            )
-            action = self.env.ref(
-                "payment_twikey.contract_template_wizard_action"
-            ).read()[0]
-            action["res_id"] = wizard.id
-            return action
+            else:
+                return {
+                    'name': _("Invite customers"),
+                    'type': 'ir.actions.act_window',
+                    'view_mode': 'tree',
+                    'res_model': 'twikey.contract.template.batch.wizard',
+                    'target': 'new',
+                    'context': {
+                        'active_model': 'res.partner',
+                        'partner_ids': self.ids,
+                    },
+                }
         else:
             raise UserError(_("Twikey is not activated for company %s") % company.name)

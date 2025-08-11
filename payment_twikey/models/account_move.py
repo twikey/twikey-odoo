@@ -226,7 +226,7 @@ class AccountInvoice(models.Model):
                     "id": invoice_uuid,
                     "number": invoice.name,
                     "title": invoice.name,
-                    "ct": invoice.twikey_template_id.template_id_twikey,
+                    "ct": invoice.twikey_template_id.twikey_id,
                     "amount": amount,
                     "date": invoice.invoice_date.isoformat(),
                     "duedate": (
