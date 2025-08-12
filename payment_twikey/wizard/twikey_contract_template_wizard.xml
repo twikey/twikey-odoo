@@ -6,12 +6,16 @@
         <field name="arch" type="xml">
             <form>
                 <group>
-                    <field name="template_id" />
+                    <field name="template_id"/>
                     <field name="mail_template_id"
                            options="{'no_create': True, 'no_edit': True}"
-                           context="{'default_model': 'account.move'}"/>
-                    <field name="mail_subject" placeholder="Subject..."/>
-                    <field name="mail_body" class="oe-bordered-editor" widget="html_mail"/>
+                           context="{'default_model': 'account.move'}"
+                           invisible="not mandate_id"/>
+                    <field name="mail_subject" placeholder="Subject..." invisible="not mandate_id"/>
+                    <field name="mail_body"
+                           class="oe-bordered-editor"
+                           widget="html_mail"
+                           invisible="not mandate_id"/>
                 </group>
                 <footer>
                     <button
@@ -19,6 +23,14 @@
                         name="action_confirm"
                         type="object"
                         class="btn-primary"
+                        invisible="mandate_id"
+                    />
+                    <button
+                            string='Send Mail'
+                            name="send_mail"
+                            type="object"
+                            class="btn-primary"
+                            invisible="not mandate_id"
                     />
                     <button string="Cancel" class="btn-secondary" special="cancel" />
                 </footer>

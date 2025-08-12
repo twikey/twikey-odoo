@@ -59,35 +59,18 @@
 
     <record id="mandate_email_invite" model="mail.template">
         <field name="name">Invitation: Automatic payment</field>
+        <field name="model">twikey.contract.template.wizard</field>
         <field name="subject">Invitation: Automatic payment</field>
         <field name="body_html" type="html">
-            <t t-set="partner" t-value="ctx.get('wizard').partner_id"/>
+            <t t-set="partner" t-value="object.partner_id"/>
             <div style="margin: 0px; padding: 0px;">
                 <p style="margin: 0px; padding: 0px; font-size: 13px;">
-                    Dear
-                    <t t-if="partner.parent_id">
-                        <t t-out="partner.name or ''">Brandon Freeman</t> (<t t-out="partner.parent_id.name or ''">Azure Interior</t>),
+                    <t t-if="object.mandate_id.url">
+                        <a t-out="object.mandate_id.url">or pay here directly.</a>
                     </t>
                     <t t-else="">
-                        <t t-out="partner.name or ''">Brandon Freeman</t>,
+                        <a>or not.</a>
                     </t>
-                    <br /><br />
-                    Here is your
-                    <t t-if="hasattr(object, 'url') and object.url">
-                        <br />
-                        <a t-att-href="object.url">or pay here directly.</a>
-                    </t>
-
-                    <t t-if="object.name">
-                        invite <span style="font-weight:bold;" t-out="object.name or ''">INV/2021/05/0005</span>
-                    </t>
-                    <t t-else="">
-                        invite
-                    </t>
-                    from <t t-out="object.company_id.name or ''">YourCompany</t>.
-
-                    <br /><br />
-                    Do not hesitate to contact us if you have any questions.
                 </p>
             </div>
         </field>

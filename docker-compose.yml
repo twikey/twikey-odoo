@@ -15,7 +15,7 @@ services:
     volumes:
       - odoo-web-data18:/var/lib/odoo
 #      - ./odoo.conf:/etc/odoo/odoo.conf
-      - ./payment_twikey:/mnt/extra-addons/payment_twikey
+      - ./payment_twikey:./addons/payment_twikey
   db:
     image: postgres:16-alpine
     environment:
