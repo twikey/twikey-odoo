@@ -61,17 +61,23 @@
         <field name="name">Invitation: Automatic payment</field>
         <field name="subject">Invitation: Automatic payment</field>
         <field name="body_html" type="html">
+            <t t-set="partner" t-value="ctx.get('wizard').partner_id"/>
             <div style="margin: 0px; padding: 0px;">
                 <p style="margin: 0px; padding: 0px; font-size: 13px;">
                     Dear
-                    <t t-if="object.parent_id">
-                        <t t-out="object.name or ''">Brandon Freeman</t> (<t t-out="object.parent_id.name or ''">Azure Interior</t>),
+                    <t t-if="partner.parent_id">
+                        <t t-out="partner.name or ''">Brandon Freeman</t> (<t t-out="partner.parent_id.name or ''">Azure Interior</t>),
                     </t>
                     <t t-else="">
-                        <t t-out="object.name or ''">Brandon Freeman</t>,
+                        <t t-out="partner.name or ''">Brandon Freeman</t>,
                     </t>
                     <br /><br />
                     Here is your
+                    <t t-if="hasattr(object, 'url') and object.url">
+                        <br />
+                        <a t-att-href="object.url">or pay here directly.</a>
+                    </t>
+
                     <t t-if="object.name">
                         invite <span style="font-weight:bold;" t-out="object.name or ''">INV/2021/05/0005</span>
                     </t>
