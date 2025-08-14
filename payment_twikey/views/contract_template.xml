@@ -61,6 +61,18 @@
         </field>
     </record>
 
+    <record id="twikey_contract_template_wizard_tree" model="ir.ui.view">
+        <field name="name">twikey.contract.template.wizard.tree</field>
+        <field name="model">twikey.contract.template.wizard</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="partner_id"/>
+                <field name="template_id"/>
+            </tree>
+        </field>
+    </record>
+
+
     <record id="contract_template_action" model="ir.actions.act_window">
         <field name="name">Twikey Profiles</field>
         <field name="res_model">twikey.contract.template</field>
