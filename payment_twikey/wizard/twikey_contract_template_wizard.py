@@ -90,7 +90,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                 field_id = self.env["ir.model.fields"].search(
                     [("name", "=", key), ("model_id", "=", model_id.id)]
                 )
-                if field_id.type != "boolean" and not value:
+                if field_id.ttype != "boolean" and not value:
                     get_fields[0].update({key: ""})
                 key_split = key.split("_")
                 if len(key_split) > 0 and key_split[0] == "x":
