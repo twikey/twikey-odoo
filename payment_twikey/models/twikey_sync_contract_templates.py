@@ -226,6 +226,7 @@ class SyncContractTemplates(models.AbstractModel):
             if template_id.is_creditcard() and twikey_attr_name not in [
                 "_expiry",
                 "_last",
+                "amount",
                 "_cctype",
             ]:
                 continue
