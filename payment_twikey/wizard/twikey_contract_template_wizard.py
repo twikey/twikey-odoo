@@ -27,8 +27,6 @@ class TwikeyContractTemplateWizard(models.TransientModel):
     _name = "twikey.contract.template.wizard"
     _description = "Wizard for Select Twikey Profile"
 
-    name = fields.Char()
-    reference = fields.Char(string="Mandate number")
     partner_id = fields.Many2one(comodel_name="res.partner")
 
     template_id = fields.Many2one("twikey.contract.template", string="Twikey Profile id", ondelete="cascade", )
@@ -37,6 +35,8 @@ class TwikeyContractTemplateWizard(models.TransientModel):
     mail_template_id = fields.Many2one(comodel_name='mail.template', string="Email template")
     mail_subject = fields.Char(string="Subject", ) #compute='_compute_mail_subject_body_partners'
     mail_body = fields.Html(string="Contents", sanitize_style=True, ) #compute='_compute_mail_subject_body_partners',
+
+    mandate_id = fields.Many2one(comodel_name= "twikey.mandate.details")
 
     @api.model
     def default_get(self, fields):
@@ -47,20 +47,20 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             res['partner_id'] = active_id
         return res
 
-    @api.onchange('mail_template_id')
+    @api.onchange('mail_template_id','mandate_id')
     def _compute_mail_subject_body_partners(self):
         self.mail_template_id = self.env.ref('payment_twikey.mandate_email_invite')
-        if self.mail_template_id and self.partner_id:
+        if self.mail_template_id and self.mandate_id:
             lang = self.partner_id.lang
-            mail_context = self.mail_template_id.with_context(lang=lang,wizard=self)
-            partner_index = self.partner_id._origin.id
-            self.mail_subject = mail_context._render_field('subject', self.partner_id.ids)[partner_index]
-            self.mail_body = mail_context._render_field('body_html', self.partner_id.ids, options={'post_process': True})[
-                partner_index]
+            mail_context = self.mail_template_id.with_context(lang=lang)
+            subject = mail_context._render_field('subject', self.ids)
+            body = mail_context._render_field('body_html', self.ids, options={'post_process': True})
+            id = self.id.origin
+            self.mail_subject = subject[id]
+            self.mail_body = body[id]
         else:
             _logger.debug("Clearing mail fields")
             self.mail_subject = self.mail_body = None
-
 
     def action_confirm(self):
         payload = get_twikey_customer(self.partner_id)
@@ -104,7 +104,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                 twikey_client.refreshTokenIfRequired()
                 resp_obj = twikey_client.document.create(payload)
                 _logger.info("Creating new mandate with response: %s" % resp_obj)
-                mandate_id = (
+                self.mandate_id = (
                     self.env["twikey.mandate.details"].create(
                         {
                             "template_id": self.template_id.id,
@@ -125,18 +125,14 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                         }
                     )
                 )
-                # mandate_id.with_context(update_feed=True).write(get_fields[0])
-                mail_values = {
-                    'subject': self.mail_subject,
-                    'body_html': self.mail_body,
-                    'email_to': self.partner_id.email,
+                return {
+                    'type': 'ir.actions.act_window',
+                    'res_model': self._name,
+                    'view_mode': 'form',
+                    'res_id': self.id,
+                    'target': 'new',
+                    'flags': {'form': {'action_buttons': True}},
                 }
-                mail_id = self.mail_template_id.with_context(wizard=self, custom_values=mail_values).send_mail(
-                    mandate_id.id,
-                    force_send=True,  # Send immediately instead of waiting for cron
-                    raise_exception=True
-                )
-                _logger.info(f"Sent mandate invite to {self.partner_id.email} with number {mandate_id.reference} (id={mail_id})")
         except TwikeyError as e:
             errmsg = "Exception raised while creating a new Mandate:\n%s" % e
             self.env["discuss.channel"].search([("name", "=", "twikey")]).message_post(subject="Configuration",
@@ -148,3 +144,17 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             )
 
         return get_success_msg("Mandate invitation(s) created successfully.")
+
+
+    def send_mail(self):
+        mail_values = {
+            'subject': self.mail_subject,
+            'body_html': self.mail_body,
+            'email_to': self.partner_id.email,
+        }
+        mail_id = self.mail_template_id.with_context(wizard=self, custom_values=mail_values).send_mail(
+            self.id,
+            # force_send=True,  # Send immediately instead of waiting for cron
+            raise_exception=True
+        )
+        _logger.info(f"Sent mandate invite to {self.partner_id.email} with number {self.mandate_id.reference} (id={mail_id})")
