@@ -67,26 +67,19 @@
                 <p style="margin: 0px; padding: 0px; font-size: 13px;">
                     Dear
                     <t t-if="partner.parent_id">
-                        <t t-out="object.partner_id.name or ''">Brandon Freeman</t> (<t t-out="partner.parent_id.name or ''">Azure Interior</t>),
+                        <t t-out="partner.name or ''">Brandon Freeman</t> (<t t-out="partner.parent_id.name or ''">Azure Interior</t>),
                     </t>
                     <t t-else="">
-                        <t t-out="object.partner_id.name or ''">Brandon Freeman</t>,
+                        <t t-out="partner.name or ''">Brandon Freeman</t>,
                     </t>
                     <br /><br />
                     Here is your
-                    <t t-if="object.mandate_id.url">
-                        <br />
-                        <a t-att-href="object.mandate_id.url">or pay here directly.</a>
-                    </t>
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        <t t-if="object.mandate_id.url">
+                            <a t-out="object.mandate_id.url">Sign your mandate here.</a>
+                        </t>
+                    </p>
 
-                    <t t-if="object.mandate_id.reference">
-                        invite <span style="font-weight:bold;" t-out="object.mandate_id.reference or ''">MANDATE123</span>
-                    </t>
-                    <t t-else="">
-                        invite
-                    </t>
-
-                    <br /><br />
                     Do not hesitate to contact us if you have any questions.
                 </p>
             </div>
