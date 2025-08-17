@@ -55,7 +55,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             mail_context = self.mail_template_id.with_context(lang=lang)
             subject = mail_context._render_field('subject', self.ids)
             body = mail_context._render_field('body_html', self.ids, options={'post_process': True})
-            id = self.id.origin
+            id = self.id
             self.mail_subject = subject[id]
             self.mail_body = body[id]
         else:
@@ -90,7 +90,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                 field_id = self.env["ir.model.fields"].search(
                     [("name", "=", key), ("model_id", "=", model_id.id)]
                 )
-                if field_id.type != "boolean" and not value:
+                if field_id.ttype != "boolean" and not value:
                     get_fields[0].update({key: ""})
                 key_split = key.split("_")
                 if len(key_split) > 0 and key_split[0] == "x":
@@ -125,6 +125,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                         }
                     )
                 )
+                self._compute_mail_subject_body_partners()
                 return {
                     'type': 'ir.actions.act_window',
                     'res_model': self._name,
@@ -143,7 +144,14 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                 str(e), "Exception raised while creating a new Mandate", sticky=True
             )
 
-        return get_success_msg("Mandate invitation(s) created successfully.")
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'new',
+            'flags': {'form': {'action_buttons': True}},
+        }
 
 
     def send_mail(self):
@@ -158,3 +166,4 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             raise_exception=True
         )
         _logger.info(f"Sent mandate invite to {self.partner_id.email} with number {self.mandate_id.reference} (id={mail_id})")
+        return get_success_msg("Mandate invitation(s) created successfully.")

@@ -76,10 +76,7 @@
                     Here is your
                     <p style="margin: 0px; padding: 0px; font-size: 13px;">
                         <t t-if="object.mandate_id.url">
-                            <a t-out="object.mandate_id.url">or pay here directly.</a>
-                        </t>
-                        <t t-else="">
-                            <a>or not.</a>
+                            <a t-out="object.mandate_id.url">Sign your mandate here.</a>
                         </t>
                     </p>
 
