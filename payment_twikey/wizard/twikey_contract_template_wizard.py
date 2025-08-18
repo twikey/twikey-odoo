@@ -144,8 +144,6 @@ class TwikeyContractTemplateWizard(models.TransientModel):
                 str(e), "Exception raised while creating a new Mandate", sticky=True
             )
 
-        return get_success_msg("Mandate invitation(s) created successfully.")
-
 
     def send_mail(self):
         mail_values = {
