@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <record id="contract_template_view_twikey_form" model="ir.ui.view">
-        <field name="name">contract.template.twikey.form.view</field>
+        <field name="name">contract.template.view.twikey.form</field>
         <field name="model">twikey.contract.template</field>
         <field name="arch" type="xml">
             <form>
@@ -22,10 +22,10 @@
                     <notebook>
                         <page name="twikey_attributes">
                             <field name="twikey_attribute_ids">
-                                <tree editable="bottom">
+                                <list>
                                     <field name="name" />
                                     <field name="type" />
-                                </tree>
+                                </list>
                                 <form>
                                     <sheet>
                                         <div class="oe_title">
@@ -53,7 +53,7 @@
         <field name="name">contract.template.view.twikey.tree</field>
         <field name="model">twikey.contract.template</field>
         <field name="arch" type="xml">
-            <list js_class="twikey_contract_template">
+            <list  create="false" delete="false">
                 <field name="name" />
                 <field name="twikey_id" />
                 <field name="type" />
@@ -64,13 +64,13 @@
     <record id="contract_template_action" model="ir.actions.act_window">
         <field name="name">Twikey Profiles</field>
         <field name="res_model">twikey.contract.template</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem
         id="menu_action_contract_template_view"
         action="contract_template_action"
-        parent="contacts.res_partner_menu_config"
+        parent="contacts.menu_contacts"
         sequence="1"
     />
 </odoo>
