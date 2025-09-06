@@ -227,7 +227,6 @@ class SyncContractTemplates(models.AbstractModel):
                 "_expiry",
                 "_last",
                 "_cctype",
-                "amount",
             ]:
                 continue
             select_list = []

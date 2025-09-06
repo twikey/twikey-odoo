@@ -47,7 +47,7 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             res['partner_id'] = active_id
         return res
 
-    @api.onchange('mail_template_id','mandate_id')
+    @api.onchange('mail_template_id')
     def _compute_mail_subject_body_partners(self):
         self.mail_template_id = self.env.ref('payment_twikey.mandate_email_invite')
         if self.mail_template_id and self.mandate_id:
@@ -143,15 +143,6 @@ class TwikeyContractTemplateWizard(models.TransientModel):
             return get_error_msg(
                 str(e), "Exception raised while creating a new Mandate", sticky=True
             )
-
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'view_mode': 'form',
-            'res_id': self.id,
-            'target': 'new',
-            'flags': {'form': {'action_buttons': True}},
-        }
 
 
     def send_mail(self):
