@@ -43,7 +43,7 @@
         <field name="name">Twikey: Invoice Sender</field>
         <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
-        <field name="code">model.send_invoices()</field>
+        <field name="code">model.send_invoices(cron=True)</field>
         <field name="interval_number">1</field>
         <field name="interval_type">hours</field>
         <field name="numbercall">-1</field>
