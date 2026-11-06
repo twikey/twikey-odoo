@@ -129,6 +129,14 @@ class TwikeyController(http.Controller):
             "handling redirection from Twikey with data: %s",
             pprint.pformat(object=data, compact=True),
         )
+        # The return URL is rendered in the customer's browser and is therefore
+        # attacker-controllable, so a `status` taken from it must never be trusted
+        # (otherwise appending &status=paid to /twikey/status confirms an order
+        # without payment). Force a non-final status here; the signed /twikey
+        # webhook -- and, for tokenized flows, the verified mandate state checked
+        # in _process_notification_data -- remain the only sources of truth for
+        # marking a transaction paid.
+        data = dict(data, status="pending")
         request.env["payment.transaction"].sudo()._handle_notification_data(
             "twikey", data
         )
